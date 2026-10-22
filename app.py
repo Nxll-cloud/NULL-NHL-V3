@@ -15,10 +15,11 @@ from storyline_v38 import fetch_history, merge_history
 from data_integrity_v381 import merge_profile_batches, coverage_audit
 from diagnostics_v382 import diagnostic_summary
 from schedule_validation_v384 import audit_schedule
+from roster_schedule_v385 import audit_roster_and_history
 
-st.set_page_config(page_title='NULL NHL V3.8.2', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.8.5', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.8.2')
+st.title('NULL NHL V3.8.5')
 storyline_top = st.container()
 with storyline_top:
     st.subheader('🏆 Top Verified Storyline Candidate')
@@ -339,6 +340,29 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
                 st.write(se)
         st.download_button('Download V3.8.4 schedule and player audit CSV', sp.to_csv(index=False),
                            file_name=f'null-v384-schedule-audit-{day}.csv', mime='text/csv')
+    st.subheader('V3.8.5 Roster & Historical Schedule Verification')
+    st.caption('Checks NHL season-roster membership by player ID and counts completed pre-slate team games. Season-roster membership does not establish the player was on that team on the selected historical date.')
+    if st.button('Verify player rosters and historical schedule coverage'):
+        with st.spinner('Fetching independent team rosters and schedules...'):
+            try:
+                rp, rt, re = audit_roster_and_history(st.session_state['signals_ranked'].to_dict('records'),games,day)
+                st.session_state['v385_audit']=(rp,rt,re)
+                st.session_state['v385_day']=day
+            except Exception as exc:
+                st.error(f'V3.8.5 audit unavailable: {type(exc).__name__}: {exc}')
+    if st.session_state.get('v385_day')==day and 'v385_audit' in st.session_state:
+        rp,rt,re=st.session_state['v385_audit']
+        st.metric('Players checked',len(rp))
+        if not rp.empty:
+            st.metric('Players not found on assigned roster',int((rp['Roster membership']=='NOT FOUND on assigned team roster').sum()))
+            st.dataframe(rp,hide_index=True,use_container_width=True)
+            st.download_button('Download V3.8.5 player roster audit CSV',rp.to_csv(index=False),file_name=f'null-v385-roster-{day}.csv',mime='text/csv')
+        if not rt.empty:
+            st.dataframe(rt,hide_index=True,use_container_width=True)
+            st.download_button('Download V3.8.5 team schedule coverage CSV',rt.to_csv(index=False),file_name=f'null-v385-team-coverage-{day}.csv',mime='text/csv')
+        if re:
+            st.warning(f'{len(re)} retrieval/validation errors; unavailable data is not counted as zero.')
+            with st.expander('V3.8.5 retrieval errors'): st.write(re)
     st.download_button('Download V3.8.2 audit CSV', pd.DataFrame([diagnostic]).to_csv(index=False), file_name=f'null-v382-audit-{day}.csv', mime='text/csv')
     st.subheader('V3.8.2 Combined Statistical + Experimental Explorer')
     st.caption('Statistical form and experimental overlaps are separate columns. Neither is a calibrated goal probability. Former-team, milestone and news claims are marked unverified.')
