@@ -1,5 +1,5 @@
 """NULL NHL V3.2: source-first NHL slate and descriptive player form."""
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 import pandas as pd
 import requests
 import streamlit as st
@@ -21,8 +21,9 @@ from storyline_v387 import separate_leaders
 from ranking_integrity_v3871 import assign_statistical_ranks, validate_statistical_ranks
 from historical_coverage_v388 import historical_coverage
 
-st.set_page_config(page_title="Null's Playbook | NHL", page_icon='👑', layout='wide', initial_sidebar_state='expanded')
+st.set_page_config(page_title="Null's Playbook | NHL", page_icon='👑', layout='wide', initial_sidebar_state='collapsed')
 from playbook_odds import compare_odds
+from streamlit_autorefresh import st_autorefresh
 
 st.markdown("""<style>
 :root {color-scheme:dark}
@@ -61,6 +62,27 @@ st.markdown("""<style>
 @media(max-width:768px){.np-match{flex-basis:145px}.np-feature{flex-basis:185px}.np-mobile-footer{display:block;text-align:center;color:#91c9ed;font-size:11px;letter-spacing:.04em;padding:18px 0 12px}.stTabs [data-baseweb="tab-list"]{gap:5px;position:sticky;top:0;z-index:10;background:#071322;padding:7px 0}.stTabs [data-baseweb="tab"]{padding:8px 11px;font-size:14px}}
 </style>""",unsafe_allow_html=True)
 
+
+st.markdown("""<style>
+@media(max-width:768px){
+ .np-hero{padding:16px 17px!important;margin-bottom:10px!important;border-radius:16px!important}
+ .np-title{font-size:1.85rem!important;line-height:1.06!important}
+ .np-sub{font-size:.78rem!important}
+ [data-testid="stMetric"]{padding:7px 9px!important;border-radius:11px!important}
+ [data-testid="stMetricLabel"]{font-size:.67rem!important}
+ [data-testid="stMetricValue"]{font-size:1.22rem!important}
+ .np-feature{flex-basis:166px!important;padding:11px!important}
+ .np-feature-top{height:88px!important}
+ .np-photo{height:92px!important;width:94px!important}
+ .np-feature-score{font-size:21px!important}
+ .np-match{flex-basis:134px!important;padding:10px!important}
+ .np-match-logos img{height:38px!important;width:38px!important}
+ .stTabs [data-baseweb="tab-list"]{position:sticky;top:0;z-index:30;justify-content:space-around;box-shadow:0 5px 15px #0007}
+ .stTabs [data-baseweb="tab"]{font-weight:700!important;font-size:13px!important}
+ .block-container{padding-top:1.3rem!important}
+}
+</style>""",unsafe_allow_html=True)
+
 with st.sidebar:
     st.markdown('### 👑 Null’s Playbook')
     st.caption('DATA · NUMBERS · EDGES')
@@ -71,16 +93,39 @@ with st.sidebar:
     st.caption('Upload licensed/authorized odds data below to compare available prices. No sportsbook feeds are connected by default.')
 
 
+# Session-local 30-minute timer: reruns only while this Streamlit page is open.
+# Data calls are cached independently and the user can force a refresh below.
+st_autorefresh(interval=30 * 60 * 1000, key='playbook_v42_30min_timer')
+
+# One shared date for every screen; a date change automatically invalidates the slate.
+np_selected_date=st.date_input('📅 NHL slate date',date.today(),key='playbook_v42_date')
+np_day=np_selected_date.isoformat()
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def schedule_cached(day):
+    return get_schedule(day)
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def team_cached(team, day):
+    return load_team(team, day, SEASON)
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def defense_cached(team, day):
+    return defense_summary(team, day, SEASON)
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def historical_cached(day, years, player_ids, games_signature, _ranked_rows, _games):
+    return fetch_multi_history(_ranked_rows, _games, day, max_players=len(_ranked_rows), years=years)
+
 np_home_tab,np_odds_tab,np_research_tab=st.tabs(['🏠 Home','⚡ Odds','📊 Research'])
 with np_home_tab:
 
     import html as _np_html
     from datetime import date as _np_date
-    st.markdown("""<div class="np-hero"><div class="np-kicker">👑 NULL'S PLAYBOOK · V4.1</div><div class="np-title">Your NHL command center.</div><div class="np-sub">Verified rankings · matchup intelligence · historical storylines · sportsbook price comparison</div></div>""", unsafe_allow_html=True)
-    st.caption('Real NHL data only. Odds appear only after an actual feed is uploaded. Model indexes are not goal probabilities.')
-    np_day=st.date_input('📅 Slate date', _np_date.today(), key='np_home_day').isoformat()
+    st.markdown("""<div class="np-hero"><div class="np-kicker">👑 NULL'S PLAYBOOK · V4.2</div><div class="np-title">Your NHL command center.</div><div class="np-sub">Verified rankings · matchup intelligence · historical storylines · sportsbook price comparison</div></div>""", unsafe_allow_html=True)
+    st.caption('Auto-run enabled · 30-minute refresh while open · three prior seasons · real NHL data only')
     try:
-        np_games=get_schedule(np_day)
+        np_games=schedule_cached(np_day)
     except (requests.RequestException, ValueError, KeyError, TypeError) as np_err:
         np_games=[]
         st.warning(f'Unable to load matchups: {np_err}')
@@ -98,7 +143,7 @@ with np_home_tab:
     np_b.metric('Ranked players',len(np_ranked) if np_ready else '—')
     np_c.metric('Sportsbooks loaded',st.session_state['playbook_odds_data']['sportsbook'].nunique() if isinstance(st.session_state.get('playbook_odds_data'),pd.DataFrame) and 'sportsbook' in st.session_state['playbook_odds_data'] else '—')
     if not np_ready:
-        st.info('Run **Rank Entire Slate** in the Research tab for this date. Your ranked player cards will then appear here.')
+        st.info('⏳ Automatically loading the full NHL slate and three seasons of opponent history. This may take a few minutes on first load.')
     else:
         np_view=assign_statistical_ranks(np_ranked.copy())
         np_view=merge_history(np_view, st.session_state.get('history_v38') if st.session_state.get('history_v38_day')==np_day else None)
@@ -111,7 +156,7 @@ with np_home_tab:
             img=f'https://assets.nhle.com/mugs/nhl/20262027/{t}/{pid}.png' if pid else ''
             idx=float(r.get('V3.2 Adjusted Index',0))
             rank=int(r.get('Statistical rank',0))
-            np_cards.append(f'<div class="np-feature"><div class="np-feature-top"><span class="np-rank">#{rank}</span><img loading="lazy" class="np-photo" src="{img}" alt="Player portrait"/></div><b>{n}</b><small>{t} · Statistical rank #{rank}</small><div class="np-feature-score">{idx:.1f}<span> FORM INDEX</span></div></div>')
+            np_cards.append(f'<div class="np-feature"><div class="np-feature-top"><span class="np-rank">#{rank}</span><img loading="lazy" class="np-photo" src="{img}" alt="Player portrait"/></div><b>{n}</b><small><img style="width:18px;height:18px;vertical-align:middle;object-fit:contain" src="https://assets.nhle.com/logos/nhl/svg/{t}_light.svg" alt=""/> {t} · Rank #{rank}</small><div class="np-feature-score">{idx:.1f}<span> FORM INDEX</span></div></div>')
         st.markdown('<div class="np-feature-scroll">'+''.join(np_cards)+'</div>',unsafe_allow_html=True)
         st.markdown('#### 📊 Statistical leaderboard')
         np_cols=[c for c in ['Statistical rank','Player','Team','V3.2 Adjusted Index','Shots/G L5'] if c in np_view]
@@ -171,26 +216,17 @@ with np_research_tab:
     with storyline_top:
         st.subheader('🏆 NULL NHL — Four Distinct Leaders')
         st.caption('Evidence-first, pre-slate storylines. Former-team and injury/news claims are not inferred.')
-    st.caption('Verified NHL data | Pregame player form | Model probabilities pending')
-    selected_date = st.date_input('NHL slate date', date.today())
-    day = selected_date.isoformat()
+    st.caption('Automatic full-slate ranking · refreshes every 30 minutes while open · three prior seasons · not calibrated probabilities')
+    day = np_day
 
-    @st.cache_data(ttl=900, show_spinner=False)
-    def schedule_cached(day):
-        return get_schedule(day)
-
-    @st.cache_data(ttl=3600, show_spinner=False)
-    def team_cached(team, day):
-        return load_team(team, day, SEASON)
-
-    @st.cache_data(ttl=3600, show_spinner=False)
-    def defense_cached(team, day):
-        return defense_summary(team, day, SEASON)
-
-    if st.button('Refresh NHL Data'):
+    if st.button('↻ Refresh now', key='v42_manual_refresh'):
         schedule_cached.clear()
         team_cached.clear()
         defense_cached.clear()
+        historical_cached.clear()
+        st.session_state.pop('v42_last_rank', None)
+        st.session_state.pop('v42_history_attempt', None)
+        st.rerun()
 
     try:
         games = schedule_cached(day)
@@ -260,7 +296,15 @@ with np_research_tab:
     if games:
         min_games = st.slider('Minimum prior games per player', 1, 10, 3)
         use_defense = st.checkbox('Apply opponent defense adjustment', value=True)
-        if st.button('Rank Entire Slate', type='primary'):
+        # Auto-run on first open, selected-date change, or after the 30-minute interval.
+        # Never silently replace an older pregame snapshot with a current-time reconstruction.
+        _v42_key=(day,int(min_games),bool(use_defense))
+        _v42_last=st.session_state.get('v42_last_rank')
+        _v42_due=(not _v42_last or _v42_last.get('key')!=_v42_key
+                  or datetime.now(timezone.utc)-_v42_last['at']>=timedelta(minutes=30)
+                  or st.session_state.get('signals_day')!=day)
+        if games and _v42_due:
+            st.info('⏳ Auto-analyzing all teams for the selected date…')
             teams_to_load = sorted({g[t] for g in games for t in ('Home', 'Away') if g.get(t)})
             all_rows, all_errors = [], []
             progress = st.progress(0, text='Loading all teams')
@@ -305,6 +349,8 @@ with np_research_tab:
             if ranked:
                 st.session_state['signals_ranked'] = pd.DataFrame(ranked)
                 st.session_state['signals_day'] = day
+                st.session_state['v42_last_rank']={'key':_v42_key,'at':datetime.now(timezone.utc)}
+                st.session_state['v42_needs_home_refresh']=True
                 try:
                     snapshot = make_snapshot(ranked, games, day)
                     st.download_button('Save PRE-GAME snapshot CSV (keep this file)',
@@ -538,10 +584,34 @@ with np_research_tab:
             if re:
                 st.warning(f'{len(re)} retrieval/validation errors; unavailable data is not counted as zero.')
                 with st.expander('V3.8.5 retrieval errors'): st.write(re)
+        # V4.2: three prior seasons for the ENTIRE ranked slate, automatically.
+        _v42_ranked=st.session_state.get('signals_ranked')
+        if isinstance(_v42_ranked,pd.DataFrame) and not _v42_ranked.empty and st.session_state.get('signals_day')==day:
+            _v42_ids=tuple(_v42_ranked['Player ID'].astype(str).tolist())
+            _v42_games_sig=tuple(sorted(str(g.get('Game ID','')) for g in games))
+            _v42_hist_key=(day,3,_v42_ids,_v42_games_sig)
+            if st.session_state.get('v42_history_attempt')!=_v42_hist_key:
+                st.session_state['v42_history_attempt']=_v42_hist_key
+                with st.spinner(f'Auto-loading three prior seasons for {len(_v42_ids)} players…'):
+                    try:
+                        _v42_h,_v42_e=historical_cached(day,3,_v42_ids,_v42_games_sig,_v42_ranked.to_dict('records'),games)
+                        st.session_state['history_v386']=_v42_h
+                        st.session_state['history_v386_day']=day
+                        st.session_state['history_v386_years']=3
+                        st.session_state['history_v386_errors']=_v42_e
+                        st.session_state['v42_history_loaded_at']=datetime.now(timezone.utc)
+                        st.session_state['v42_needs_home_refresh']=True
+                        if _v42_e:
+                            st.warning(f'Historical data has {len(_v42_e)} retrieval errors; coverage is shown below.')
+                    except Exception as exc:
+                        st.warning(f'Automatic historical analysis unavailable: {type(exc).__name__}: {exc}. Retry with Refresh now.')
+            # Home is above Research in execution order, so refresh cards after a new fetch.
+            if st.session_state.pop('v42_needs_home_refresh',False):
+                st.rerun()
         st.subheader('V3.8.6 Multi-Season Opponent Storylines')
         st.caption('Previous NHL regular seasons only, with per-season source links and missing-data warnings. Descriptive history is NOT a calibrated goalscorer probability.')
-        v386_count = st.select_slider('Players for multi-season history',options=[10,25,50,100,250,500],value=50,key='v386_count')
-        v386_years = st.selectbox('Previous seasons to inspect',options=[1,2,3],index=2,key='v386_years')
+        v386_count = st.select_slider('Players for manual history recheck',options=[10,25,50,100,250,500],value=500,key='v386_count')
+        v386_years = st.selectbox('Previous seasons to inspect manually',options=[1,2,3],index=2,key='v386_years')
         if st.button('Fetch multi-season opponent history'):
             with st.spinner('Retrieving prior-season player game logs...'):
                 try:
