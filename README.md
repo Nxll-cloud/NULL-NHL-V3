@@ -17,3 +17,8 @@ For each team, retrieve the NHL public API season schedule and select games date
 
 ## Deployment
 Upload the extracted Python files, README, requirements and tests. Streamlit Community Cloud redeploys after the commit. Tap **Rank Entire Slate** and inspect defensive coverage. Large slates may take longer and encounter NHL API rate limits.
+
+
+## V3.6
+
+Full-slate profile fetch up to 500 ranked players (6 concurrent requests; per-process profile cache (clears on app restart)), date-specific birthday flags, pregame five-game goal-form flags, combined table and filters. Run **Rank Entire Slate**, then **Fetch NHL player biographies and arenas**. Long initial fetches may take time. Download the combined CSV. No automatic claims about injuries, former-team matchups, or milestones; those require verified historical evidence. Numerical overlap is descriptive, not predictive.

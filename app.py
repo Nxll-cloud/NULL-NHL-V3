@@ -9,10 +9,11 @@ from matchups import defense_summary, attach_matchups
 from backtesting import make_snapshot, score_snapshot, top_k_metrics
 from signals import build_signals, universal_day
 from auto_signals import fetch_metadata
+from storylines_v36 import build_storylines, combined_table
 
-st.set_page_config(page_title='NULL NHL V3.5', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.6', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.5')
+st.title('NULL NHL V3.6')
 st.caption('Verified NHL data | Pregame player form | Model probabilities pending')
 selected_date = st.date_input('NHL slate date', date.today())
 day = selected_date.isoformat()
@@ -202,8 +203,8 @@ st.caption('Name Pythagorean: A=1 through I=9, repeating. English ordinal: A=1 t
 st.caption('Optional metadata CSV columns: Player ID, Jersey, Birth date (YYYY-MM-DD), Arena, '
            'Verified storyline, Source URL. Only sourced storyline text is displayed. '
            'Names, arena spellings, and birthdays require independent verification.')
-st.caption('NHL player landing profiles supply birthdays and current jersey numbers. Arena names come from the NHL schedule. No injuries, revenge games, milestones or confirmed lineups are inferred automatically.')
-auto_limit = st.select_slider('NHL profiles to fetch (top-ranked players)', options=[10, 25, 50, 100], value=50)
+st.caption('NHL player profiles supply birthdays and current jersey numbers; arenas come from schedules. Historical team membership, news, injuries, former-team matches and milestones remain unverified.')
+auto_limit = st.select_slider('NHL profiles to fetch (top-ranked players)', options=[10, 25, 50, 100, 250, 500], value=500)
 if st.button('Fetch NHL player biographies and arenas'):
     if 'signals_ranked' not in st.session_state or st.session_state.get('signals_day') != day:
         st.warning('Run Rank Entire Slate first.')
@@ -237,6 +238,19 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
     st.caption(f'{len(signals)} players evaluated. Pattern overlap counts are descriptive, '
                'not confidence scores. Missing biographical data remains unavailable.')
     st.dataframe(signals, hide_index=True, use_container_width=True)
+    storylines = build_storylines(st.session_state['signals_ranked'], metadata if metadata is not None else pd.DataFrame(), day)
+    combined = combined_table(st.session_state['signals_ranked'], signals, storylines)
+    st.subheader('V3.6 Combined Statistical + Experimental Explorer')
+    st.caption('Statistical form and experimental overlaps are separate columns. Neither is a calibrated goal probability. Former-team, milestone and news claims are marked unverified.')
+    only_stories = st.checkbox('Show only sourced storyline flags', value=False)
+    minimum_overlap = st.slider('Minimum experimental pattern overlaps', 0, 5, 0)
+    longshot_only = st.checkbox('Statistical sleeper watch (outside top 20, L5 shots/game >= 2)', value=False)
+    combined['Statistical rank'] = range(1, len(combined)+1)
+    filtered = combined[combined['Pattern overlaps'] >= minimum_overlap]
+    if only_stories: filtered = filtered[filtered['Storyline count'] > 0]
+    if longshot_only: filtered = filtered[(filtered['Statistical rank'] > 20) & (filtered['Shots/G L5'] >= 2)]
+    st.dataframe(filtered, hide_index=True, use_container_width=True)
+    st.download_button('Download combined V3.6 CSV', filtered.to_csv(index=False), file_name=f'null-v36-combined-{day}.csv', mime='text/csv')
     st.download_button('Download experimental signals CSV', signals.to_csv(index=False),
                        file_name=f'null-experimental-signals-{day}.csv', mime='text/csv')
 else:

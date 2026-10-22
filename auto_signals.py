@@ -2,6 +2,11 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 from nhl_data import fetch_json
+from functools import lru_cache
+
+@lru_cache(maxsize=1024)
+def cached_player_profile(player_id):
+    return fetch_json(f'player/{int(player_id)}/landing')
 
 
 def arena_lookup(games):
@@ -16,11 +21,11 @@ def arena_lookup(games):
     return out
 
 
-def profile_metadata(row, day, arenas=None):
+def profile_metadata(row, day, arenas=None, use_cache=False):
     pid = row.get('Player ID')
     if not pid:
         raise ValueError('Missing player ID')
-    profile = fetch_json(f'player/{int(pid)}/landing')
+    profile = cached_player_profile(int(pid)) if use_cache else fetch_json(f'player/{int(pid)}/landing')
     if int(profile.get('playerId', -1)) != int(pid):
         raise ValueError('Player profile ID mismatch')
     dob = profile.get('birthDate') or ''
@@ -44,7 +49,7 @@ def fetch_metadata(rows, day, games, max_players=50, workers=6):
     arenas = arena_lookup(games)
     records, errors = [], []
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(profile_metadata, row, day, arenas): row for row in rows}
+        futures = {pool.submit(profile_metadata, row, day, arenas, True): row for row in rows}
         for future in as_completed(futures):
             try:
                 records.append(future.result())
