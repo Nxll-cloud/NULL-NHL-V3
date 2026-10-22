@@ -18,7 +18,7 @@ def rank_players(rows, min_gp=3):
         index = round(40 * s5 / 4 + 25 * s10 / 4
                       + 20 * g_rate / .5 + 15 * g5_rate / .5, 1)
         ranked.append({
-            "Player": r["Player"], "Team": r["Team"],
+            "Player": r["Player"], "Player ID": r.get("id"), "Team": r["Team"],
             "Position": r["Position"], "Form Index": index,
             "Shots/G L5": round(s5, 2),
             "Shots/G L10": round(s10, 2),

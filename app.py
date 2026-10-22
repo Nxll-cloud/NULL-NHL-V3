@@ -6,10 +6,11 @@ import streamlit as st
 from nhl_data import get_schedule, load_team, SEASON
 from rankings import rank_players
 from matchups import defense_summary, attach_matchups
+from backtesting import make_snapshot, score_snapshot, top_k_metrics
 
-st.set_page_config(page_title='NULL NHL V3.2', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.3', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.2')
+st.title('NULL NHL V3.3')
 st.caption('Verified NHL data | Pregame player form | Model probabilities pending')
 selected_date = st.date_input('NHL slate date', date.today())
 day = selected_date.isoformat()
@@ -131,6 +132,15 @@ if games:
         if not defensive:
             st.warning('No opponent defensive context available. Form rankings are unadjusted.')
         if ranked:
+            try:
+                snapshot = make_snapshot(ranked, games, day)
+                st.download_button('Save PRE-GAME snapshot CSV (keep this file)',
+                                   snapshot.to_csv(index=False),
+                                   file_name=f'null-pregame-{day}.csv', mime='text/csv')
+                st.caption('Snapshot is saved to YOUR device only. Download before the first puck drop. '
+                           'A later download cannot recreate a genuine pregame prediction.')
+            except (KeyError, ValueError, TypeError) as exc:
+                st.info(f'Pregame snapshot unavailable: {exc}')
             st.dataframe(pd.DataFrame(ranked), hide_index=True, use_container_width=True)
             st.download_button('Download rankings CSV', pd.DataFrame(ranked).to_csv(index=False),
                                file_name=f'null-nhl-v3-2-{day}.csv', mime='text/csv')
@@ -151,7 +161,32 @@ if games:
                    'Do not use this ranking as a historical pregame prediction or calibrated probability.')
 else:
     st.info('Select a date with games to calculate full-slate form rankings.')
-st.subheader('Historical Predictions')
-st.info('No saved predictions yet. Future backtests must use pregame snapshots.')
+st.divider()
+st.subheader('V3.3 Historical Backtesting')
+st.caption('Upload a CSV saved before the first game started. The app does not persist snapshots. '
+           'This evaluates eligible roster-based predictions, not historically verified lineups.')
+uploaded = st.file_uploader('Upload a pregame snapshot CSV', type=['csv'])
+if uploaded is not None:
+    try:
+        saved = pd.read_csv(uploaded)
+        st.caption(f'Loaded {len(saved)} snapshot rows. Outcomes require completed NHL boxscores.')
+        if st.button('Score snapshot against final NHL boxscores'):
+            with st.spinner('Checking final boxscores...'):
+                scored, failures = score_snapshot(saved)
+            if failures:
+                st.warning('Some games could not be verified. Incomplete results are excluded from metrics.')
+                with st.expander('Boxscore errors'):
+                    st.write(failures)
+            if not scored.empty:
+                st.dataframe(top_k_metrics(scored), hide_index=True, use_container_width=True)
+                st.dataframe(scored, hide_index=True, use_container_width=True)
+                st.download_button('Download scored snapshot CSV', scored.to_csv(index=False),
+                                   file_name='null-scored-snapshot.csv', mime='text/csv')
+                st.caption('Top-K hit rate = players scoring at least one goal / K; not betting ROI, '
+                           'calibration, or proof of predictive improvement.')
+            else:
+                st.warning('No completed, verifiable games were available.')
+    except (ValueError, KeyError, TypeError, pd.errors.ParserError) as exc:
+        st.error(f'Snapshot could not be processed: {exc}')
 st.subheader('Experimental Storyline & Numerology Signals')
 st.caption('Not implemented. These signals will be separated from evidence-based probability estimates.')
