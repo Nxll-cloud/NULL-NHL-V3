@@ -28,6 +28,7 @@ from playbook_odds import compare_odds
 from odds_intelligence_v46 import attach_model, order_opportunities, quote_audit, quotes_for_market, price_label, normalized_name, identity_ambiguities
 from odds_api_v45 import fetch_odds, OddsFeedError
 from snapshot_store import load_snapshot
+from numerology_v48 import universal_day as num_universal_day, gematria as num_gematria, analyze_game as num_analyze_game
 from streamlit_autorefresh import st_autorefresh
 
 st.markdown("""<style>
@@ -175,7 +176,7 @@ def history_status(day):
         st.warning(f'History unavailable: {type(exc).__name__}: {exc}')
 
 
-np_home_tab,np_odds_tab,np_research_tab=st.tabs(['🏠 Home','⚡ Odds','📊 Research'])
+np_home_tab,np_odds_tab,np_research_tab,np_numbers_tab=st.tabs(['🏠 Home','⚡ Odds','📊 Research','🔮 Numbers'])
 with np_home_tab:
 
     import html as _np_html
@@ -839,3 +840,79 @@ st.markdown("""<style>
 .np-odds-identity{font-size:.64rem;margin-top:5px}
 @media(max-width:768px){.np-research-card{padding:13px}.np-research-photo,.np-research-placeholder{height:86px;width:71px}.np-research-name{font-size:1.04rem}}
 </style>""",unsafe_allow_html=True)
+
+# V4.8 recreational number analysis; not used by statistical rankings.
+_TEAM_NAMES = {'ANA':'Anaheim Ducks','BOS':'Boston Bruins','BUF':'Buffalo Sabres','CAR':'Carolina Hurricanes','CBJ':'Columbus Blue Jackets','CGY':'Calgary Flames','CHI':'Chicago Blackhawks','COL':'Colorado Avalanche','DAL':'Dallas Stars','DET':'Detroit Red Wings','EDM':'Edmonton Oilers','FLA':'Florida Panthers','LAK':'Los Angeles Kings','MIN':'Minnesota Wild','MTL':'Montreal Canadiens','NJD':'New Jersey Devils','NSH':'Nashville Predators','NYI':'New York Islanders','NYR':'New York Rangers','OTT':'Ottawa Senators','PHI':'Philadelphia Flyers','PIT':'Pittsburgh Penguins','SEA':'Seattle Kraken','SJS':'San Jose Sharks','STL':'St Louis Blues','TBL':'Tampa Bay Lightning','TOR':'Toronto Maple Leafs','UTA':'Utah Mammoth','VAN':'Vancouver Canucks','VGK':'Vegas Golden Knights','WPG':'Winnipeg Jets','WSH':'Washington Capitals'}
+with np_numbers_tab:
+    import html as _num_html
+    st.markdown('<div class="np-num-hero"><div class="np-kicker">NULL’S PLAYBOOK · V4.8</div><h2>Numerology &amp; Gematria</h2><p>Daily numbers · team names · game arenas</p></div>',unsafe_allow_html=True)
+    _day_num=num_universal_day(np_day)
+    st.markdown(f'<div class="np-num-day"><span>UNIVERSAL DAY · {np_day}</span><strong>{_day_num}</strong><small>Full date digit sum, reduced to one digit</small></div>',unsafe_allow_html=True)
+    st.caption('Symbolic patterns for entertainment only. These values do not predict scoring or betting outcomes.')
+    with st.expander('ⓘ How numbers are calculated'):
+        st.write('Universal day: sum every digit of YYYY-MM-DD and reduce to one digit. English ordinal: A=1 through Z=26. Full reduction: reduce each letter to a single digit, sum, and reduce again. Reverse ordinal: A=26 through Z=1. Punctuation and spaces are ignored. Arena names come from the game schedule.')
+    try:
+        _games_num=np_snapshot['games'] if np_snapshot is not None else schedule_cached(np_day)
+    except (requests.RequestException,ValueError,KeyError):
+        _games_num=[]
+        st.warning('Unable to retrieve the schedule for this date.')
+    _analyses=[num_analyze_game(g,np_day,_TEAM_NAMES) for g in _games_num]
+    if not _analyses:
+        st.info('No scheduled NHL games found for the selected date.')
+    else:
+        _a,_b,_c=st.columns(3)
+        _a.metric('Games',len(_analyses))
+        _b.metric('Teams',len({t for r in _analyses for t in (r['away'],r['home'])}))
+        _c.metric('Arenas',f'{sum(bool(r["arena"]) for r in _analyses)}/{len(_analyses)}')
+        _num_view=st.radio('Explore',['Games','Team Numbers','Arena Numbers','Player Matches','Insights'],horizontal=True,key='v48_view')
+        if _num_view=='Games':
+            for r in _analyses:
+                a,h=r['away_values'],r['home_values']
+                away,home=_num_html.escape(r['away']),_num_html.escape(r['home'])
+                venue=_num_html.escape(r['arena'] or 'Arena unavailable')
+                venue_number=r['arena_values']['ordinal_root'] if r['arena_values'] else '—'
+                matches=_num_html.escape(' · '.join(r['matches'][:3]) or 'No direct day-number matches')
+                start=format_game_time(r['start'])
+                st.markdown(f'<div class="np-num-match"><div class="np-num-top"><span>{start}</span><span>{venue}</span></div><div class="np-num-versus"><div><img src="https://assets.nhle.com/logos/nhl/svg/{away}_light.svg"/><b>{away}</b><small>Eng {a["ordinal_root"]} · Red {a["reduction_root"]} · Rev {a["reverse_root"]}</small></div><div class="np-num-center"><strong>{_day_num}</strong><small>DAY</small><span>VS</span><strong class="np-num-green">{venue_number}</strong><small>ARENA</small></div><div><img src="https://assets.nhle.com/logos/nhl/svg/{home}_light.svg"/><b>{home}</b><small>Eng {h["ordinal_root"]} · Red {h["reduction_root"]} · Rev {h["reverse_root"]}</small></div></div><div class="np-num-foot">{matches}</div></div>',unsafe_allow_html=True)
+                with st.expander(f'View details · {away} @ {home}'):
+                    for label,name,v in [('Away team',r['away_name'],a),('Home team',r['home_name'],h),('Arena',r['arena'],r['arena_values'])]:
+                        if v is None:
+                            st.caption('Arena name unavailable from game schedule.')
+                        else:
+                            st.markdown(f'**{label}: {name}**')
+                            st.caption(f'English ordinal {v["ordinal"]} → {v["ordinal_root"]} · Full reduction {v["reduction"]} → {v["reduction_root"]} · Reverse {v["reverse"]} → {v["reverse_root"]}')
+        elif _num_view=='Team Numbers':
+            teams={r['away']:(r['away_name'],r['away_values']) for r in _analyses}
+            teams.update({r['home']:(r['home_name'],r['home_values']) for r in _analyses})
+            for code,(name,v) in sorted(teams.items()):
+                st.markdown(f'<div class="np-num-line"><b>{_num_html.escape(name)}</b><span>Eng {v["ordinal_root"]} · Red {v["reduction_root"]} · Rev {v["reverse_root"]}</span></div>',unsafe_allow_html=True)
+        elif _num_view=='Arena Numbers':
+            for r in _analyses:
+                v=r['arena_values']
+                if v:
+                    st.markdown(f'<div class="np-num-line"><b>{_num_html.escape(r["arena"])}</b><span>Eng {v["ordinal_root"]} · Red {v["reduction_root"]} · Rev {v["reverse_root"]}</span></div>',unsafe_allow_html=True)
+                else:
+                    st.caption(f'{r["away"]} @ {r["home"]}: Arena unavailable')
+        elif _num_view=='Player Matches':
+            ranked=st.session_state.get('signals_ranked')
+            if isinstance(ranked,pd.DataFrame) and not ranked.empty and st.session_state.get('signals_day')==np_day and 'Player' in ranked:
+                matched=[]
+                for _,player in ranked.iterrows():
+                    v=num_gematria(player.get('Player',''))
+                    methods=[k.replace('_root','').replace('_',' ') for k in ('ordinal_root','reduction_root','reverse_root') if v[k]==_day_num]
+                    if methods:
+                        matched.append({'Player':player['Player'],'Team':player.get('Team',''),'Matching methods':', '.join(methods)})
+                st.dataframe(pd.DataFrame(matched,columns=['Player','Team','Matching methods']),hide_index=True,use_container_width=True)
+                st.caption('Number matches only, not goal-scoring recommendations.')
+            else:
+                st.info('Player names will appear after rankings for this date are loaded.')
+        else:
+            st.metric('Day-number alignments',sum(len(r['matches']) for r in _analyses))
+            st.write('Alignments count exact digit-root matches across team and arena names. A higher count does not imply a better scoring chance.')
+
+st.markdown('''<style>
+.np-num-hero{background:linear-gradient(120deg,#112f54,#091426);border:1px solid #2b6089;border-radius:18px;padding:18px;margin:12px 0}.np-num-hero h2{font-size:1.8rem;color:#fff;margin:8px 0}.np-num-hero p{font-size:.8rem;color:#a8c3dd;margin:0}
+.np-num-day{background:radial-gradient(ellipse at center,#352058,#10142a 75%);border:1px solid #7847bb;border-radius:17px;text-align:center;padding:13px;color:#cfb7ff}.np-num-day span,.np-num-day small{display:block;font-size:.7rem}.np-num-day strong{display:block;font-size:3.5rem;line-height:1.1;text-shadow:0 0 20px #a459ff;color:#eedbff}
+.np-num-match{border:1px solid #285780;border-radius:17px;background:linear-gradient(135deg,#12304f,#091624);padding:12px;margin:15px 0 4px}.np-num-top{display:flex;justify-content:space-between;gap:8px;color:#a8c4dd;font-size:.72rem;border-bottom:1px solid #28445e;padding-bottom:9px}.np-num-versus{display:grid;grid-template-columns:minmax(0,1fr) 62px minmax(0,1fr);gap:5px;text-align:center;padding:12px 0}.np-num-versus>div{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}.np-num-versus img{height:52px;width:52px;object-fit:contain}.np-num-versus b{color:#fff}.np-num-versus small{font-size:.62rem;color:#9dbbd4}.np-num-center strong{font-size:1.55rem;color:#d9a5ff}.np-num-center .np-num-green{color:#63e2b2}.np-num-center span{font-size:.7rem;color:#9dbbd4}.np-num-foot{border-top:1px solid #28445e;padding-top:9px;color:#6bd6f7;font-size:.76rem}.np-num-line{display:flex;justify-content:space-between;gap:10px;border:1px solid #264966;background:#102741;border-radius:12px;padding:13px;margin:8px 0;font-size:.8rem}.np-num-line span{color:#71d9ef}
+@media(max-width:600px){.np-num-line{flex-direction:column}.np-num-versus img{width:46px;height:46px}}
+</style>''',unsafe_allow_html=True)
