@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import streamlit as st
 from nhl_data import get_schedule, load_team, SEASON
+from rankings import rank_players
 
 st.set_page_config(page_title='NULL NHL V3', page_icon='🏒', layout='wide')
 st.markdown('''<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>''', unsafe_allow_html=True)
@@ -75,7 +76,46 @@ else:
 
 st.divider()
 st.subheader('V3 Goal-Scorer Rankings')
-st.info('Not available yet: model calibration, goalie confirmation, lineup verification, and opponent-defense adjustments are required.')
+st.caption('Descriptive form index only. Not a goal probability, confidence score, or betting recommendation. '
+           'No goalie, defense, lineup, injury, or odds adjustments are included.')
+if games:
+    min_games = st.slider('Minimum prior games per player', 1, 10, 3)
+    if st.button('Rank Entire Slate', type='primary'):
+        teams_to_load = sorted({g[t] for g in games for t in ('Home', 'Away') if g.get(t)})
+        all_rows, all_errors = [], []
+        progress = st.progress(0, text='Loading all teams')
+        for i, team_code in enumerate(teams_to_load, start=1):
+            try:
+                team_rows, team_errors = team_cached(team_code, day)
+                all_rows.extend(team_rows)
+                all_errors.extend([f'{team_code}: {e}' for e in team_errors])
+            except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+                all_errors.append(f'{team_code}: {exc}')
+            progress.progress(i / len(teams_to_load), text=f'Loaded {i}/{len(teams_to_load)} teams')
+        ranked = rank_players(all_rows, min_games)
+        st.metric('Teams requested', len(teams_to_load))
+        st.metric('Players eligible for form ranking', len(ranked))
+        if ranked:
+            st.dataframe(pd.DataFrame(ranked), hide_index=True, use_container_width=True)
+            st.download_button('Download rankings CSV', pd.DataFrame(ranked).to_csv(index=False),
+                               file_name=f'null-nhl-form-{day}.csv', mime='text/csv')
+            st.caption('Longshot watchlist (descriptive only): eligible players outside the top 20 '
+                       'with at least 2 shots per game over the last 5 games.')
+            watch = [r for r in ranked[20:] if r['Shots/G L5'] >= 2]
+            if watch:
+                st.dataframe(pd.DataFrame(watch[:20]), hide_index=True, use_container_width=True)
+            else:
+                st.info('No players met the longshot-watchlist rule.')
+        else:
+            st.warning('No eligible players found.')
+        if all_errors:
+            st.warning(f'{len(all_errors)} player/team requests failed; ranking coverage is incomplete.')
+            with st.expander('Missing-data details'):
+                st.write(all_errors)
+        st.warning('Current roster membership is not historical lineup verification. '
+                   'Do not use this ranking as a historical pregame prediction or calibrated probability.')
+else:
+    st.info('Select a date with games to calculate full-slate form rankings.')
 st.subheader('Historical Predictions')
 st.info('No saved predictions yet. Future backtests must use pregame snapshots.')
 st.subheader('Experimental Storyline & Numerology Signals')

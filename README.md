@@ -1,20 +1,19 @@
-# NULL NHL V3 | Data-validation upgrade
+# NULL NHL V3 | Stage 1 full-slate rankings
 
-This package replaces `app.py` and `nhl_data.py` and preserves the existing schedule and player explorer.
+Replace the files in the **root** of your existing GitHub repository with the extracted files in this ZIP. Commit to `main`; Streamlit Community Cloud should rebuild.
 
-## New validation
-- Reject malformed game dates, game IDs, negative goals/shots and goals exceeding shots.
-- Deduplicate games by game ID.
-- Exclude games on or after the selected date.
-- Display per-player data-quality flags and coverage counts.
-- Clearly disclose that current rosters are **not** historical rosters.
-- No goal-scoring probability or backtest accuracy claims.
+## New capability
+Tap **Rank Entire Slate** to fetch current-season player game logs for every scheduled team and rank eligible skaters by a transparent **descriptive form index**:
+- 40 × (last-5 shots/game ÷ 4)
+- 25 × (last-10 shots/game ÷ 4)
+- 20 × (prior-season-to-date goals/game ÷ 0.5)
+- 15 × (last-5 goals/game ÷ 0.5)
 
-## Install
-Upload the four extracted files into the **root** of your existing GitHub repository,
-overwriting matching files, then commit. Streamlit Community Cloud should redeploy.
+Weights and scaling are **arbitrary illustrative choices**, not trained or calibrated. Values may exceed 100. This is **not** a probability or evidence of predictive advantage.
 
-## Limitations
-This is a data-quality improvement, not an independent proof of completion
-or historical roster membership. NHL endpoints and field names may change.
-A reliable backtest needs historical roster/lineup snapshots and pregame data archives.
+Includes minimum-prior-games filter, CSV download, request-failure warnings, and an exploratory longshot watchlist based on shot volume outside the top 20.
+
+## Known limitations
+Current-season roster endpoint may not represent the historical lineup on a past date. Game-log cutoff uses prior game dates but does not independently verify completed-game status. The index excludes opponent defense, starting goalies, injuries, lines, power-play deployment and betting odds. Rankings cannot be used for reliable historical backtests until historical lineup snapshots and pregame data are archived.
+
+Streamlit may take time to load a large slate and API rate limits may apply. No background scheduler is included.
