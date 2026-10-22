@@ -19,10 +19,11 @@ from roster_schedule_v385 import audit_roster_and_history
 from history_v386 import fetch_multi_history, merge_multi_history, missing_player_ids
 from storyline_v387 import separate_leaders
 from ranking_integrity_v3871 import assign_statistical_ranks, validate_statistical_ranks
+from historical_coverage_v388 import historical_coverage
 
-st.set_page_config(page_title='NULL NHL V3.8.7.1', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.8.8', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.8.7.1')
+st.title('NULL NHL V3.8.8')
 storyline_top = st.container()
 with storyline_top:
     st.subheader('🏆 NULL NHL — Four Distinct Leaders')
@@ -276,6 +277,14 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
     top_stories, storyline_sleepers, featured = select_storyline_watch(combined)
     v387 = separate_leaders(combined)
     with storyline_top:
+        coverage_stats = historical_coverage(combined)
+        st.markdown('#### 📋 Historical Data Coverage')
+        st.progress(coverage_stats['fraction'])
+        cov1, cov2, cov3 = st.columns(3)
+        cov1.metric('Complete histories', f"{coverage_stats['complete']}/{coverage_stats['total']}")
+        cov2.metric('Partial / unavailable', coverage_stats['partial'])
+        cov3.metric('Not fetched', coverage_stats['not_fetched'])
+        st.caption(f"{coverage_stats['percent']:.1f}% of ranked players have complete requested-season history. Only complete records count toward historical storyline evidence; incomplete coverage may change the leaders.")
         st.caption('Statistical form, sourced storyline strength, top-20 overlap and descriptive sleeper are separate rankings. None is a calibrated scoring probability.')
         labels = [('statistical','📊 Top Statistical Goalscorer'),('storyline','📚 Top Storyline Candidate'),('overlap','🔗 Best Statistical + Storyline Overlap'),('longshots','🎯 Strongest Statistical Sleeper')]
         for key, label in labels:
@@ -302,8 +311,6 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
                 cols=['Player','Team','Statistical rank','Storyline rank','Storyline evidence score','Storyline count','Historical opponent GP','Historical opponent goals','Historical opponent shots','Shots/G L5','Verified data flags']
                 st.dataframe(frame[[c for c in cols if c in frame]],hide_index=True,use_container_width=True)
                 st.download_button('Download '+title+' CSV',frame.to_csv(index=False),file_name=f'null-v387-{key}-{day}.csv',mime='text/csv',key=f'v387_{key}')
-        covered = combined['Historical data status'].eq('Complete').sum() if 'Historical data status' in combined else 0
-        st.caption(f'Historical coverage: {covered}/{len(combined)} players. Incomplete coverage can change storyline and overlap leaders; fetch all players before relying on the full-slate comparison.')
     st.download_button('Download top 10 storyline watchlist CSV', top_stories.to_csv(index=False), file_name=f'null-v381-top10-{day}.csv', mime='text/csv')
     st.subheader('V3.8.2 Data Integrity Audit')
     audit = coverage_audit(combined, st.session_state.get('auto_signal_metadata') if st.session_state.get('auto_signal_day') == day else None,

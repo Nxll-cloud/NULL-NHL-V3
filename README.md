@@ -25,3 +25,6 @@ Full-slate profile fetch up to 500 ranked players (6 concurrent requests; per-pr
 
 
 See V382_NOTES.md for the V3.8.2 diagnostics update.
+
+### V3.8.8
+Added a prominent full-slate historical data coverage indicator above the four leaders. No ranking logic changed.
