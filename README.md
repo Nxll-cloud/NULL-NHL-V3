@@ -22,3 +22,6 @@ Upload the extracted Python files, README, requirements and tests. Streamlit Com
 ## V3.6
 
 Full-slate profile fetch up to 500 ranked players (6 concurrent requests; per-process profile cache (clears on app restart)), date-specific birthday flags, pregame five-game goal-form flags, combined table and filters. Run **Rank Entire Slate**, then **Fetch NHL player biographies and arenas**. Long initial fetches may take time. Download the combined CSV. No automatic claims about injuries, former-team matchups, or milestones; those require verified historical evidence. Numerical overlap is descriptive, not predictive.
+
+
+See V382_NOTES.md for the V3.8.2 diagnostics update.

@@ -36,6 +36,8 @@ def historical_facts(row, day, opponent, log, season=SEASON):
             goals = int(g['goals'])
             shots = int(g['shots'])
             opp = g.get('opponentAbbrev')
+            if isinstance(opp, dict):
+                opp = opp.get('default') or opp.get('abbrev')
             if not isinstance(opp, str) or not opp or goals < 0 or shots < goals or gid <= 0:
                 continue
             if d >= cutoff or gid in seen:
@@ -56,12 +58,19 @@ def historical_facts(row, day, opponent, log, season=SEASON):
     season_goals = sum(g[2] for g in unique)
     # Milestones are descriptive round season-goal totals, not career records.
     next_mark = next((m for m in (10, 20, 30, 40, 50, 60) if m > season_goals), None)
-    if next_mark and next_mark - season_goals == 1:
+    distance = next_mark - season_goals if next_mark else None
+    if distance == 1:
         flags.append(f'Season milestone: 1 goal from {next_mark} goals')
+    milestone_watch = (f'{distance} goals from {next_mark} season goals'
+                       if distance in (2, 3) else '')
     source = f'https://api-web.nhle.com/v1/player/{pid}/game-log/{season}/2'
     return {'Player ID':pid, 'Opponent':opponent,
             'Vs opponent GP':gp, 'Vs opponent goals':total,
-            'Season goals (log)':season_goals,
+            'Season goals (log)':season_goals, 'Milestone distance':distance,
+            'Milestone watch (not a flag)':milestone_watch,
+            'Log rows received':len(log), 'Log rows valid pre-slate':len(unique),
+            'Log rows excluded':len(log)-len(unique),
+            'Opponent match method':'opponentAbbrev exact team code',
             'V3.8 flags':' | '.join(flags), 'V3.8 flag count':len(flags),
             'V3.8 source':source, 'V3.8 status':'Verified pre-slate game-log data'}
 
