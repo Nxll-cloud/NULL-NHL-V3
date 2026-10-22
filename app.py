@@ -7,10 +7,11 @@ from nhl_data import get_schedule, load_team, SEASON
 from rankings import rank_players
 from matchups import defense_summary, attach_matchups
 from backtesting import make_snapshot, score_snapshot, top_k_metrics
+from signals import build_signals, universal_day
 
-st.set_page_config(page_title='NULL NHL V3.3', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.4', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.3')
+st.title('NULL NHL V3.4')
 st.caption('Verified NHL data | Pregame player form | Model probabilities pending')
 selected_date = st.date_input('NHL slate date', date.today())
 day = selected_date.isoformat()
@@ -132,6 +133,8 @@ if games:
         if not defensive:
             st.warning('No opponent defensive context available. Form rankings are unadjusted.')
         if ranked:
+            st.session_state['signals_ranked'] = pd.DataFrame(ranked)
+            st.session_state['signals_day'] = day
             try:
                 snapshot = make_snapshot(ranked, games, day)
                 st.download_button('Save PRE-GAME snapshot CSV (keep this file)',
@@ -188,5 +191,32 @@ if uploaded is not None:
                 st.warning('No completed, verifiable games were available.')
     except (ValueError, KeyError, TypeError, pd.errors.ParserError) as exc:
         st.error(f'Snapshot could not be processed: {exc}')
-st.subheader('Experimental Storyline & Numerology Signals')
-st.caption('Not implemented. These signals will be separated from evidence-based probability estimates.')
+st.divider()
+st.subheader('V3.4 Experimental Storyline, Numerology & Gematria')
+st.caption('Exploratory patterns only. NOT goal probabilities, predictive evidence, or betting edges. '
+           'This section does not change the statistical rankings or backtests.')
+st.write(f'Universal day (YYYYMMDD digit reduction): **{universal_day(day)}**')
+st.caption('Name Pythagorean: A=1 through I=9, repeating. English ordinal: A=1 through Z=26. '
+           'All totals reduce to 1–9 without master-number exceptions. ASCII letters only.')
+st.caption('Optional metadata CSV columns: Player ID, Jersey, Birth date (YYYY-MM-DD), Arena, '
+           'Verified storyline, Source URL. Only sourced storyline text is displayed. '
+           'Names, arena spellings, and birthdays require independent verification.')
+meta_file = st.file_uploader('Optional verified metadata CSV', type=['csv'], key='signal_meta')
+metadata = None
+if meta_file is not None:
+    try:
+        metadata = pd.read_csv(meta_file, dtype=str).fillna('')
+        if 'Player ID' not in metadata.columns:
+            st.warning('Metadata needs a Player ID column; metadata ignored.')
+            metadata = None
+    except (ValueError, pd.errors.ParserError) as exc:
+        st.warning(f'Metadata could not be loaded: {exc}')
+if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') == day:
+    signals = build_signals(st.session_state['signals_ranked'], day, metadata)
+    st.caption(f'{len(signals)} players evaluated. Pattern overlap counts are descriptive, '
+               'not confidence scores. Missing biographical data remains unavailable.')
+    st.dataframe(signals, hide_index=True, use_container_width=True)
+    st.download_button('Download experimental signals CSV', signals.to_csv(index=False),
+                       file_name=f'null-experimental-signals-{day}.csv', mime='text/csv')
+else:
+    st.info('Run Rank Entire Slate for this date to populate the experimental signals table.')
