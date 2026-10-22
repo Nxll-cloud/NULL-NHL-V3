@@ -16,10 +16,11 @@ from data_integrity_v381 import merge_profile_batches, coverage_audit
 from diagnostics_v382 import diagnostic_summary
 from schedule_validation_v384 import audit_schedule
 from roster_schedule_v385 import audit_roster_and_history
+from history_v386 import fetch_multi_history, merge_multi_history, missing_player_ids
 
-st.set_page_config(page_title='NULL NHL V3.8.5', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.8.6', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.8.5')
+st.title('NULL NHL V3.8.6')
 storyline_top = st.container()
 with storyline_top:
     st.subheader('🏆 Top Verified Storyline Candidate')
@@ -268,6 +269,7 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
     storylines = build_storylines(st.session_state['signals_ranked'], metadata if metadata is not None else pd.DataFrame(), day)
     combined = combined_table(st.session_state['signals_ranked'], signals, storylines)
     combined = merge_history(combined, st.session_state.get('history_v38') if st.session_state.get('history_v38_day') == day else None)
+    combined = merge_multi_history(combined, st.session_state.get('history_v386') if st.session_state.get('history_v386_day') == day else None)
     top_stories, storyline_sleepers, featured = select_storyline_watch(combined)
     # Render featured selection at the top of the dashboard, not buried in the explorer.
     with storyline_top:
@@ -363,6 +365,40 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
         if re:
             st.warning(f'{len(re)} retrieval/validation errors; unavailable data is not counted as zero.')
             with st.expander('V3.8.5 retrieval errors'): st.write(re)
+    st.subheader('V3.8.6 Multi-Season Opponent Storylines')
+    st.caption('Previous NHL regular seasons only, with per-season source links and missing-data warnings. Descriptive history is NOT a calibrated goalscorer probability.')
+    v386_count = st.select_slider('Players for multi-season history',options=[10,25,50,100,250,500],value=50,key='v386_count')
+    v386_years = st.selectbox('Previous seasons to inspect',options=[1,2,3],index=2,key='v386_years')
+    if st.button('Fetch multi-season opponent history'):
+        with st.spinner('Retrieving prior-season player game logs...'):
+            try:
+                h386, e386 = fetch_multi_history(st.session_state['signals_ranked'].to_dict('records'),games,day,max_players=v386_count,years=v386_years)
+                if st.session_state.get('history_v386_day')==day and st.session_state.get('history_v386_years')==v386_years:
+                    h386=merge_profile_batches(st.session_state.get('history_v386'),h386)
+                st.session_state['history_v386']=h386
+                st.session_state['history_v386_day']=day
+                st.session_state['history_v386_years']=v386_years
+                st.session_state['history_v386_errors']=e386
+                st.success(f'{len(h386)} player histories loaded; {len(e386)} season retrieval errors.')
+            except Exception as exc:
+                st.error(f'Multi-season history unavailable: {type(exc).__name__}: {exc}')
+    if st.session_state.get('history_v386_day')==day and st.session_state.get('history_v386_years')==v386_years:
+        h386=st.session_state['history_v386']
+        if not h386.empty:
+            st.metric('Players with complete prior-season data',int((h386['Historical data status']=='Complete').sum()))
+            st.metric('Historical storyline flags',int(h386['Historical storyline flag'].fillna('').ne('').sum()))
+            st.dataframe(h386,hide_index=True,use_container_width=True)
+            st.download_button('Download V3.8.6 historical opponent evidence CSV',h386.to_csv(index=False),file_name=f'null-v386-historical-{day}.csv',mime='text/csv')
+        if st.session_state.get('history_v386_errors'):
+            st.warning('Some season logs were unavailable; partial history is not treated as zero.')
+            with st.expander('Multi-season retrieval errors'): st.write(st.session_state['history_v386_errors'])
+    if st.session_state.get('v385_day')==day and 'v385_audit' in st.session_state:
+        missing=missing_player_ids(st.session_state['signals_ranked'],st.session_state['v385_audit'][0])
+        if missing:
+            st.warning(f'{len(missing)} ranked player(s) missing from V3.8.5 roster audit:')
+            st.dataframe(pd.DataFrame(missing),hide_index=True,use_container_width=True)
+        else:
+            st.caption('All currently ranked player IDs are present in the V3.8.5 roster audit.')
     st.download_button('Download V3.8.2 audit CSV', pd.DataFrame([diagnostic]).to_csv(index=False), file_name=f'null-v382-audit-{day}.csv', mime='text/csv')
     st.subheader('V3.8.2 Combined Statistical + Experimental Explorer')
     st.caption('Statistical form and experimental overlaps are separate columns. Neither is a calibrated goal probability. Former-team, milestone and news claims are marked unverified.')
