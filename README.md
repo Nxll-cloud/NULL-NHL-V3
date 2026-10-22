@@ -1,19 +1,19 @@
-# NULL NHL V3 | Stage 1 full-slate rankings
+# NULL NHL V3.1 | Matchup intelligence
 
-Replace the files in the **root** of your existing GitHub repository with the extracted files in this ZIP. Commit to `main`; Streamlit Community Cloud should rebuild.
+Upload all extracted files to the root of your existing GitHub repository and commit to main.
 
-## New capability
-Tap **Rank Entire Slate** to fetch current-season player game logs for every scheduled team and rank eligible skaters by a transparent **descriptive form index**:
-- 40 × (last-5 shots/game ÷ 4)
-- 25 × (last-10 shots/game ÷ 4)
-- 20 × (prior-season-to-date goals/game ÷ 0.5)
-- 15 × (last-5 goals/game ÷ 0.5)
+## Added
+- Opponent mapping for every ranked player.
+- Up to 10 prior *completed* regular-season games for each opponent.
+- Defensive goals allowed/game and shots allowed/game, L5 and L10.
+- Data coverage/audit table and explicit missing-boxscore warnings.
+- Starting goalie explicitly labeled **Unconfirmed**; no goalie adjustment.
+- Renames misleading "longshot" watchlist to **statistical sleepers**.
 
-Weights and scaling are **arbitrary illustrative choices**, not trained or calibrated. Values may exceed 100. This is **not** a probability or evidence of predictive advantage.
+## Method
+For each team, retrieve the NHL public API season schedule and select games dated strictly before the chosen slate date with gameState OFF/FINAL. Retrieve each game's boxscore and use the opposing team's goals and shots to calculate allowed rates. Game log availability varies. Failure to retrieve a boxscore is reported, not imputed.
 
-Includes minimum-prior-games filter, CSV download, request-failure warnings, and an exploratory longshot watchlist based on shot volume outside the top 20.
+**No betting odds, lineup confirmations, predictive probabilities, or defense-weighted rankings are provided.** The existing descriptive Form Index is unchanged.
 
-## Known limitations
-Current-season roster endpoint may not represent the historical lineup on a past date. Game-log cutoff uses prior game dates but does not independently verify completed-game status. The index excludes opponent defense, starting goalies, injuries, lines, power-play deployment and betting odds. Rankings cannot be used for reliable historical backtests until historical lineup snapshots and pregame data are archived.
-
-Streamlit may take time to load a large slate and API rate limits may apply. No background scheduler is included.
+## Deployment
+Upload the extracted Python files, README, requirements and tests. Streamlit Community Cloud redeploys after the commit. Tap **Rank Entire Slate** and inspect defensive coverage. Large slates may take longer and encounter NHL API rate limits.

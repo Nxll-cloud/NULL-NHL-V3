@@ -5,6 +5,7 @@ import requests
 import streamlit as st
 from nhl_data import get_schedule, load_team, SEASON
 from rankings import rank_players
+from matchups import defense_summary, attach_matchups
 
 st.set_page_config(page_title='NULL NHL V3', page_icon='🏒', layout='wide')
 st.markdown('''<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>''', unsafe_allow_html=True)
@@ -21,9 +22,14 @@ def schedule_cached(day):
 def team_cached(team, day):
     return load_team(team, day, SEASON)
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def defense_cached(team, day):
+    return defense_summary(team, day, SEASON)
+
 if st.button('Refresh NHL Data'):
     schedule_cached.clear()
     team_cached.clear()
+    defense_cached.clear()
 
 try:
     games = schedule_cached(day)
@@ -76,8 +82,9 @@ else:
 
 st.divider()
 st.subheader('V3 Goal-Scorer Rankings')
-st.caption('Descriptive form index only. Not a goal probability, confidence score, or betting recommendation. '
-           'No goalie, defense, lineup, injury, or odds adjustments are included.')
+st.caption('Descriptive form index, not a scoring probability. Opponent defense is displayed '
+           'as context only; goalie starters are unconfirmed and no defense/goalie adjustments '
+           'are applied to the index.')
 if games:
     min_games = st.slider('Minimum prior games per player', 1, 10, 3)
     if st.button('Rank Entire Slate', type='primary'):
@@ -93,13 +100,40 @@ if games:
                 all_errors.append(f'{team_code}: {exc}')
             progress.progress(i / len(teams_to_load), text=f'Loaded {i}/{len(teams_to_load)} teams')
         ranked = rank_players(all_rows, min_games)
+        defensive, defense_errors = {}, []
+        for team_code in teams_to_load:
+            try:
+                defensive[team_code] = defense_cached(team_code, day)
+            except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+                defense_errors.append(f'{team_code}: {exc}')
+        ranked = attach_matchups(ranked, games, defensive)
+        coverage = pd.DataFrame([
+            {k:v for k,v in d.items() if k != 'Error details'}
+            for d in defensive.values()
+        ])
         st.metric('Teams requested', len(teams_to_load))
         st.metric('Players eligible for form ranking', len(ranked))
+        st.metric('Opponent defenses retrieved', len(defensive))
+        st.caption('Defensive rates are goals/shots allowed per completed game, using up to 10 '
+                   'games before the slate date. Goalies are NOT confirmed.')
+        if not coverage.empty:
+            with st.expander('Defensive data coverage and audit'):
+                st.dataframe(coverage, hide_index=True, use_container_width=True)
+        if defense_errors:
+            st.warning(f'{len(defense_errors)} defensive team requests failed.')
+            with st.expander('Defensive request errors'):
+                st.write(defense_errors)
+        partial = [d['Opponent'] for d in defensive.values()
+                   if d['Games verified'] < d['Games found']]
+        if partial:
+            st.warning(f'Incomplete defensive boxscore coverage: {", ".join(partial)}')
+        if not defensive:
+            st.warning('No opponent defensive context available. Form rankings are unadjusted.')
         if ranked:
             st.dataframe(pd.DataFrame(ranked), hide_index=True, use_container_width=True)
             st.download_button('Download rankings CSV', pd.DataFrame(ranked).to_csv(index=False),
                                file_name=f'null-nhl-form-{day}.csv', mime='text/csv')
-            st.caption('Longshot watchlist (descriptive only): eligible players outside the top 20 '
+            st.caption('Statistical sleepers (NOT verified betting longshots): players outside the top 20 '
                        'with at least 2 shots per game over the last 5 games.')
             watch = [r for r in ranked[20:] if r['Shots/G L5'] >= 2]
             if watch:
