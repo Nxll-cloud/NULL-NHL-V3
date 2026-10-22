@@ -10,7 +10,9 @@ def separate_leaders(combined, top_n=10):
     f = pd.DataFrame(combined).copy()
     if f.empty:
         return {'statistical': f, 'storyline': f, 'overlap': f, 'longshots': f, 'leaders': {}}
-    f['Statistical rank'] = _num(f, 'Statistical rank').replace(0, len(f)+1)
+    if 'Statistical rank' not in f or pd.to_numeric(f['Statistical rank'], errors='coerce').isna().any():
+        raise ValueError('Missing statistical ranks; run assign_statistical_ranks before storyline scoring')
+    f['Statistical rank'] = pd.to_numeric(f['Statistical rank'], errors='raise').astype(int)
     f['Storyline count'] = _num(f, 'Storyline count')
     f['Historical opponent GP'] = _num(f, 'Historical opponent GP')
     f['Historical opponent goals'] = _num(f, 'Historical opponent goals')

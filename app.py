@@ -18,10 +18,11 @@ from schedule_validation_v384 import audit_schedule
 from roster_schedule_v385 import audit_roster_and_history
 from history_v386 import fetch_multi_history, merge_multi_history, missing_player_ids
 from storyline_v387 import separate_leaders
+from ranking_integrity_v3871 import assign_statistical_ranks, validate_statistical_ranks
 
-st.set_page_config(page_title='NULL NHL V3.8.7', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.8.7.1', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.8.7')
+st.title('NULL NHL V3.8.7.1')
 storyline_top = st.container()
 with storyline_top:
     st.subheader('🏆 NULL NHL — Four Distinct Leaders')
@@ -123,7 +124,7 @@ if games:
                 defensive[team_code] = defense_cached(team_code, day)
             except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
                 defense_errors.append(f'{team_code}: {exc}')
-        ranked = attach_matchups(ranked, games, defensive, adjust=use_defense)
+        ranked = assign_statistical_ranks(attach_matchups(ranked, games, defensive, adjust=use_defense)).to_dict('records')
         coverage = pd.DataFrame([
             {k:v for k,v in d.items() if k != 'Error details'}
             for d in defensive.values()
@@ -271,6 +272,7 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
     combined = combined_table(st.session_state['signals_ranked'], signals, storylines)
     combined = merge_history(combined, st.session_state.get('history_v38') if st.session_state.get('history_v38_day') == day else None)
     combined = merge_multi_history(combined, st.session_state.get('history_v386') if st.session_state.get('history_v386_day') == day else None)
+    validate_statistical_ranks(combined)
     top_stories, storyline_sleepers, featured = select_storyline_watch(combined)
     v387 = separate_leaders(combined)
     with storyline_top:
@@ -287,7 +289,7 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
             c1.metric('Statistical rank',int(lead['Statistical rank']))
             c2.metric('Storyline evidence points',f"{lead['Storyline evidence score']:.2f}")
             c3.metric('Storyline flags',int(lead['Storyline count']))
-            st.caption(f"Opponent history: {int(lead['Historical opponent goals'])} goals, {int(lead['Historical opponent shots'])} shots in {int(lead['Historical opponent GP'])} games; {lead['Historical coverage']}. Shots/G last five: {lead['Shots/G L5']:.2f}. Adjusted form index: {lead['V3.2 Adjusted Index']:.1f}.")
+            st.caption(f"Opponent history: {('not loaded / insufficient' if lead['Historical coverage'] != 'Complete, >=3 meetings' else str(int(lead['Historical opponent goals'])) + ' goals, ' + str(int(lead['Historical opponent shots'])) + ' shots in ' + str(int(lead['Historical opponent GP'])) + ' games')}; {lead['Historical coverage']}. Shots/G last five: {lead['Shots/G L5']:.2f}. Adjusted form index: {lead['V3.2 Adjusted Index']:.1f}.")
             st.write('**Evidence:**',lead.get('Verified data flags','Not available'))
             if pd.notna(lead.get('Evidence URLs')) and str(lead.get('Evidence URLs')).strip():
                 st.caption('Sources: '+str(lead['Evidence URLs']))
@@ -383,6 +385,7 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
                 st.session_state['history_v386_day']=day
                 st.session_state['history_v386_years']=v386_years
                 st.session_state['history_v386_errors']=e386
+                st.rerun()  # Re-render the four leader cards above with newly fetched evidence.
                 st.success(f'{len(h386)} player histories loaded; {len(e386)} season retrieval errors.')
             except Exception as exc:
                 st.error(f'Multi-season history unavailable: {type(exc).__name__}: {exc}')
@@ -409,7 +412,7 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
     only_stories = st.checkbox('Show only sourced storyline flags', value=False)
     minimum_overlap = st.slider('Minimum experimental pattern overlaps', 0, 5, 0)
     longshot_only = st.checkbox('Statistical sleeper watch (outside top 20, L5 shots/game >= 2)', value=False)
-    combined['Statistical rank'] = range(1, len(combined)+1)
+    # Statistical rank was assigned before any storyline merge; never overwrite it here.
     filtered = combined[combined['Pattern overlaps'] >= minimum_overlap]
     if only_stories: filtered = filtered[filtered['Storyline count'] > 0]
     if longshot_only: filtered = filtered[(filtered['Statistical rank'] > 20) & (filtered['Shots/G L5'] >= 2)]
