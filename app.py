@@ -10,10 +10,15 @@ from backtesting import make_snapshot, score_snapshot, top_k_metrics
 from signals import build_signals, universal_day
 from auto_signals import fetch_metadata
 from storylines_v36 import build_storylines, combined_table
+from storyline_v37 import select_storyline_watch
 
-st.set_page_config(page_title='NULL NHL V3.6', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.7', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.6')
+st.title('NULL NHL V3.7')
+storyline_top = st.container()
+with storyline_top:
+    st.subheader('🏆 Top Verified Storyline Candidate')
+    st.caption('Run Rank Entire Slate and fetch NHL biographies to populate this section. No fabricated revenge, milestone or injury claims.')
 st.caption('Verified NHL data | Pregame player form | Model probabilities pending')
 selected_date = st.date_input('NHL slate date', date.today())
 day = selected_date.isoformat()
@@ -240,6 +245,35 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
     st.dataframe(signals, hide_index=True, use_container_width=True)
     storylines = build_storylines(st.session_state['signals_ranked'], metadata if metadata is not None else pd.DataFrame(), day)
     combined = combined_table(st.session_state['signals_ranked'], signals, storylines)
+    top_stories, storyline_sleepers, featured = select_storyline_watch(combined)
+    # Render featured selection at the top of the dashboard, not buried in the explorer.
+    with storyline_top:
+        if featured is not None:
+            st.markdown(f"### 🏒 {featured['Player']} — {featured['Team']}")
+            st.caption('Selected by count of supported hockey storyline flags; descriptive form breaks ties. NOT a goal probability.')
+            a, b, c = st.columns(3)
+            a.metric('Supported storyline flags', int(featured['Storyline count']))
+            b.metric('Adjusted form index', f"{featured['V3.2 Adjusted Index']:.1f}")
+            c.metric('Statistical rank', int(featured['Statistical rank']))
+            st.write('**Why featured:**', featured.get('Verified data flags', 'Unavailable'))
+            if featured.get('Evidence URLs'):
+                st.caption('Sources: ' + str(featured['Evidence URLs']))
+            st.caption('Former-team matchups, milestones and news remain unverified unless separately sourced. Numerology does not affect this selection.')
+        else:
+            st.info('No supported storyline flags found in the loaded data. Fetch NHL player biographies to check birthdays; recent goal-form flags use pre-slate logs.')
+        st.subheader('Top 10 Verified-Data Storyline Watchlist')
+        if not top_stories.empty:
+            show = ['Player', 'Team', 'Storyline count', 'Verified data flags', 'V3.2 Adjusted Index', 'Statistical rank', 'Evidence URLs']
+            st.dataframe(top_stories[[c for c in show if c in top_stories]], hide_index=True, use_container_width=True)
+        else:
+            st.info('No eligible verified-data storylines on this slate.')
+        st.subheader('Storyline Sleeper Watchlist')
+        st.caption('Outside statistical top 20, at least 2 shots/game over last five, and one or more supported storyline flags. Not verified betting odds.')
+        if not storyline_sleepers.empty:
+            st.dataframe(storyline_sleepers[[c for c in ['Player','Team','Storyline count','Verified data flags','Shots/G L5','Evidence URLs'] if c in storyline_sleepers]], hide_index=True, use_container_width=True)
+        else:
+            st.info('No storyline sleepers meet the current criteria.')
+    st.download_button('Download V3.7 storyline watchlist CSV', top_stories.to_csv(index=False), file_name=f'null-v37-storylines-{day}.csv', mime='text/csv')
     st.subheader('V3.6 Combined Statistical + Experimental Explorer')
     st.caption('Statistical form and experimental overlaps are separate columns. Neither is a calibrated goal probability. Former-team, milestone and news claims are marked unverified.')
     only_stories = st.checkbox('Show only sourced storyline flags', value=False)
