@@ -17,13 +17,14 @@ from diagnostics_v382 import diagnostic_summary
 from schedule_validation_v384 import audit_schedule
 from roster_schedule_v385 import audit_roster_and_history
 from history_v386 import fetch_multi_history, merge_multi_history, missing_player_ids
+from storyline_v387 import separate_leaders
 
-st.set_page_config(page_title='NULL NHL V3.8.6', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.8.7', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.8.6')
+st.title('NULL NHL V3.8.7')
 storyline_top = st.container()
 with storyline_top:
-    st.subheader('🏆 Top Verified Storyline Candidate')
+    st.subheader('🏆 NULL NHL — Four Distinct Leaders')
     st.caption('Evidence-first, pre-slate storylines. Former-team and injury/news claims are not inferred.')
 st.caption('Verified NHL data | Pregame player form | Model probabilities pending')
 selected_date = st.date_input('NHL slate date', date.today())
@@ -271,33 +272,36 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
     combined = merge_history(combined, st.session_state.get('history_v38') if st.session_state.get('history_v38_day') == day else None)
     combined = merge_multi_history(combined, st.session_state.get('history_v386') if st.session_state.get('history_v386_day') == day else None)
     top_stories, storyline_sleepers, featured = select_storyline_watch(combined)
-    # Render featured selection at the top of the dashboard, not buried in the explorer.
+    v387 = separate_leaders(combined)
     with storyline_top:
-        if featured is not None:
-            st.markdown(f"### 🏒 {featured['Player']} — {featured['Team']}")
-            st.caption('Selected by count of supported hockey storyline flags; descriptive form breaks ties. NOT a goal probability.')
-            a, b, c = st.columns(3)
-            a.metric('Supported storyline flags', int(featured['Storyline count']))
-            b.metric('Adjusted form index', f"{featured['V3.2 Adjusted Index']:.1f}")
-            c.metric('Statistical rank', int(featured['Statistical rank']))
-            st.write('**Why featured:**', featured.get('Verified data flags', 'Unavailable'))
-            if featured.get('Evidence URLs'):
-                st.caption('Sources: ' + str(featured['Evidence URLs']))
-            st.caption('Former-team matchups, milestones and news remain unverified unless separately sourced. Numerology does not affect this selection.')
-        else:
-            st.info('No supported storyline flags found in the loaded data. Fetch NHL player biographies to check birthdays; recent goal-form flags use pre-slate logs.')
-        st.subheader('Top 10 Verified-Data Storyline Watchlist')
-        if not top_stories.empty:
-            show = ['Player', 'Team', 'Storyline count', 'Verified data flags', 'V3.2 Adjusted Index', 'Statistical rank', 'Evidence URLs']
-            st.dataframe(top_stories[[c for c in show if c in top_stories]], hide_index=True, use_container_width=True)
-        else:
-            st.info('No eligible verified-data storylines on this slate.')
-        st.subheader('Storyline Sleeper Watchlist')
-        st.caption('Outside statistical top 20, at least 2 shots/game over last five, and one or more supported storyline flags. Not verified betting odds.')
-        if not storyline_sleepers.empty:
-            st.dataframe(storyline_sleepers[[c for c in ['Player','Team','Storyline count','Verified data flags','Shots/G L5','Evidence URLs'] if c in storyline_sleepers]], hide_index=True, use_container_width=True)
-        else:
-            st.info('No storyline sleepers meet the current criteria.')
+        st.caption('Statistical form, sourced storyline strength, top-20 overlap and descriptive sleeper are separate rankings. None is a calibrated scoring probability.')
+        labels = [('statistical','📊 Top Statistical Goalscorer'),('storyline','📚 Top Storyline Candidate'),('overlap','🔗 Best Statistical + Storyline Overlap'),('longshots','🎯 Strongest Statistical Sleeper')]
+        for key, label in labels:
+            lead = v387['leaders'][key]
+            st.markdown('#### ' + label)
+            if lead is None:
+                st.info('No eligible player with the currently loaded evidence. Fetch historical opponent logs for wider coverage.')
+                continue
+            st.markdown(f"**{lead['Player']} — {lead['Team']}**")
+            c1,c2,c3 = st.columns(3)
+            c1.metric('Statistical rank',int(lead['Statistical rank']))
+            c2.metric('Storyline evidence points',f"{lead['Storyline evidence score']:.2f}")
+            c3.metric('Storyline flags',int(lead['Storyline count']))
+            st.caption(f"Opponent history: {int(lead['Historical opponent goals'])} goals, {int(lead['Historical opponent shots'])} shots in {int(lead['Historical opponent GP'])} games; {lead['Historical coverage']}. Shots/G last five: {lead['Shots/G L5']:.2f}. Adjusted form index: {lead['V3.2 Adjusted Index']:.1f}.")
+            st.write('**Evidence:**',lead.get('Verified data flags','Not available'))
+            if pd.notna(lead.get('Evidence URLs')) and str(lead.get('Evidence URLs')).strip():
+                st.caption('Sources: '+str(lead['Evidence URLs']))
+        st.caption('Storyline evidence points are an explicitly heuristic display index: 2 per historical goal (max 10), 6 × historical goals/game (max 1.5), historical shots/10 (max 50 shots), plus 1.5 per sourced flag (max 5). Historical components require complete requested seasons and ≥3 meetings. They are NOT validated predictive weights.')
+        for key,title in [('statistical','Top 10 Statistical'),('storyline','Top 10 Storylines'),('overlap','Top 10 Overlap'),('longshots','Top 10 Statistical Sleepers')]:
+            st.subheader(title)
+            frame=v387[key]
+            if frame.empty: st.info('No eligible players in currently loaded data.')
+            else:
+                cols=['Player','Team','Statistical rank','Storyline rank','Storyline evidence score','Storyline count','Historical opponent GP','Historical opponent goals','Historical opponent shots','Shots/G L5','Verified data flags']
+                st.dataframe(frame[[c for c in cols if c in frame]],hide_index=True,use_container_width=True)
+                st.download_button('Download '+title+' CSV',frame.to_csv(index=False),file_name=f'null-v387-{key}-{day}.csv',mime='text/csv',key=f'v387_{key}')
+        covered = combined['Historical data status'].eq('Complete').sum() if 'Historical data status' in combined else 0
+        st.caption(f'Historical coverage: {covered}/{len(combined)} players. Incomplete coverage can change storyline and overlap leaders; fetch all players before relying on the full-slate comparison.')
     st.download_button('Download top 10 storyline watchlist CSV', top_stories.to_csv(index=False), file_name=f'null-v381-top10-{day}.csv', mime='text/csv')
     st.subheader('V3.8.2 Data Integrity Audit')
     audit = coverage_audit(combined, st.session_state.get('auto_signal_metadata') if st.session_state.get('auto_signal_day') == day else None,
