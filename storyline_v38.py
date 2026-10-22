@@ -4,6 +4,7 @@ No injuries, trades, former-team or news inference. Facts must be sourced to NHL
 regular-season game logs and restricted to dates strictly before the slate.
 """
 from datetime import date
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
 import pandas as pd
@@ -25,19 +26,37 @@ def opponent_lookup(games):
     return out
 
 
+def normalize_team(value):
+    """Normalize NHL abbreviations; never guess unverified franchise aliases."""
+    if isinstance(value, dict):
+        value = value.get('default') or value.get('abbrev')
+    if not isinstance(value, str):
+        return None
+    value = value.strip().upper()
+    # Known historical/alternate NHL codes only; do not remap other teams.
+    aliases = {'ARI': 'UTA', 'PHX': 'UTA', 'UTH': 'UTA', 'S.J': 'SJS',
+               'N.J': 'NJD', 'L.A': 'LAK', 'T.B': 'TBL'}
+    return aliases.get(value, value) if value else None
+
+
 def historical_facts(row, day, opponent, log, season=SEASON):
     pid = str(int(row['Player ID']))
     cutoff = date.fromisoformat(day)
     unique, seen = [], set()
+    raw_opponents = Counter()
+    missing_opponents = 0
     for g in log:
         try:
             d = date.fromisoformat(g['gameDate'])
             gid = int(g['gameId'])
             goals = int(g['goals'])
             shots = int(g['shots'])
-            opp = g.get('opponentAbbrev')
-            if isinstance(opp, dict):
-                opp = opp.get('default') or opp.get('abbrev')
+            raw = g.get('opponentAbbrev')
+            opp = normalize_team(raw)
+            if raw is None or opp is None:
+                missing_opponents += 1
+            else:
+                raw_opponents[str(raw)] += 1
             if not isinstance(opp, str) or not opp or goals < 0 or shots < goals or gid <= 0:
                 continue
             if d >= cutoff or gid in seen:
@@ -47,7 +66,8 @@ def historical_facts(row, day, opponent, log, season=SEASON):
         except (KeyError, ValueError, TypeError):
             continue
     unique.sort(reverse=True)
-    against = [g for g in unique if g[1] == opponent]
+    normalized_opponent = normalize_team(opponent)
+    against = [g for g in unique if g[1] == normalized_opponent]
     flags = []
     if len(against) >= 2:
         gp, total = len(against), sum(g[2] for g in against)
@@ -70,7 +90,12 @@ def historical_facts(row, day, opponent, log, season=SEASON):
             'Milestone watch (not a flag)':milestone_watch,
             'Log rows received':len(log), 'Log rows valid pre-slate':len(unique),
             'Log rows excluded':len(log)-len(unique),
-            'Opponent match method':'opponentAbbrev exact team code',
+            'Opponent match method':'normalized opponentAbbrev team code',
+            'Opponent normalized':normalized_opponent,
+            'Raw opponent samples':' | '.join(f'{k} ({v})' for k,v in raw_opponents.most_common(12)),
+            'Distinct raw opponent values':len(raw_opponents),
+            'Rows missing opponent code':missing_opponents,
+            'Opponent match diagnostic':('Matched' if gp else 'No match; inspect raw opponent samples'),
             'V3.8 flags':' | '.join(flags), 'V3.8 flag count':len(flags),
             'V3.8 source':source, 'V3.8 status':'Verified pre-slate game-log data'}
 
