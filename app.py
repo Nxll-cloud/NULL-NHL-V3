@@ -25,6 +25,7 @@ from historical_coverage_v388 import historical_coverage
 
 st.set_page_config(page_title="Null's Playbook | NHL", page_icon='👑', layout='wide', initial_sidebar_state='collapsed')
 from playbook_odds import compare_odds
+from odds_intelligence_v46 import attach_model, order_opportunities, quote_audit, quotes_for_market, price_label
 from odds_api_v45 import fetch_odds, OddsFeedError
 from snapshot_store import load_snapshot
 from streamlit_autorefresh import st_autorefresh
@@ -98,7 +99,7 @@ with st.sidebar:
     st.caption('Additional leagues require separate data feeds. NHL remains the live statistical engine.')
     st.divider()
     st.markdown('**Sportsbook intelligence**')
-    st.caption('Optional The Odds API integration plus CSV fallback. Only supported licensed/authorized quotes appear.')
+    st.caption('Automatic odds and optional CSV import.')
 
 
 # Session-local 30-minute timer: reruns only while this Streamlit page is open.
@@ -237,7 +238,7 @@ with np_home_tab:
             _,np_disc=compare_odds(st.session_state['playbook_odds_data'])
             if not np_disc.empty:
                 st.markdown('#### ⚡ Top sportsbook price discrepancies')
-                st.dataframe(np_disc.head(6),hide_index=True,use_container_width=True)
+                st.caption('Open Odds Intelligence to compare the biggest price gaps across sportsbooks.')
         except ValueError:
             pass
     else:
@@ -256,41 +257,33 @@ def np_api_key():
         return ''
 
 with np_odds_tab:
-    st.subheader('⚡ Sportsbook Odds Discrepancies')
-    st.caption('Real provider quotes only. Compare identical events, players, markets, selections and lines. A better price does not guarantee positive expected value.')
-    with st.expander('🔌 Automatic sportsbook API',expanded=True):
-        api_key=np_api_key()
-        if api_key:
-            st.success('API credential configured (hidden).')
-            regions=st.selectbox('Bookmaker regions',['us','us2','uk','eu','au'],key='v45_region')
-            markets=st.text_input('Provider market keys','player_goal_scorer_anytime',key='v45_markets',help='Market support varies by subscription and sportsbook. See provider documentation.')
-            try:
-                with st.spinner('Retrieving authorized sportsbook quotes…'):
-                    live_frame,api_warnings=np_live_odds_cached(api_key,regions,markets)
-                if not live_frame.empty:
-                    st.session_state['playbook_live_odds']=live_frame
-                    st.caption(f'{len(live_frame)} quotes · {live_frame.sportsbook.nunique()} sportsbooks · refreshed at most every 30 minutes while app is open')
-                else:
-                    st.session_state.pop('playbook_live_odds',None)
-                    st.info('Provider returned no available NHL player-prop quotes for these settings.')
-                if api_warnings:
-                    st.warning(f'{len(api_warnings)} events could not be retrieved; results may be incomplete.')
-            except (OddsFeedError, ValueError) as exc:
-                st.warning(str(exc))
-        else:
-            st.info('Automatic odds are not yet connected. Add ODDS_API_KEY in Streamlit Cloud → App settings → Secrets. CSV upload works without an API key.')
-    source_choice=st.radio('Odds source',['Automatic API','Uploaded CSV','Combine both'],horizontal=True,key='v45_source')
-
-    with st.expander('📥 Connect sportsbook prices using CSV',expanded=False):
-        st.markdown('Required CSV columns: `player, team, market, selection, sportsbook, american_odds, updated_at`. Optional: `event_id, line`. Use ISO-8601 UTC timestamps. All books represented in the uploaded file are supported for comparison; this is **not** a live all-books connection.')
-        st.download_button('Download example CSV template', 'player,team,market,selection,sportsbook,american_odds,updated_at,event_id,line\n',file_name='playbook_odds_template.csv',mime='text/csv')
-        uploaded_odds=st.file_uploader('Upload sportsbook odds CSV',type=['csv'],key='playbook_odds_upload')
+    import html as _odds_html
+    st.markdown("""<div class="np-odds-hero"><div class="np-kicker">NULL’S PLAYBOOK · V4.6</div><div class="np-odds-title">Odds Intelligence<span class="np-dot">.</span></div><div class="np-odds-sub">Find the strongest prices. Compare the market. Follow your model.</div></div>""",unsafe_allow_html=True)
+    api_key=np_api_key()
+    regions='us'
+    markets='player_goal_scorer_anytime'
+    api_df=None
+    if api_key:
+        try:
+            with st.spinner('Syncing available NHL goal-scorer prices…'):
+                api_df,api_warnings=np_live_odds_cached(api_key,regions,markets)
+            if api_warnings:
+                st.caption(f'Coverage notice: {len(api_warnings)} events could not be retrieved.')
+        except (OddsFeedError,ValueError) as exc:
+            st.warning(f'Live prices unavailable: {exc}')
+    else:
+        st.info('Connect your odds feed in app secrets to enable automatic price comparison. CSV import is also available.')
+    with st.expander('⚙️ Import & display preferences',expanded=False):
+        source_choice=st.radio('Odds source',['Automatic API','Uploaded CSV','Combine both'],horizontal=False,key='v46_source')
+        uploaded_odds=st.file_uploader('Optional CSV odds import',type=['csv'],key='playbook_odds_upload')
         if uploaded_odds is not None:
             try:
-                uploaded_frame=pd.read_csv(uploaded_odds,dtype={'event_id':str,'line':str})
-                st.session_state['playbook_odds_data']=uploaded_frame
-            except Exception as exc: st.error(f'Cannot read odds file: {exc}')
-    api_df=st.session_state.get('playbook_live_odds')
+                st.session_state['playbook_odds_data']=pd.read_csv(uploaded_odds,dtype={'event_id':str,'line':str})
+            except (ValueError,UnicodeError) as exc:
+                st.warning(f'CSV could not be read: {exc}')
+        st.download_button('CSV template','player,team,market,selection,sportsbook,american_odds,updated_at,event_id,line\\n',file_name='playbook_odds_template.csv',mime='text/csv')
+        st.caption('Quote coverage depends on your data subscription. Credentials and technical source fields are not displayed.')
+    source_choice=st.session_state.get('v46_source','Automatic API')
     csv_df=st.session_state.get('playbook_odds_data')
     selected_frames=[]
     if source_choice in ('Automatic API','Combine both') and isinstance(api_df,pd.DataFrame) and not api_df.empty:
@@ -298,23 +291,65 @@ with np_odds_tab:
     if source_choice in ('Uploaded CSV','Combine both') and isinstance(csv_df,pd.DataFrame) and not csv_df.empty:
         selected_frames.append(csv_df)
     if selected_frames:
+        raw_quotes=pd.concat(selected_frames,ignore_index=True)
         try:
-            price_rows,discrepancies=compare_odds(pd.concat(selected_frames,ignore_index=True))
+            price_rows,discrepancies=compare_odds(raw_quotes)
+            audit=quote_audit(raw_quotes,price_rows)
+            st.session_state['v46_odds_count']=int(price_rows['sportsbook'].nunique())
             c1,c2,c3=st.columns(3)
-            c1.metric('Sportsbooks in file',price_rows['sportsbook'].nunique())
-            c2.metric('Comparable prop markets',len(discrepancies))
-            c3.metric('Quotes loaded',len(price_rows))
-            if not discrepancies.empty:
-                markets=sorted(discrepancies['market'].unique().tolist())
-                market_filter=st.selectbox('Market', ['All markets']+markets,key='playbook_market')
-                shown=discrepancies if market_filter=='All markets' else discrepancies[discrepancies['market']==market_filter]
-                st.dataframe(shown,hide_index=True,use_container_width=True)
-                st.download_button('Download odds discrepancies CSV',shown.to_csv(index=False),file_name='nulls_playbook_odds_discrepancies.csv',mime='text/csv')
-                st.caption('Price improvement compares decimal payouts, not win probabilities. Quote timestamps and event IDs should be checked before using a price.')
-            else: st.info('No matching props offered by two or more sportsbooks in this upload.')
-        except ValueError as exc: st.error(f'Odds data validation: {exc}')
+            c1.metric('Sportsbooks',int(price_rows['sportsbook'].nunique()))
+            c2.metric('Matched props',len(discrepancies))
+            c3.metric('Valid quotes',len(price_rows))
+            if audit['excluded_or_consolidated']:
+                st.caption(f"{audit['received']:,} received · {audit['accepted']:,} retained · {audit['excluded_or_consolidated']:,} excluded or duplicate quotes consolidated")
+            else:
+                st.caption(f"{audit['accepted']:,} validated quotes")
+            if discrepancies.empty:
+                st.info('No identical player props currently have prices from at least two sportsbooks.')
+            else:
+                model_ranked=st.session_state.get('signals_ranked')
+                if not (isinstance(model_ranked,pd.DataFrame) and st.session_state.get('signals_day')==np_day):
+                    model_ranked=None
+                combined=attach_model(discrepancies,model_ranked)
+                st.markdown('#### ⚡ Market scanner')
+                f1,f2=st.columns(2)
+                with f1:
+                    view_mode=st.selectbox('Sort by',['Biggest discrepancy','Model-backed','Longshots'],key='v46_mode')
+                with f2:
+                    book_min=st.selectbox('Books compared',[2,3,4,5],key='v46_min_books')
+                show=combined[combined['sportsbooks_compared']>=book_min]
+                show=order_opportunities(show,view_mode)
+                st.caption('Price gaps compare identical events and markets. A large gap does not establish positive expected value.')
+                if show.empty:
+                    st.info('No props match these filters.')
+                else:
+                    for ix,(_,r) in enumerate(show.head(30).iterrows()):
+                        player=_odds_html.escape(str(r['player']))
+                        book=_odds_html.escape(str(r['best_sportsbook']))
+                        low_book=_odds_html.escape(str(r['worst_sportsbook']))
+                        team=_odds_html.escape(str(r.get('team','')))
+                        rank=r.get('model_rank')
+                        rank_text=f"Model #{int(rank)}" if pd.notna(rank) else "Unranked / unmatched"
+                        pid=str(r.get('player_id',''))
+                        mug=f'https://assets.nhle.com/mugs/nhl/20262027/{team}/{pid}.png' if team and pid else ''
+                        photo=f'<img class="np-odds-photo" src="{mug}" loading="lazy" alt="Player portrait"/>' if mug else '<div class="np-odds-avatar">🏒</div>'
+                        gap=float(r['decimal_price_improvement_pct'])
+                        st.markdown(f"""<div class="np-odds-card"><div class="np-odds-card-head">{photo}<div class="np-odds-player"><div class="np-odds-name">{player}</div><div class="np-odds-context">{team} · {rank_text} · {int(r['sportsbooks_compared'])} books</div></div><div class="np-odds-price">{price_label(r['best_odds'])}<small>{book}</small></div></div><div class="np-odds-card-foot"><span>LOW {price_label(r['worst_odds'])} · {low_book}</span><strong>+{gap:.1f}% payout difference</strong></div></div>""",unsafe_allow_html=True)
+                        with st.expander(f'Compare all sportsbook prices · {r["player"]}',expanded=False):
+                            options=quotes_for_market(price_rows,r)
+                            options=options[['sportsbook','american_odds','updated_at']].copy()
+                            options.columns=['Sportsbook','American odds','Updated (UTC)']
+                            options['American odds']=options['American odds'].map(price_label)
+                            st.dataframe(options,hide_index=True,use_container_width=True)
+                    if len(show)>30:
+                        st.caption(f'Showing 30 of {len(show)} opportunities. Download the complete comparison below.')
+                    st.download_button('Export all comparisons',show.to_csv(index=False),file_name='nulls_playbook_v46_odds.csv',mime='text/csv')
+                if model_ranked is None:
+                    st.caption('Model rankings for the selected date are not loaded yet; price discrepancies remain available.')
+        except ValueError as exc:
+            st.warning(f'Unable to validate current quotes: {exc}')
     else:
-        st.info('No odds from the selected source. Configure the API or upload a CSV; no sample odds are fabricated.')
+        st.info('No sportsbook quotes available for the selected source.')
 
 
 with np_research_tab:
@@ -338,8 +373,8 @@ with np_research_tab:
 
     try:
         games = np_snapshot['games'] if np_snapshot is not None else schedule_cached(day)
-        st.caption(f'Source: NHL public API | Displayed at {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC')
-        st.caption(f'https://api-web.nhle.com/v1/schedule/{day}')
+        st.caption(f'Data updated: {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC')
+        
         st.subheader('Full NHL Slate')
         if games:
             st.markdown('#### 🏒 Matchup Center')
@@ -766,3 +801,14 @@ with np_research_tab:
                            file_name=f'null-experimental-signals-{day}.csv', mime='text/csv')
     else:
         st.info('Run Rank Entire Slate for this date to populate the experimental signals table.')
+
+st.markdown("""<style>
+.np-odds-hero{background:linear-gradient(125deg,#102e52,#091527 65%,#0a1122);border:1px solid #285b88;border-radius:21px;padding:24px 22px;margin:8px 0 18px;box-shadow:0 16px 40px #0004}
+.np-odds-title{font-size:clamp(1.9rem,5vw,3rem);letter-spacing:-.055em;font-weight:850;line-height:1.1;color:#fff;margin:7px 0}.np-dot{color:#4bd6ff}.np-odds-sub{color:#a4c1da;font-size:.88rem}
+.np-odds-card{border:1px solid #244b71;background:linear-gradient(125deg,#112e4b,#091626);border-radius:17px;padding:13px 14px;margin:11px 0 3px;box-shadow:0 7px 25px #0004}
+.np-odds-card-head{display:flex;align-items:center;gap:10px}.np-odds-photo,.np-odds-avatar{height:66px;width:61px;object-fit:contain;flex-shrink:0}.np-odds-avatar{display:grid;place-items:center;background:#173552;border-radius:12px}
+.np-odds-player{min-width:0;flex:1}.np-odds-name{color:#fff;font-size:1.03rem;font-weight:800;line-height:1.2}.np-odds-context{color:#91acc4;font-size:.72rem;margin-top:5px}
+.np-odds-price{color:#69e2ad;font-weight:850;font-size:1.6rem;text-align:right;white-space:nowrap;letter-spacing:-.04em}.np-odds-price small{display:block;color:#b8d3e9;font-size:.7rem;font-weight:500;letter-spacing:0}
+.np-odds-card-foot{border-top:1px solid #294560;margin-top:11px;padding-top:9px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;font-size:.74rem;color:#a9bdd1}.np-odds-card-foot strong{color:#59d5ff}
+@media(max-width:768px){.np-odds-hero{padding:17px 15px}.np-odds-card{padding:11px}.np-odds-photo,.np-odds-avatar{width:52px;height:58px}.np-odds-price{font-size:1.35rem}.np-odds-name{font-size:.96rem}}
+</style>""",unsafe_allow_html=True)
