@@ -89,3 +89,64 @@ st.info("Prediction tracking will be added next.")
 
 st.subheader("Model Status")
 st.warning("Goal-scoring predictions are not yet calculated.")
+
+# NULL NHL V3: Player statistics explorer
+
+from nhl_data import get_team_roster, get_player_stats
+
+st.divider()
+st.subheader("Player Statistics Explorer")
+
+if "games" in locals() and games:
+    slate_teams = sorted({
+        team
+        for game in games
+        for team in (game["Home"], game["Away"])
+        if team != "Unknown"
+    })
+
+    selected_team = st.selectbox(
+        "Select a team from the slate",
+        slate_teams,
+    )
+
+    if st.button("Load Player Statistics"):
+        try:
+            with st.spinner("Retrieving official NHL data..."):
+                roster = get_team_roster(selected_team)
+
+                skaters = [
+                    p for p in roster
+                    if p["group"] != "goalies"
+                ]
+
+                rows = []
+                for player in skaters:
+                    stats = get_player_stats(
+                        player["player_id"]
+                    )
+                    rows.append({
+                        "Player": player["name"],
+                        "Position": player["position"],
+                        "Goals": stats["goals"],
+                        "Assists": stats["assists"],
+                        "Points": stats["points"],
+                        "Games": stats["games_played"],
+                        "Shots": stats["shots"],
+                        "Shooting %": stats["shooting_pct"],
+                    })
+
+                if rows:
+                    player_df = pd.DataFrame(rows)
+                    st.dataframe(
+                        player_df,
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+                else:
+                    st.warning("No skaters returned.")
+
+        except (requests.RequestException, ValueError, KeyError) as error:
+            st.error(f"Unable to retrieve player data: {error}")
+else:
+    st.info("Load a slate before selecting a team.")
