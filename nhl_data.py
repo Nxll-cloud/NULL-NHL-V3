@@ -23,7 +23,8 @@ def get_schedule(day):
         for game in item.get('games', []):
             games.append({'Game ID': game.get('id'), 'Away': game.get('awayTeam', {}).get('abbrev'),
                           'Home': game.get('homeTeam', {}).get('abbrev'),
-                          'Start (UTC)': game.get('startTimeUTC'), 'Status': game.get('gameState')})
+                          'Start (UTC)': game.get('startTimeUTC'), 'Status': game.get('gameState'),
+                          'Venue': (game.get('venue') or {}).get('default')})
     return games
 
 

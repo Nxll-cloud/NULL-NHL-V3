@@ -8,10 +8,11 @@ from rankings import rank_players
 from matchups import defense_summary, attach_matchups
 from backtesting import make_snapshot, score_snapshot, top_k_metrics
 from signals import build_signals, universal_day
+from auto_signals import fetch_metadata
 
-st.set_page_config(page_title='NULL NHL V3.4', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.5', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.4')
+st.title('NULL NHL V3.5')
 st.caption('Verified NHL data | Pregame player form | Model probabilities pending')
 selected_date = st.date_input('NHL slate date', date.today())
 day = selected_date.isoformat()
@@ -192,7 +193,7 @@ if uploaded is not None:
     except (ValueError, KeyError, TypeError, pd.errors.ParserError) as exc:
         st.error(f'Snapshot could not be processed: {exc}')
 st.divider()
-st.subheader('V3.4 Experimental Storyline, Numerology & Gematria')
+st.subheader('V3.5 Auto Storyline, Numerology & Gematria')
 st.caption('Exploratory patterns only. NOT goal probabilities, predictive evidence, or betting edges. '
            'This section does not change the statistical rankings or backtests.')
 st.write(f'Universal day (YYYYMMDD digit reduction): **{universal_day(day)}**')
@@ -201,7 +202,21 @@ st.caption('Name Pythagorean: A=1 through I=9, repeating. English ordinal: A=1 t
 st.caption('Optional metadata CSV columns: Player ID, Jersey, Birth date (YYYY-MM-DD), Arena, '
            'Verified storyline, Source URL. Only sourced storyline text is displayed. '
            'Names, arena spellings, and birthdays require independent verification.')
-meta_file = st.file_uploader('Optional verified metadata CSV', type=['csv'], key='signal_meta')
+st.caption('NHL player landing profiles supply birthdays and current jersey numbers. Arena names come from the NHL schedule. No injuries, revenge games, milestones or confirmed lineups are inferred automatically.')
+auto_limit = st.select_slider('NHL profiles to fetch (top-ranked players)', options=[10, 25, 50, 100], value=50)
+if st.button('Fetch NHL player biographies and arenas'):
+    if 'signals_ranked' not in st.session_state or st.session_state.get('signals_day') != day:
+        st.warning('Run Rank Entire Slate first.')
+    else:
+        with st.spinner('Retrieving source-linked NHL profiles...'):
+            data, errors = fetch_metadata(st.session_state['signals_ranked'].to_dict('records'), day, games, max_players=auto_limit)
+        st.session_state['auto_signal_metadata'] = pd.DataFrame(data)
+        st.session_state['auto_signal_day'] = day
+        st.success(f'Fetched {len(data)} profiles; {len(errors)} unavailable.')
+        if errors:
+            with st.expander('Profile retrieval errors'):
+                st.write(errors)
+meta_file = st.file_uploader('Optional additional sourced storyline metadata CSV', type=['csv'], key='signal_meta')
 metadata = None
 if meta_file is not None:
     try:
@@ -211,6 +226,12 @@ if meta_file is not None:
             metadata = None
     except (ValueError, pd.errors.ParserError) as exc:
         st.warning(f'Metadata could not be loaded: {exc}')
+if st.session_state.get('auto_signal_day') == day and 'auto_signal_metadata' in st.session_state:
+    automatic = st.session_state['auto_signal_metadata']
+    if metadata is None:
+        metadata = automatic
+    else:
+        metadata = pd.concat([metadata, automatic], ignore_index=True).drop_duplicates(subset=['Player ID'], keep='first')
 if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') == day:
     signals = build_signals(st.session_state['signals_ranked'], day, metadata)
     st.caption(f'{len(signals)} players evaluated. Pattern overlap counts are descriptive, '
