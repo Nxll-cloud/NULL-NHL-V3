@@ -1,8 +1,6 @@
-"""Opponent defensive context from NHL completed regular-season boxscores.
-
-No starting-goalie confirmation is inferred from boxscores.
-"""
+"""Pregame opponent defense from completed NHL boxscores; descriptive adjustment only."""
 from datetime import date
+import math
 import requests
 from nhl_data import fetch_json
 
@@ -24,7 +22,6 @@ def prior_team_games(schedule, team, cutoff_day, limit=10):
     return [gid for _, gid in games[:limit]]
 
 def defense_summary(team, cutoff_day, season):
-    """Return defensive stats with coverage and explicit unavailable values."""
     schedule = fetch_json(f"club-schedule-season/{team}/{season}")
     game_ids = prior_team_games(schedule, team, cutoff_day)
     records, failures = [], []
@@ -70,14 +67,62 @@ def opponent_lookup(games):
             result[away] = home
     return result
 
-def attach_matchups(ranked, games, defensive):
+def _valid_rate(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0
+
+def league_defense_baseline(defensive, min_gp=3):
+    """Equal-weight eligible teams; no external or fabricated league constants."""
+    eligible = []
+    for d in defensive.values():
+        if (d.get("Games verified", 0) >= min_gp
+            and d.get("Boxscore errors", 0) == 0
+            and all(_valid_rate(d.get(k)) for k in
+                    ("Defense GA/G L5", "Defense SA/G L5",
+                     "Defense GA/G L10", "Defense SA/G L10"))):
+            eligible.append(d)
+    if len(eligible) < 4:
+        return None
+    return {
+        key: sum(d[key] for d in eligible) / len(eligible)
+        for key in ("Defense GA/G L5", "Defense SA/G L5",
+                    "Defense GA/G L10", "Defense SA/G L10")
+    }
+
+def attach_matchups(ranked, games, defensive, adjust=True):
     opponents = opponent_lookup(games)
+    baseline = league_defense_baseline(defensive)
     enriched = []
     for row in ranked:
         opponent = opponents.get(row["Team"])
         d = defensive.get(opponent, {})
+        base = row["Form Index"]
+        reason = "Applied"
+        factor = 1.0
+        keys = ("Defense GA/G L5", "Defense GA/G L10",
+                "Defense SA/G L5", "Defense SA/G L10")
+        if not adjust:
+            reason = "Disabled"
+        elif baseline is None:
+            reason = "Insufficient league baseline"
+        elif (d.get("Games verified", 0) < 3 or d.get("Boxscore errors", 0) != 0
+              or not all(_valid_rate(d.get(k)) for k in keys)):
+            reason = "Insufficient opponent coverage"
+        elif any(baseline[k] <= 0 for k in keys):
+            reason = "Invalid league baseline"
+        else:
+            # Weighted rate ratios; capped to limit sensitivity to small samples.
+            ga_ratio = (0.6 * d[keys[0]] / baseline[keys[0]]
+                        + 0.4 * d[keys[1]] / baseline[keys[1]])
+            sa_ratio = (0.6 * d[keys[2]] / baseline[keys[2]]
+                        + 0.4 * d[keys[3]] / baseline[keys[3]])
+            raw = 0.6 * ga_ratio + 0.4 * sa_ratio
+            factor = max(0.85, min(1.15, 1 + 0.5 * (raw - 1)))
         enriched.append({
             **row,
+            "Baseline Form Index": base,
+            "Defense Adjustment": round((factor - 1) * 100, 1),
+            "V3.2 Adjusted Index": round(base * factor, 1),
+            "Adjustment status": reason,
             "Opponent": opponent or "Unavailable",
             "Opp GA/G L5": d.get("Defense GA/G L5"),
             "Opp SA/G L5": d.get("Defense SA/G L5"),
@@ -87,4 +132,5 @@ def attach_matchups(ranked, games, defensive):
             "Starting goalie": "Unconfirmed",
             "Goalie adjustment": "Not applied",
         })
+    enriched.sort(key=lambda x: (-x["V3.2 Adjusted Index"], -x["Shots/G L5"], x["Player"]))
     return enriched

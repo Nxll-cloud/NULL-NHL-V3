@@ -15,7 +15,6 @@ def rank_players(rows, min_gp=3):
         s10 = r["Shots L10"] / g10
         g_rate = r["Goals"] / gp
         g5_rate = r["Goals L5"] / g5
-        # Descriptive index; coefficients are provisional, NOT fitted.
         index = round(40 * s5 / 4 + 25 * s10 / 4
                       + 20 * g_rate / .5 + 15 * g5_rate / .5, 1)
         ranked.append({

@@ -1,4 +1,4 @@
-"""NULL NHL V3: source-first NHL slate and pregame player performance."""
+"""NULL NHL V3.2: source-first NHL slate and descriptive player form."""
 from datetime import date, datetime, timezone
 import pandas as pd
 import requests
@@ -7,9 +7,9 @@ from nhl_data import get_schedule, load_team, SEASON
 from rankings import rank_players
 from matchups import defense_summary, attach_matchups
 
-st.set_page_config(page_title='NULL NHL V3', page_icon='🏒', layout='wide')
-st.markdown('''<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>''', unsafe_allow_html=True)
-st.title('NULL NHL V3')
+st.set_page_config(page_title='NULL NHL V3.2', page_icon='🏒', layout='wide')
+st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
+st.title('NULL NHL V3.2')
 st.caption('Verified NHL data | Pregame player form | Model probabilities pending')
 selected_date = st.date_input('NHL slate date', date.today())
 day = selected_date.isoformat()
@@ -81,12 +81,13 @@ else:
     st.info('Choose a date with games to explore player statistics.')
 
 st.divider()
-st.subheader('V3 Goal-Scorer Rankings')
-st.caption('Descriptive form index, not a scoring probability. Opponent defense is displayed '
-           'as context only; goalie starters are unconfirmed and no defense/goalie adjustments '
-           'are applied to the index.')
+st.subheader('V3.2 Goal-Scorer Rankings')
+st.caption('Descriptive form index, NOT a scoring probability. Opponent goals/shots allowed '
+           'adjust the form index by at most 15% where coverage is sufficient. '
+           'Goalie starters are unconfirmed and no goalie adjustment is applied.')
 if games:
     min_games = st.slider('Minimum prior games per player', 1, 10, 3)
+    use_defense = st.checkbox('Apply opponent defense adjustment', value=True)
     if st.button('Rank Entire Slate', type='primary'):
         teams_to_load = sorted({g[t] for g in games for t in ('Home', 'Away') if g.get(t)})
         all_rows, all_errors = [], []
@@ -106,7 +107,7 @@ if games:
                 defensive[team_code] = defense_cached(team_code, day)
             except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
                 defense_errors.append(f'{team_code}: {exc}')
-        ranked = attach_matchups(ranked, games, defensive)
+        ranked = attach_matchups(ranked, games, defensive, adjust=use_defense)
         coverage = pd.DataFrame([
             {k:v for k,v in d.items() if k != 'Error details'}
             for d in defensive.values()
@@ -132,7 +133,7 @@ if games:
         if ranked:
             st.dataframe(pd.DataFrame(ranked), hide_index=True, use_container_width=True)
             st.download_button('Download rankings CSV', pd.DataFrame(ranked).to_csv(index=False),
-                               file_name=f'null-nhl-form-{day}.csv', mime='text/csv')
+                               file_name=f'null-nhl-v3-2-{day}.csv', mime='text/csv')
             st.caption('Statistical sleepers (NOT verified betting longshots): players outside the top 20 '
                        'with at least 2 shots per game over the last 5 games.')
             watch = [r for r in ranked[20:] if r['Shots/G L5'] >= 2]
