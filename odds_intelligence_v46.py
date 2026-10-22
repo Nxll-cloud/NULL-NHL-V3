@@ -23,31 +23,39 @@ def quote_audit(raw, cleaned):
             "excluded_or_consolidated":max(0,raw_count-len(cleaned))}
 
 def attach_model(discrepancies, ranked):
+    """Conservative identity matching: duplicate names must never receive a guessed rank."""
     out=discrepancies.copy()
-    out["model_rank"]=pd.NA
-    out["model_index"]=pd.NA
-    out["team"]= ""
-    out["player_id"]=""
-    if ranked is None or ranked.empty or "Player" not in ranked:
+    out['model_rank']=pd.NA
+    out['model_index']=pd.NA
+    out['team']=''
+    out['player_id']=''
+    out['identity_status']='Unverified: no unique provider player ID'
+    if ranked is None or ranked.empty or 'Player' not in ranked:
         return out
     model=ranked.copy()
-    if "Statistical rank" not in model and "V3.2 Adjusted Index" in model:
-        model=model.sort_values("V3.2 Adjusted Index",ascending=False)
-        model["Statistical rank"]=range(1,len(model)+1)
-    model["_name"]=model["Player"].map(normalized_name)
-    model=model.drop_duplicates("_name")
-    by_name=model.set_index("_name")
+    if 'Statistical rank' not in model and 'V3.2 Adjusted Index' in model:
+        model=model.sort_values('V3.2 Adjusted Index',ascending=False)
+        model['Statistical rank']=range(1,len(model)+1)
+    model['_name']=model['Player'].map(normalized_name)
+    groups=model.groupby('_name',dropna=False)
     for i,row in out.iterrows():
-        key=normalized_name(row["player"])
-        if key not in by_name.index: continue
-        match=by_name.loc[key]
-        out.at[i,"model_rank"]=match.get("Statistical rank",pd.NA)
-        out.at[i,"model_index"]=match.get("V3.2 Adjusted Index",pd.NA)
-        out.at[i,"team"]=str(match.get("Team",""))
-        pid=match.get("Player ID","")
-        try: out.at[i,"player_id"]=str(int(float(pid)))
+        key=normalized_name(row['player'])
+        if key not in groups.groups: continue
+        matches=groups.get_group(key)
+        if len(matches)!=1:
+            out.at[i,'identity_status']='Ambiguous: multiple NHL players share this name'
+            continue
+        match=matches.iloc[0]
+        out.at[i,'model_rank']=match.get('Statistical rank',pd.NA)
+        out.at[i,'model_index']=match.get('V3.2 Adjusted Index',pd.NA)
+        out.at[i,'team']=str(match.get('Team',''))
+        pid=match.get('Player ID','')
+        try: out.at[i,'player_id']=str(int(float(pid)))
         except (TypeError,ValueError): pass
+        # A name-only provider feed cannot establish that two books refer to the same individual.
+        out.at[i,'identity_status']='Unverified: name-only sportsbook feed'
     return out
+
 
 def order_opportunities(frame, mode="Biggest discrepancy", minimum_odds=None, max_rank=None):
     result=frame.copy()
@@ -71,3 +79,11 @@ def quotes_for_market(cleaned, row):
     for field in ["event_id","player","market","selection","line"]:
         mask &= cleaned[field].astype(str).eq(str(row[field]))
     return cleaned.loc[mask].sort_values("decimal_odds",ascending=False)
+
+
+def identity_ambiguities(discrepancies, ranked):
+    """Return suspected identity collisions even when model coverage is partial."""
+    if ranked is None or ranked.empty or 'Player' not in ranked:
+        return set()
+    counts=ranked['Player'].map(normalized_name).value_counts()
+    return set(counts[counts>1].index)

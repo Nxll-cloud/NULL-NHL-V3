@@ -25,7 +25,7 @@ from historical_coverage_v388 import historical_coverage
 
 st.set_page_config(page_title="Null's Playbook | NHL", page_icon='👑', layout='wide', initial_sidebar_state='collapsed')
 from playbook_odds import compare_odds
-from odds_intelligence_v46 import attach_model, order_opportunities, quote_audit, quotes_for_market, price_label
+from odds_intelligence_v46 import attach_model, order_opportunities, quote_audit, quotes_for_market, price_label, normalized_name, identity_ambiguities
 from odds_api_v45 import fetch_odds, OddsFeedError
 from snapshot_store import load_snapshot
 from streamlit_autorefresh import st_autorefresh
@@ -223,7 +223,7 @@ with np_home_tab:
             img=f'https://assets.nhle.com/mugs/nhl/20262027/{t}/{pid}.png' if pid else ''
             idx=float(r.get('V3.2 Adjusted Index',0))
             rank=int(r.get('Statistical rank',0))
-            np_cards.append(f'<div class="np-feature"><div class="np-feature-top"><span class="np-rank">#{rank}</span><img loading="lazy" class="np-photo" src="{img}" alt="Player portrait"/></div><b>{n}</b><small><img style="width:18px;height:18px;vertical-align:middle;object-fit:contain" src="https://assets.nhle.com/logos/nhl/svg/{t}_light.svg" alt=""/> {t} · Rank #{rank}</small><div class="np-feature-score">{idx:.1f}<span> FORM INDEX</span></div></div>')
+            np_cards.append(f'<div class="np-feature"><div class="np-feature-top"><span class="np-rank">#{rank}</span><img loading="lazy" class="np-photo" src="{img}" alt="Player portrait"/></div><b>{n}</b><small><img style="width:18px;height:18px;vertical-align:middle;object-fit:contain" src="https://assets.nhle.com/logos/nhl/svg/{t}_light.svg" alt=""/> {t} · Rank #{rank}</small><div class="np-feature-score">{idx:.1f}<span> FORM SCORE</span></div></div>')
         st.markdown('<div class="np-feature-scroll">'+''.join(np_cards)+'</div>',unsafe_allow_html=True)
         st.markdown('#### 📊 Statistical leaderboard')
         np_cols=[c for c in ['Statistical rank','Player','Team','V3.2 Adjusted Index','Shots/G L5'] if c in np_view]
@@ -312,12 +312,19 @@ with np_odds_tab:
                     model_ranked=None
                 combined=attach_model(discrepancies,model_ranked)
                 st.markdown('#### ⚡ Market scanner')
+                st.caption('Identity verification is required before a price gap can be considered actionable. Name-only provider quotes are unverified.')
                 f1,f2=st.columns(2)
                 with f1:
                     view_mode=st.selectbox('Sort by',['Biggest discrepancy','Model-backed','Longshots'],key='v46_mode')
                 with f2:
                     book_min=st.selectbox('Books compared',[2,3,4,5],key='v46_min_books')
+                rank_limit=st.selectbox('Statistical shortlist',['All players','Top 25','Top 50','Top 100'],key='v47_rank_filter')
+                identity_view=st.selectbox('Identity review',['All quotes (unverified)','Flagged name collisions only'],key='v47_identity_view')
                 show=combined[combined['sportsbooks_compared']>=book_min]
+                if rank_limit!='All players':
+                    show=show[pd.to_numeric(show['model_rank'],errors='coerce')<=int(rank_limit.split()[-1])]
+                if identity_view=='Flagged name collisions only':
+                    show=show[show['identity_status'].str.startswith('Ambiguous',na=False)]
                 show=order_opportunities(show,view_mode)
                 st.caption('Price gaps compare identical events and markets. A large gap does not establish positive expected value.')
                 if show.empty:
@@ -329,17 +336,20 @@ with np_odds_tab:
                         low_book=_odds_html.escape(str(r['worst_sportsbook']))
                         team=_odds_html.escape(str(r.get('team','')))
                         rank=r.get('model_rank')
-                        rank_text=f"Model #{int(rank)}" if pd.notna(rank) else "Unranked / unmatched"
+                        rank_text=f"Model #{int(rank)}" if pd.notna(rank) else "Model rank unavailable"
                         pid=str(r.get('player_id',''))
                         mug=f'https://assets.nhle.com/mugs/nhl/20262027/{team}/{pid}.png' if team and pid else ''
                         photo=f'<img class="np-odds-photo" src="{mug}" loading="lazy" alt="Player portrait"/>' if mug else '<div class="np-odds-avatar">🏒</div>'
                         gap=float(r['decimal_price_improvement_pct'])
-                        st.markdown(f"""<div class="np-odds-card"><div class="np-odds-card-head">{photo}<div class="np-odds-player"><div class="np-odds-name">{player}</div><div class="np-odds-context">{team} · {rank_text} · {int(r['sportsbooks_compared'])} books</div></div><div class="np-odds-price">{price_label(r['best_odds'])}<small>{book}</small></div></div><div class="np-odds-card-foot"><span>LOW {price_label(r['worst_odds'])} · {low_book}</span><strong>+{gap:.1f}% payout difference</strong></div></div>""",unsafe_allow_html=True)
+                        identity_note=_odds_html.escape(str(r.get('identity_status','Unverified')))
+                        status_color='#ffbb70' if 'Ambiguous' in identity_note else '#9cb7cc'
+                        st.markdown(f"""<div class="np-odds-card"><div class="np-odds-card-head">{photo}<div class="np-odds-player"><div class="np-odds-name">{player}</div><div class="np-odds-context">{team} · {rank_text} · {int(r['sportsbooks_compared'])} books</div><div class="np-odds-identity" style="color:{status_color}">{identity_note}</div></div><div class="np-odds-price">{price_label(r['best_odds'])}<small>{book}</small></div></div><div class="np-odds-card-foot"><span>LOW {price_label(r['worst_odds'])} · {low_book}</span><strong>+{gap:.1f}% payout difference</strong></div></div>""",unsafe_allow_html=True)
                         with st.expander(f'Compare all sportsbook prices · {r["player"]}',expanded=False):
                             options=quotes_for_market(price_rows,r)
                             options=options[['sportsbook','american_odds','updated_at']].copy()
                             options.columns=['Sportsbook','American odds','Updated (UTC)']
                             options['American odds']=options['American odds'].map(price_label)
+                            options['Updated (UTC)']=pd.to_datetime(options['Updated (UTC)'],utc=True,errors='coerce').dt.strftime('%b %d · %H:%M UTC')
                             st.dataframe(options,hide_index=True,use_container_width=True)
                     if len(show)>30:
                         st.caption(f'Showing 30 of {len(show)} opportunities. Download the complete comparison below.')
@@ -409,7 +419,7 @@ with np_research_tab:
                     rows, errors = team_cached(team, day)
                 if rows:
                     st.dataframe(pd.DataFrame(rows).drop(columns=['id']), hide_index=True, use_container_width=True)
-                    st.caption(f'Source: NHL roster and player game-log endpoints | Season {SEASON}')
+                    st.caption(f'Roster and player statistics · Season {SEASON}')
                     flagged = sum(r['Data status'] == 'Needs review' for r in rows)
                     missing = sum(r['GP'] == 0 for r in rows)
                     c1, c2, c3 = st.columns(3)
@@ -433,8 +443,8 @@ with np_research_tab:
 
     st.divider()
     st.subheader('V3.2 Goal-Scorer Rankings')
-    st.caption('Descriptive form index, NOT a scoring probability. Opponent goals/shots allowed '
-               'adjust the form index by at most 15% where coverage is sufficient. '
+    st.caption('Goal-scoring form score is a relative index, NOT a scoring probability. Opponent goals/shots allowed '
+               'adjust the form score by at most 15% where coverage is sufficient. '
                'Goalie starters are unconfirmed and no goalie adjustment is applied.')
     if games:
         min_games = st.slider('Minimum prior games per player', 1, 10, 3)
@@ -637,28 +647,35 @@ with np_research_tab:
             cov3.metric('Not fetched', coverage_stats['not_fetched'])
             st.caption(f"{coverage_stats['percent']:.1f}% of ranked players have complete requested-season history. Only complete records count toward historical storyline evidence; incomplete coverage may change the leaders.")
             st.caption('Statistical form, sourced storyline strength, top-20 overlap and descriptive sleeper are separate rankings. None is a calibrated scoring probability.')
-            labels = [('statistical','📊 Top Statistical Goalscorer'),('storyline','📚 Top Storyline Candidate'),('overlap','🔗 Best Statistical + Storyline Overlap'),('longshots','🎯 Strongest Statistical Sleeper')]
-            for key, label in labels:
-                lead = v387['leaders'][key]
-                st.markdown('#### ' + label)
+            st.markdown('### Player Intelligence')
+            st.caption('Four independent leaders · statistical form and historical storylines are not scoring probabilities')
+            labels = [('statistical','TOP STATISTICAL GOALSCORER'),('storyline','TOP STORYLINE CANDIDATE'),('overlap','BEST MODEL + STORYLINE OVERLAP'),('longshots','STATISTICAL SLEEPER')]
+            for key,label in labels:
+                lead=v387['leaders'][key]
                 if lead is None:
-                    st.info('No eligible player with the currently loaded evidence. Fetch historical opponent logs for wider coverage.')
+                    st.info(f'{label}: insufficient data for this date')
                     continue
                 import html
-                player_id=lead.get('Player ID')
-                player_id=str(int(player_id)) if pd.notna(player_id) and str(player_id).replace('.0','').isdigit() else ''
-                team_code=html.escape(str(lead.get('Team','')))
-                player_name=html.escape(str(lead.get('Player','')))
-                portrait=(f'<img class="np-head" alt="Player headshot" src="https://assets.nhle.com/mugs/nhl/20262027/{team_code}/{player_id}.png" />' if player_id else '')
-                st.markdown(f'<div class="np-player">{portrait}<div class="np-muted">NHL · {team_code}</div><div class="np-player-name">{player_name}</div><div class="np-muted">Official NHL image where available</div></div>',unsafe_allow_html=True)
-                c1,c2,c3 = st.columns(3)
-                c1.metric('Statistical rank',int(lead['Statistical rank']))
-                c2.metric('Storyline evidence points',f"{lead['Storyline evidence score']:.2f}")
-                c3.metric('Storyline flags',int(lead['Storyline count']))
-                st.caption(f"Opponent history: {('not loaded / insufficient' if lead['Historical coverage'] != 'Complete, >=3 meetings' else str(int(lead['Historical opponent goals'])) + ' goals, ' + str(int(lead['Historical opponent shots'])) + ' shots in ' + str(int(lead['Historical opponent GP'])) + ' games')}; {lead['Historical coverage']}. Shots/G last five: {lead['Shots/G L5']:.2f}. Adjusted form index: {lead['V3.2 Adjusted Index']:.1f}.")
-                st.write('**Evidence:**',lead.get('Verified data flags','Not available'))
-                if pd.notna(lead.get('Evidence URLs')) and str(lead.get('Evidence URLs')).strip():
-                    st.caption('Sources: '+str(lead['Evidence URLs']))
+                pid=lead.get('Player ID')
+                pid=str(int(pid)) if pd.notna(pid) and str(pid).replace('.0','').isdigit() else ''
+                team=html.escape(str(lead.get('Team','')))
+                name=html.escape(str(lead.get('Player','')))
+                rank=int(lead['Statistical rank'])
+                form=float(lead['V3.2 Adjusted Index'])
+                shots=float(lead['Shots/G L5'])
+                flags=int(lead['Storyline count'])
+                evidence=float(lead['Storyline evidence score'])
+                history_ok=lead.get('Historical coverage')=='Complete, >=3 meetings'
+                gp=int(lead['Historical opponent GP']) if history_ok else 0
+                goals=int(lead['Historical opponent goals']) if history_ok else 0
+                photo=f'<img class="np-research-photo" src="https://assets.nhle.com/mugs/nhl/20262027/{team}/{pid}.png" alt="Player portrait" loading="lazy"/>' if pid else '<div class="np-research-placeholder">🏒</div>'
+                history_text=f'{goals} goals in {gp} previous meetings' if history_ok else 'Opponent history unavailable or insufficient'
+                st.markdown(f"""<div class="np-research-card"><div class="np-research-eyebrow">{label}</div><div class="np-research-row">{photo}<div class="np-research-person"><div class="np-research-name">{name}</div><div class="np-research-team">{team} · Statistical rank #{rank}</div><div class="np-research-form">{form:.1f} <small>GOAL-SCORING FORM SCORE</small></div></div></div><div class="np-research-stats"><div><b>{shots:.1f}</b><small>Shots/game · L5</small></div><div><b>{goals if history_ok else '—'}</b><small>Opponent goals</small></div><div><b>{flags}</b><small>Storyline flags</small></div></div><div class="np-research-note">{history_text} · {evidence:.1f} storyline points</div></div>""",unsafe_allow_html=True)
+                with st.expander(f'Detailed analysis · {lead.get("Player", "Player")}',expanded=False):
+                    st.caption(f'Statistical rank #{rank} · Goal-scoring form score {form:.1f} · Storyline evidence {evidence:.2f}')
+                    st.write('**Evidence:**',lead.get('Verified data flags','Not available'))
+                    st.caption('Historical opponent data: '+str(lead.get('Historical coverage','Unavailable')))
+                    st.caption('Form score is a relative statistical index, not a goal probability. Storyline evidence is a separate heuristic.')
             st.caption('Storyline evidence points are an explicitly heuristic display index: 2 per historical goal (max 10), 6 × historical goals/game (max 1.5), historical shots/10 (max 50 shots), plus 1.5 per sourced flag (max 5). Historical components require complete requested seasons and ≥3 meetings. They are NOT validated predictive weights.')
             for key,title in [('statistical','Top 10 Statistical'),('storyline','Top 10 Storylines'),('overlap','Top 10 Overlap'),('longshots','Top 10 Statistical Sleepers')]:
                 st.subheader(title)
@@ -811,4 +828,14 @@ st.markdown("""<style>
 .np-odds-price{color:#69e2ad;font-weight:850;font-size:1.6rem;text-align:right;white-space:nowrap;letter-spacing:-.04em}.np-odds-price small{display:block;color:#b8d3e9;font-size:.7rem;font-weight:500;letter-spacing:0}
 .np-odds-card-foot{border-top:1px solid #294560;margin-top:11px;padding-top:9px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;font-size:.74rem;color:#a9bdd1}.np-odds-card-foot strong{color:#59d5ff}
 @media(max-width:768px){.np-odds-hero{padding:17px 15px}.np-odds-card{padding:11px}.np-odds-photo,.np-odds-avatar{width:52px;height:58px}.np-odds-price{font-size:1.35rem}.np-odds-name{font-size:.96rem}}
+</style>""",unsafe_allow_html=True)
+
+st.markdown("""<style>
+.np-research-card{background:linear-gradient(125deg,#12365a 0%,#0a192c 75%);border:1px solid #315d84;border-radius:19px;padding:17px;margin:13px 0 4px;box-shadow:0 12px 32px #0004}
+.np-research-eyebrow{color:#66d9ff;font-weight:850;font-size:.66rem;letter-spacing:.12em;margin-bottom:9px}
+.np-research-row{display:flex;align-items:center;gap:13px}.np-research-photo,.np-research-placeholder{height:99px;width:85px;object-fit:contain;flex-shrink:0}.np-research-placeholder{display:grid;place-items:center;background:#153553;border-radius:12px}
+.np-research-person{flex:1;min-width:0}.np-research-name{color:#fff;font-size:1.16rem;font-weight:850}.np-research-team{color:#a6bfd4;font-size:.76rem;margin-top:3px}.np-research-form{color:#68e0af;font-size:1.65rem;font-weight:850;margin-top:8px;letter-spacing:-.04em}.np-research-form small{display:block;color:#9fbcd2;font-size:.58rem;letter-spacing:.05em;font-weight:600}
+.np-research-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:12px}.np-research-stats>div{background:#193a57;border-radius:10px;padding:9px}.np-research-stats b{display:block;font-size:1.05rem;color:#fff}.np-research-stats small{display:block;font-size:.64rem;color:#abc2d6}.np-research-note{color:#b7ccdf;font-size:.76rem;line-height:1.5;margin-top:12px}
+.np-odds-identity{font-size:.64rem;margin-top:5px}
+@media(max-width:768px){.np-research-card{padding:13px}.np-research-photo,.np-research-placeholder{height:86px;width:71px}.np-research-name{font-size:1.04rem}}
 </style>""",unsafe_allow_html=True)
