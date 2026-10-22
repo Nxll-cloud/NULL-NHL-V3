@@ -24,4 +24,17 @@ class Tests(unittest.TestCase):
   x=merge_multi_history(base,h)
   self.assertEqual(x.iloc[0]['Storyline count'],2)
 
+ def test_merge_preexisting_history_columns(self):
+  base=pd.DataFrame([{'Player ID':1,'Storyline count':2,'Verified data flags':'Form', 'Evidence URLs':'', 'Historical storyline flag':'Old', 'Historical source URLs':'old'}])
+  h=pd.DataFrame([{'Player ID':'1','Historical storyline flag':'Opponent trend','Historical source URLs':'https://example.com'}])
+  x=merge_multi_history(base,h)
+  self.assertEqual(x.iloc[0]['Storyline count'],3)
+  self.assertEqual(x.iloc[0]['Historical storyline flag'],'Opponent trend')
+  self.assertNotIn('Historical storyline flag_x',x.columns)
+ def test_merge_missing_optional_base_columns(self):
+  base=pd.DataFrame([{'Player ID':1}])
+  h=pd.DataFrame([{'Player ID':'1','Historical storyline flag':'Opponent trend'}])
+  x=merge_multi_history(base,h)
+  self.assertEqual(x.iloc[0]['Storyline count'],1)
+
 if __name__=='__main__': unittest.main()

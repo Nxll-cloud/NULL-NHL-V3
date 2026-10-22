@@ -90,13 +90,18 @@ def merge_multi_history(combined, history):
     if h['Player ID'].astype(str).duplicated().any(): raise ValueError('Duplicate historical player IDs')
     for f in (frame,h): f['Player ID']=f['Player ID'].astype(str).str.replace(r'\.0$','',regex=True)
     h=h.drop(columns=['Player','Team'],errors='ignore')
+    # Prior history layers can already have historical columns. Refresh those
+    # from this history dataset without pandas adding _x/_y suffixes.
+    history_columns=[c for c in h.columns if c != 'Player ID']
+    frame=frame.drop(columns=[c for c in history_columns if c in frame.columns],errors='ignore')
     frame=frame.merge(h,on='Player ID',how='left',validate='one_to_one')
-    flags=frame['Historical storyline flag'].fillna('').astype(str)
-    frame['Storyline count']=pd.to_numeric(frame['Storyline count'],errors='coerce').fillna(0).astype(int)+flags.ne('').astype(int)
-    frame['Verified data flags']=frame['Verified data flags'].fillna('').astype(str)
+    flags=frame.get('Historical storyline flag',pd.Series('',index=frame.index)).fillna('').astype(str)
+    baseline=frame.get('Storyline count',pd.Series(0,index=frame.index))
+    frame['Storyline count']=pd.to_numeric(baseline,errors='coerce').fillna(0).astype(int)+flags.ne('').astype(int)
+    frame['Verified data flags']=frame.get('Verified data flags',pd.Series('',index=frame.index)).fillna('').astype(str)
     frame['Verified data flags']=[ ' | '.join(x for x in (old,new) if x) for old,new in zip(frame['Verified data flags'],flags)]
     if 'Evidence URLs' in frame:
-        frame['Evidence URLs']=[' | '.join(x for x in (str(old) if pd.notna(old) else '',str(new) if pd.notna(new) else '') if x) for old,new in zip(frame['Evidence URLs'],frame['Historical source URLs'])]
+        frame['Evidence URLs']=[' | '.join(x for x in (str(old) if pd.notna(old) else '',str(new) if pd.notna(new) else '') if x) for old,new in zip(frame['Evidence URLs'],frame.get('Historical source URLs',pd.Series('',index=frame.index)))]
     return frame
 
 def missing_player_ids(ranked, roster_audit):
