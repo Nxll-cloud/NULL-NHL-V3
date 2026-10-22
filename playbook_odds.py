@@ -1,7 +1,10 @@
 """Source-labeled, exact-market sportsbook price comparisons; no fabricated odds."""
+import numpy as np
 import pandas as pd
 
 REQUIRED = {'player','team','market','selection','sportsbook','american_odds','updated_at'}
+# V5.3: real newline (V5.2 shipped a literal backslash-n inside the header row).
+CSV_TEMPLATE = 'player,team,market,selection,sportsbook,american_odds,updated_at,event_id,line\n'
 
 def implied_probability(american):
     a=int(american)
@@ -21,6 +24,7 @@ def compare_odds(frame):
     df['american_odds']=pd.to_numeric(df['american_odds'],errors='coerce')
     df['updated_at']=pd.to_datetime(df['updated_at'],utc=True,errors='coerce')
     df=df.dropna(subset=['american_odds','updated_at'])
+    df=df[np.isfinite(df['american_odds'].astype(float))]  # V5.3: reject inf
     df=df[(df['american_odds']!=0) & ((df['american_odds']>=100) | (df['american_odds']<=-100))].copy()
     if 'event_id' not in df: df['event_id']=''
     if 'line' not in df: df['line']=''

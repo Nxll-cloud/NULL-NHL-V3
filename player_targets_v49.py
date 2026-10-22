@@ -1,4 +1,5 @@
 """Recreational player/team/arena numerical matching, never scoring probabilities."""
+import math
 import pandas as pd
 from numerology_v48 import gematria, universal_day
 
@@ -30,6 +31,7 @@ def target_rows(ranked, team, team_name, arena, day):
         total=len(day_matches)+len(team_matches)+len(arena_matches)
         try: form=float(row.get('V3.2 Adjusted Index',0))
         except (ValueError,TypeError): form=0.0
+        if not math.isfinite(form): form=0.0  # V5.3: NaN would break sorting and display
         out.append({'player':name,'player_id':player_id,'team':team,'number':values['ordinal_root'],
                     'day':day_matches,'team_matches':team_matches,'arena_matches':arena_matches,
                     'matches':total,'form':form,'values':values})

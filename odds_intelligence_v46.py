@@ -10,10 +10,11 @@ def normalized_name(value):
     return re.sub(r"[^a-z0-9]+","",value.casefold())
 
 def price_label(value):
+    if isinstance(value,bool): return "—"
     try:
-        n=int(value)
+        n=int(float(value))
         return f"+{n}" if n>0 else str(n)
-    except (TypeError,ValueError): return "—"
+    except (TypeError,ValueError,OverflowError): return "—"
 
 def quote_audit(raw, cleaned):
     """Report ingestion, filtering, and duplicate consolidation transparently."""

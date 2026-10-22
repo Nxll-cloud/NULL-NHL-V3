@@ -2,6 +2,7 @@
 import pandas as pd
 from numerology_v48 import analyze_game
 from player_targets_v49 import slate_targets
+from odds_intelligence_v46 import normalized_name
 
 TEAM_NAMES={'ANA':'Anaheim Ducks','BOS':'Boston Bruins','BUF':'Buffalo Sabres','CAR':'Carolina Hurricanes','CBJ':'Columbus Blue Jackets','CGY':'Calgary Flames','CHI':'Chicago Blackhawks','COL':'Colorado Avalanche','DAL':'Dallas Stars','DET':'Detroit Red Wings','EDM':'Edmonton Oilers','FLA':'Florida Panthers','LAK':'Los Angeles Kings','MIN':'Minnesota Wild','MTL':'Montreal Canadiens','NJD':'New Jersey Devils','NSH':'Nashville Predators','NYI':'New York Islanders','NYR':'New York Rangers','OTT':'Ottawa Senators','PHI':'Philadelphia Flyers','PIT':'Pittsburgh Penguins','SEA':'Seattle Kraken','SJS':'San Jose Sharks','STL':'St Louis Blues','TBL':'Tampa Bay Lightning','TOR':'Toronto Maple Leafs','UTA':'Utah Mammoth','VAN':'Vancouver Canucks','VGK':'Vegas Golden Knights','WPG':'Winnipeg Jets','WSH':'Washington Capitals'}
 
@@ -47,10 +48,15 @@ def choose_leaders(ranked,targets,discrepancies=None):
         # Require exact unique name in this slate, to avoid presenting ambiguous
         # Pettersson-like names as resolved; labels still say 'unverified'.
         names={}
-        for p in unique:names.setdefault(p['player'].casefold(),[]).append(p)
-        ordered=discrepancies.sort_values('decimal_price_improvement_pct',ascending=False)
+        # V5.3: same accent/punctuation-insensitive key used by the Odds tab.
+        for p in unique:names.setdefault(normalized_name(p['player']),[]).append(p)
+        ordered=discrepancies.copy()
+        ordered['_gap']=pd.to_numeric(ordered['decimal_price_improvement_pct'],errors='coerce') if 'decimal_price_improvement_pct' in ordered else float('nan')
+        ordered=ordered.sort_values('_gap',ascending=False,na_position='last')
         for _,row in ordered.iterrows():
-            matches=names.get(str(row.get('player','')).casefold(),[])
+            if pd.isna(row['_gap']): continue
+            key=normalized_name(row.get('player',''))
+            matches=names.get(key,[]) if key else []
             if len(matches)==1:
                 odds.append({**matches[0], 'best_odds':row.get('best_odds'), 'best_sportsbook':row.get('best_sportsbook'), 'gap_pct':row.get('decimal_price_improvement_pct')})
     take('odds',odds)

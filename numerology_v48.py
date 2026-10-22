@@ -16,8 +16,18 @@ def universal_day(day):
     return digit_root(sum(int(x) for x in d.strftime('%Y%m%d')))
 
 
+def _clean_text(value):
+    """V5.3: None/NaN/'nan' are missing values, never the letters N-A-N."""
+    if value is None:
+        return ''
+    if isinstance(value, float) and value != value:
+        return ''
+    text = str(value).strip()
+    return '' if text.lower() in ('nan', 'none', 'null', '<na>') else text
+
+
 def letters(text):
-    plain = unicodedata.normalize('NFKD', str(text or ''))
+    plain = unicodedata.normalize('NFKD', _clean_text(text))
     return re.sub('[^A-Z]', '', ''.join(c for c in plain if not unicodedata.combining(c)).upper())
 
 
@@ -46,8 +56,8 @@ def alignment(day_number, *names):
 
 
 def analyze_game(game, day, names):
-    away, home = str(game.get('Away') or ''), str(game.get('Home') or '')
-    arena = str(game.get('Venue') or '').strip()
+    away, home = _clean_text(game.get('Away')).upper(), _clean_text(game.get('Home')).upper()
+    arena = _clean_text(game.get('Venue'))
     universal = universal_day(day)
     away_name = names.get(away, away)
     home_name = names.get(home, home)

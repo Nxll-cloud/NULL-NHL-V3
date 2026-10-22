@@ -16,6 +16,8 @@ def load_snapshot(day, root=ROOT):
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict) or not isinstance(data.get("updated_at"), str):
+            return None
         if data.get("schema") != SCHEMA or data.get("day") != day:
             return None
         if not isinstance(data.get("games"), list) or not isinstance(data.get("rankings"), list):
@@ -24,7 +26,7 @@ def load_snapshot(day, root=ROOT):
             return None
         datetime.fromisoformat(data["updated_at"].replace("Z", "+00:00"))
         return data
-    except (ValueError, TypeError, KeyError, OSError):
+    except (ValueError, TypeError, KeyError, OSError, AttributeError):
         return None
 
 def save_snapshot(day, games, rankings, history=None, errors=None, root=ROOT):

@@ -1,0 +1,12 @@
+# Null’s Playbook V5.3 — Redesign & Robustness
+
+- New visual system (`ui_theme_v53.py` + `.streamlit/config.toml`): dark slate theme, Inter / JetBrains Mono typography, high-contrast text, one shared badge palette (Stats amber, Numbers violet, Odds sky, Overlap green, Warn, Muted, Day/Team/Arena).
+- Responsive layout: leader cards 4 → 2 → 1 columns, KPI strips and odds cards reflow at 1000 / 768 / 420 px; tested at 1440 px desktop and 390 px mobile.
+- Home / Four Leaders: hero header with snapshot chips, KPI strip (games, ranked players, books, universal day), scrollable matchup chips, four accent-coded leader cards with portrait, metric and method badges, polished gematria-alignment cards, player-target rows, and a leaderboard rendered with column config (rank, progress-bar Form Score).
+- Numbers (gematria / numerology): hero with D/T/A legend, universal-day banner, KPI strip incl. day alignments, game cards with team logos and match badges, team-grouped player-target rows with D/T/A badges, styled team / arena value rows.
+- Odds Intelligence: hero with source and feed-status chips, KPI strip incl. largest payout gap, four-column filter bar, per-prop odds cards (best price, low price, payout-gap meter, book count, identity badges), and a compact comparison table with a progress-column payout gap. Existing per-row “compare all prices” expanders preserved.
+- Robustness: malformed / non-JSON odds responses raise a clean feed error; non-dict events, null lists, bool / NaN / infinite prices are dropped; NaN venue / team / form values no longer crash numerology, targets or leaders; empty slates show a clear message; snapshot files with non-object JSON or bad timestamps are rejected; HTML in names is escaped; image URLs are validated.
+- Behaviour changes (documented): Home price-gap leader now matches odds names with the same normalized name rule as Odds Intelligence (case / accent / punctuation insensitive); rows with a missing gap are skipped rather than ranked; the default slate date is today in America/New_York instead of the server’s clock. Scoring semantics on valid inputs are unchanged.
+- CSV template is now a single source (`playbook_odds.CSV_TEMPLATE`). `ODDS_API_KEY` stays in Streamlit secrets; no credentials in the bundle.
+- 38 new tests in `test_v53_robustness.py`; full suite 134 passing (V5.2: 96).
+- Gematria remains recreational, not a predictive model or calibrated probability.
