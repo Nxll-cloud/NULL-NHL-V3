@@ -886,41 +886,52 @@ with np_numbers_tab:
             _ranked_targets=st.session_state.get('signals_ranked')
             if not (isinstance(_ranked_targets,pd.DataFrame) and st.session_state.get('signals_day')==np_day):
                 _ranked_targets=None
-            st.markdown('<div class="np-target-heading"><div class="np-kicker">SLATE INTELLIGENCE · V4.9</div><h3>Team Player Targets</h3><p>Ranked numerical coincidences for both teams in every game</p></div>',unsafe_allow_html=True)
+            st.markdown('<div class="np-v50-heading"><span>SLATE INTELLIGENCE · V5.0</span><h3>Team Player Targets</h3><p>Every matchup · both teams · numerical patterns</p></div>',unsafe_allow_html=True)
             if _ranked_targets is None:
-                st.info('Player rankings for this date have not been loaded. Generate or load the slate snapshot to see player targets.')
+                st.info('Load the slate snapshot to see player targets for each team.')
             else:
-                _tleft,_tright=st.columns(2)
-                with _tleft: _limit=st.selectbox('Players per team',[3,5,10],key='v49_limit')
-                with _tright: _only_matches=st.toggle('Matches only',value=True,key='v49_matches_only')
+                _mode=st.segmented_control('Player view',['Numbers','Statistics','Overlap'],default='Numbers',key='v50_mode')
+                _c1,_c2=st.columns(2)
+                with _c1: _limit=st.selectbox('Players per team',[3,5,10],key='v50_limit')
+                with _c2: _only_matches=st.toggle('Matches only',value=False,key='v50_matches_only')
                 _targets=num_slate_targets(_analyses,_ranked_targets,np_day)
-                def _render_team(code,name,targets,arena,day_root):
-                    safe_name=_num_html.escape(name)
-                    visible=[t for t in targets if t['matches']>0] if _only_matches else targets
+                def _v50_sort(targets):
+                    candidates=[t for t in targets if t['matches']>0] if _only_matches else list(targets)
+                    if _mode=='Statistics':
+                        candidates.sort(key=lambda t:(-t['form'],-t['matches'],t['player']))
+                    elif _mode=='Overlap':
+                        candidates.sort(key=lambda t:(-int(t['matches']>0 and t['form']>0),-t['matches'],-t['form'],t['player']))
+                    return candidates
+                def _v50_team(code,name,targets):
+                    ordered=_v50_sort(targets)
                     logo=f'https://assets.nhle.com/logos/nhl/svg/{code}_light.svg'
-                    st.markdown(f'<div class="np-target-team"><img src="{logo}" alt=""/><div><b>{safe_name}</b><small>{code} · {len(visible)} numerical matches</small></div></div>',unsafe_allow_html=True)
-                    if not visible:
-                        st.caption('No matching players in the available roster data.')
-                    for idx,t in enumerate(visible[:_limit],1):
-                        pname=_num_html.escape(t['player'])
-                        photo=(f'<img src="https://assets.nhle.com/mugs/nhl/20262027/{code}/{t["player_id"]}.png" alt="" loading="lazy"/>' if t['player_id'] else '<span>🏒</span>')
-                        chips=''.join(f'<span class="np-target-chip {cls}">{label} {len(t[key])}</span>' for cls,label,key in [('purple','Day','day'),('blue','Team','team_matches'),('green','Arena','arena_matches')])
-                        st.markdown(f'<div class="np-target-row"><span class="np-target-order">{idx}</span>{photo}<div class="np-target-player"><b>{pname}</b><small>{t["matches"]} numerical matches · Player root {t["number"]}</small></div><div class="np-target-chips">{chips}</div></div>',unsafe_allow_html=True)
-                    if len(visible)>_limit:
-                        with st.expander(f'View remaining {len(visible)-_limit} · {code}'):
-                            for t in visible[_limit:]:
-                                st.write(f'{t["player"]} — {t["matches"]} numerical matches')
+                    st.markdown(f'<div class="np-v50-teamhead"><img src="{logo}" alt=""/><div><b>{_num_html.escape(name)}</b><small>{len(ordered)} roster players shown in ranking</small></div></div>',unsafe_allow_html=True)
+                    for ix,t in enumerate(ordered[:_limit],1):
+                        photo=f'<img class="np-v50-mug" src="https://assets.nhle.com/mugs/nhl/20262027/{code}/{t["player_id"]}.png" loading="lazy" alt=""/>' if t['player_id'] else '<span class="np-v50-mug">🏒</span>'
+                        chips=''.join(f'<span class="np-v50-pill {cls}">{label} {len(t[key])}</span>' for cls,label,key in [('purple','D','day'),('blue','T','team_matches'),('green','A','arena_matches')])
+                        st.markdown(f'<div class="np-v50-player"><span class="np-v50-rank">{ix}</span>{photo}<div class="np-v50-playerinfo"><b>{_num_html.escape(t["player"])}</b><small>{t["matches"]} matches · Form {t["form"]:.1f}</small></div><div class="np-v50-pills">{chips}</div></div>',unsafe_allow_html=True)
+                        with st.expander(f'Why {t["player"]}? · {code}',expanded=False):
+                            st.caption(f'Player full-name roots: English {t["values"]["ordinal_root"]}, reduction {t["values"]["reduction_root"]}, reverse {t["values"]["reverse_root"]}.')
+                            st.write(f'Day {_day_num}: {", ".join(t["day"]) or "no match"}')
+                            st.write(f'Team: {", ".join(t["team_matches"]) or "no match"}')
+                            st.write(f'Arena: {", ".join(t["arena_matches"]) or "no match"}')
+                            st.caption('Coincidence counts are not probabilities; the form score is a separate statistical signal.')
+                    if len(ordered)>_limit:
+                        with st.expander(f'See {len(ordered)-_limit} more · {code}'):
+                            for t in ordered[_limit:]:
+                                st.write(f'{t["player"]} · {t["matches"]} matches · Form {t["form"]:.1f}')
                 for item in _targets:
-                    r=item['game']
-                    away,home=r['away'],r['home']
-                    start=format_game_time(r['start'])
+                    r=item['game']; away,home=r['away'],r['home']
                     venue=_num_html.escape(r['arena'] or 'Venue unavailable')
-                    st.markdown(f'<div class="np-target-game-head"><span>{start}</span><strong>{away} @ {home}</strong><span>{venue}</span></div>',unsafe_allow_html=True)
-                    st.markdown('<div class="np-target-game">',unsafe_allow_html=True)
-                    _render_team(away,r['away_name'],item['away_targets'],r['arena'],_day_num)
-                    _render_team(home,r['home_name'],item['home_targets'],r['arena'],_day_num)
-                    st.markdown('</div>',unsafe_allow_html=True)
-                st.caption('Numerical coincidences are recreational, not predictions or betting recommendations. Player identity uses NHL IDs when available.')
+                    st.markdown(f'<div class="np-v50-match"><div class="np-v50-matchup"><span>{format_game_time(r["start"])}</span><div><img src="https://assets.nhle.com/logos/nhl/svg/{away}_light.svg" alt=""/><b>{away}</b><strong>VS</strong><b>{home}</b><img src="https://assets.nhle.com/logos/nhl/svg/{home}_light.svg" alt=""/></div><span>{venue}</span></div></div>',unsafe_allow_html=True)
+                    _away_col,_home_col=st.columns(2,gap='small')
+                    with _away_col: _v50_team(away,r['away_name'],item['away_targets'])
+                    with _home_col: _v50_team(home,r['home_name'],item['home_targets'])
+                    st.divider()
+                with st.expander('What do D, T and A mean?'):
+                    st.write('D = Universal Day; T = team-name gematria; A = arena-name gematria. The number beside each letter counts matching methods (English ordinal, reduction, reverse).')
+                    st.write('Numbers ranks symbolic coincidences. Statistics ranks the existing form score. Overlap brings players with both numerical matches and a positive statistical score to the top; it is not a calibrated goal probability.')
+                st.caption('Recreational numerical patterns only. Not verified predictors of goals or betting outcomes.')
         elif _num_view=='Team Numbers':
             teams={r['away']:(r['away_name'],r['away_values']) for r in _analyses}
             teams.update({r['home']:(r['home_name'],r['home_values']) for r in _analyses})
@@ -965,4 +976,13 @@ st.markdown("""<style>
 .np-target-row{display:flex;gap:7px;align-items:center;padding:8px 0;border-bottom:1px solid #1c3a54;min-width:0}.np-target-order{background:#234665;border-radius:7px;padding:5px 8px;color:#d9f0ff;font-weight:700;font-size:.76rem}.np-target-row>img,.np-target-row>span:not(.np-target-order){height:44px;width:39px;object-fit:contain}.np-target-player{flex:1;min-width:0}.np-target-player b{color:#fff;font-size:.84rem;display:block;overflow-wrap:anywhere}.np-target-player small{color:#92b4ce;font-size:.66rem;display:block}.np-target-chips{display:flex;gap:3px}.np-target-chip{font-size:.6rem;padding:4px;border:1px solid;border-radius:6px;white-space:nowrap}.np-target-chip.purple{color:#dcb0ff;border-color:#7e4aaf}.np-target-chip.blue{color:#7edbff;border-color:#347ba3}.np-target-chip.green{color:#7ce8b9;border-color:#2f9975}
 @media(min-width:950px){.np-target-game{display:grid;grid-template-columns:1fr 1fr;gap:24px}}
 @media(max-width:480px){.np-target-game-head{flex-wrap:wrap}.np-target-chips{flex-direction:column}.np-target-chip{font-size:.55rem;padding:2px 4px}}
+</style>""",unsafe_allow_html=True)
+
+st.markdown("""<style>
+.np-v50-heading{margin:10px 0 14px}.np-v50-heading span{font-size:.72rem;letter-spacing:.16em;font-weight:800;color:#5fd4ff}.np-v50-heading h3{font-size:1.55rem;letter-spacing:-.025em;color:#f4f9ff;margin:8px 0}.np-v50-heading p{font-size:.82rem;color:#9cb9d1}
+.np-v50-match{margin-top:22px;border:1px solid #31749b;border-radius:16px;background:linear-gradient(115deg,#153657,#09182d);padding:12px 10px;box-shadow:0 12px 25px #0003}
+.np-v50-matchup{display:flex;align-items:center;justify-content:space-between;gap:7px;color:#a9c5d9;font-size:.67rem}.np-v50-matchup>div{display:flex;align-items:center;gap:7px;color:white;font-size:.91rem}.np-v50-matchup img{height:29px;width:29px;object-fit:contain}.np-v50-matchup strong{font-size:.6rem;color:#5bd6ff}
+.np-v50-teamhead{display:flex;align-items:center;gap:7px;padding:11px 0 8px;border-bottom:1px solid #23435e;min-width:0}.np-v50-teamhead img{width:33px;height:33px;object-fit:contain}.np-v50-teamhead b{display:block;color:white;font-size:.78rem;line-height:1.2}.np-v50-teamhead small{display:block;font-size:.58rem;color:#92b3cd}
+.np-v50-player{display:flex;align-items:center;gap:4px;min-width:0;padding:9px 0;border-bottom:1px solid #1e3a54}.np-v50-rank{font-size:.67rem;color:#a4d8f6;font-weight:800}.np-v50-mug{width:32px;height:39px;object-fit:contain;flex-shrink:0}.np-v50-playerinfo{min-width:0;flex:1}.np-v50-playerinfo b{display:block;font-size:.7rem;line-height:1.15;color:white;overflow-wrap:anywhere}.np-v50-playerinfo small{display:block;font-size:.57rem;color:#a1b8cb;margin-top:4px}.np-v50-pills{display:flex;gap:2px;flex-wrap:wrap;justify-content:flex-end;max-width:65px}.np-v50-pill{font-size:.57rem;padding:2px 3px;border-radius:5px;border:1px solid}.np-v50-pill.purple{color:#d6a5ff;border-color:#8255a9}.np-v50-pill.blue{color:#73d4ff;border-color:#32799e}.np-v50-pill.green{color:#79e8b4;border-color:#368a72}
+@media(max-width:480px){.np-v50-matchup{flex-wrap:wrap}.np-v50-matchup>div{order:-1;width:100%;justify-content:center}.np-v50-teamhead img{width:27px;height:27px}.np-v50-player{gap:3px}.np-v50-mug{width:26px;height:33px}.np-v50-playerinfo b{font-size:.66rem}}
 </style>""",unsafe_allow_html=True)

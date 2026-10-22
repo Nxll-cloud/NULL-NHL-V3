@@ -1,0 +1,1 @@
+V5.0 premium compact paired-team player target layout; Numbers, Statistics, Overlap sorting; exact gematria explanations per player. Existing odds and snapshots preserved. Live UI verification required.
