@@ -21,16 +21,18 @@ def compare_odds(frame):
     df['american_odds']=pd.to_numeric(df['american_odds'],errors='coerce')
     df['updated_at']=pd.to_datetime(df['updated_at'],utc=True,errors='coerce')
     df=df.dropna(subset=['american_odds','updated_at'])
-    df=df[df['american_odds']!=0].copy()
+    df=df[(df['american_odds']!=0) & ((df['american_odds']>=100) | (df['american_odds']<=-100))].copy()
     if 'event_id' not in df: df['event_id']=''
     if 'line' not in df: df['line']=''
     for col in ['player','team','market','selection','sportsbook','event_id','line']:
         df[col]=df[col].fillna('').astype(str).str.strip()
+    # No cross-event comparisons when an event ID is missing: group unknown events separately by team.
+    df.loc[df['event_id']=='','event_id']='unknown-team:'+df.loc[df['event_id']=='','team'].str.casefold()
     df=df[(df['player']!='') & (df['market']!='') & (df['sportsbook']!='') & (df['selection']!='')]
     df['decimal_odds']=df['american_odds'].apply(decimal_odds)
     df['implied_probability']=df['american_odds'].apply(implied_probability)
     # A single market/selection/line/event may be compared; distinct lines never mix.
-    keys=['event_id','player','team','market','selection','line']
+    keys=['event_id','player','market','selection','line']
     df=df.sort_values('updated_at').drop_duplicates(keys+['sportsbook'],keep='last')
     summaries=[]
     for key,group in df.groupby(keys,dropna=False):

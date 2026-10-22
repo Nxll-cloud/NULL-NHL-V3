@@ -25,6 +25,7 @@ from historical_coverage_v388 import historical_coverage
 
 st.set_page_config(page_title="Null's Playbook | NHL", page_icon='👑', layout='wide', initial_sidebar_state='collapsed')
 from playbook_odds import compare_odds
+from odds_api_v45 import fetch_odds, OddsFeedError
 from snapshot_store import load_snapshot
 from streamlit_autorefresh import st_autorefresh
 
@@ -97,7 +98,7 @@ with st.sidebar:
     st.caption('Additional leagues require separate data feeds. NHL remains the live statistical engine.')
     st.divider()
     st.markdown('**Sportsbook intelligence**')
-    st.caption('Upload licensed/authorized odds data below to compare available prices. No sportsbook feeds are connected by default.')
+    st.caption('Optional The Odds API integration plus CSV fallback. Only supported licensed/authorized quotes appear.')
 
 
 # Session-local 30-minute timer: reruns only while this Streamlit page is open.
@@ -244,9 +245,42 @@ with np_home_tab:
         st.info('No sportsbook odds connected. Open **Odds** to upload real quotes and compare identical props.')
     st.markdown('<div class="np-mobile-footer">👑 <b>PLAYBOOK</b> &nbsp; · &nbsp; HOME &nbsp; · &nbsp; ODDS &nbsp; · &nbsp; RESEARCH</div>',unsafe_allow_html=True)
 
+@st.cache_data(ttl=1800,show_spinner=False)
+def np_live_odds_cached(api_key, regions, markets):
+    return fetch_odds(api_key,regions=regions,markets=markets)
+
+def np_api_key():
+    try:
+        return st.secrets.get('ODDS_API_KEY','')
+    except (FileNotFoundError, KeyError):
+        return ''
+
 with np_odds_tab:
     st.subheader('⚡ Sportsbook Odds Discrepancies')
-    st.caption('Compare the exact same event, player, market, selection and line. Best odds are not automatically positive EV. Prices require a real uploaded feed and timestamps.')
+    st.caption('Real provider quotes only. Compare identical events, players, markets, selections and lines. A better price does not guarantee positive expected value.')
+    with st.expander('🔌 Automatic sportsbook API',expanded=True):
+        api_key=np_api_key()
+        if api_key:
+            st.success('API credential configured (hidden).')
+            regions=st.selectbox('Bookmaker regions',['us','us2','uk','eu','au'],key='v45_region')
+            markets=st.text_input('Provider market keys','player_goal_scorer_anytime',key='v45_markets',help='Market support varies by subscription and sportsbook. See provider documentation.')
+            try:
+                with st.spinner('Retrieving authorized sportsbook quotes…'):
+                    live_frame,api_warnings=np_live_odds_cached(api_key,regions,markets)
+                if not live_frame.empty:
+                    st.session_state['playbook_live_odds']=live_frame
+                    st.caption(f'{len(live_frame)} quotes · {live_frame.sportsbook.nunique()} sportsbooks · refreshed at most every 30 minutes while app is open')
+                else:
+                    st.session_state.pop('playbook_live_odds',None)
+                    st.info('Provider returned no available NHL player-prop quotes for these settings.')
+                if api_warnings:
+                    st.warning(f'{len(api_warnings)} events could not be retrieved; results may be incomplete.')
+            except (OddsFeedError, ValueError) as exc:
+                st.warning(str(exc))
+        else:
+            st.info('Automatic odds are not yet connected. Add ODDS_API_KEY in Streamlit Cloud → App settings → Secrets. CSV upload works without an API key.')
+    source_choice=st.radio('Odds source',['Automatic API','Uploaded CSV','Combine both'],horizontal=True,key='v45_source')
+
     with st.expander('📥 Connect sportsbook prices using CSV',expanded=False):
         st.markdown('Required CSV columns: `player, team, market, selection, sportsbook, american_odds, updated_at`. Optional: `event_id, line`. Use ISO-8601 UTC timestamps. All books represented in the uploaded file are supported for comparison; this is **not** a live all-books connection.')
         st.download_button('Download example CSV template', 'player,team,market,selection,sportsbook,american_odds,updated_at,event_id,line\n',file_name='playbook_odds_template.csv',mime='text/csv')
@@ -256,9 +290,16 @@ with np_odds_tab:
                 uploaded_frame=pd.read_csv(uploaded_odds,dtype={'event_id':str,'line':str})
                 st.session_state['playbook_odds_data']=uploaded_frame
             except Exception as exc: st.error(f'Cannot read odds file: {exc}')
-    if 'playbook_odds_data' in st.session_state:
+    api_df=st.session_state.get('playbook_live_odds')
+    csv_df=st.session_state.get('playbook_odds_data')
+    selected_frames=[]
+    if source_choice in ('Automatic API','Combine both') and isinstance(api_df,pd.DataFrame) and not api_df.empty:
+        selected_frames.append(api_df)
+    if source_choice in ('Uploaded CSV','Combine both') and isinstance(csv_df,pd.DataFrame) and not csv_df.empty:
+        selected_frames.append(csv_df)
+    if selected_frames:
         try:
-            price_rows,discrepancies=compare_odds(st.session_state['playbook_odds_data'])
+            price_rows,discrepancies=compare_odds(pd.concat(selected_frames,ignore_index=True))
             c1,c2,c3=st.columns(3)
             c1.metric('Sportsbooks in file',price_rows['sportsbook'].nunique())
             c2.metric('Comparable prop markets',len(discrepancies))
@@ -273,7 +314,7 @@ with np_odds_tab:
             else: st.info('No matching props offered by two or more sportsbooks in this upload.')
         except ValueError as exc: st.error(f'Odds data validation: {exc}')
     else:
-        st.info('No sportsbook odds connected yet. Upload a CSV to highlight real price discrepancies; sample odds are intentionally not displayed.')
+        st.info('No odds from the selected source. Configure the API or upload a CSV; no sample odds are fabricated.')
 
 
 with np_research_tab:
