@@ -1,3 +1,5 @@
-# Null’s Playbook V4.0
+Null’s Playbook V4.1 — Hybrid dashboard
 
-Responsive NHL analytics and sportsbook odds comparison. Install project files at repository root, keep `app.py` as Streamlit entrypoint. The odds panel accepts authorized CSV data and does not include a live sportsbook feed. All existing V3.8.8 statistical, historical and backtesting tools are preserved. See `V4_NOTES.md`.
+Install all project files to GitHub repository root. Streamlit entrypoint app.py.
+
+Home: matchup carousel, portrait cards and quick rankings; Odds: real uploaded sportsbook quote comparisons; Research: full existing NHL model and diagnostics. First run Rank Entire Slate in Research for the selected date.

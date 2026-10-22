@@ -1,0 +1,1 @@
+Null’s Playbook V4.1: native Home/Odds/Research navigation; horizontally scrollable matchup and player-photo cards; compact leaderboard and coverage on Home; existing research and backtesting preserved in Research; real CSV odds in Odds. No invented live prices or calibrated probabilities.
