@@ -84,7 +84,7 @@ def historical_facts(row, day, opponent, log, season=SEASON):
     milestone_watch = (f'{distance} goals from {next_mark} season goals'
                        if distance in (2, 3) else '')
     source = f'https://api-web.nhle.com/v1/player/{pid}/game-log/{season}/2'
-    return {'Player ID':pid, 'Opponent':opponent,
+    return {'Player ID':pid, 'Player':row.get('Player',''), 'Team':row.get('Team',''), 'Opponent':opponent,
             'Vs opponent GP':gp, 'Vs opponent goals':total,
             'Season goals (log)':season_goals, 'Milestone distance':distance,
             'Milestone watch (not a flag)':milestone_watch,
@@ -127,6 +127,8 @@ def merge_history(combined, history):
         raise ValueError('Duplicate history player IDs')
     frame['Player ID'] = frame['Player ID'].astype(str).str.replace(r'\.0$', '', regex=True)
     h['Player ID'] = h['Player ID'].astype(str).str.replace(r'\.0$', '', regex=True)
+    # Names/teams in history are audit metadata, not replacement ranking columns.
+    h = h.drop(columns=[c for c in ('Player', 'Team') if c in h.columns])
     frame = frame.merge(h, on='Player ID', how='left', validate='one_to_one')
     frame['V3.8 flag count'] = pd.to_numeric(frame['V3.8 flag count'], errors='coerce').fillna(0).astype(int)
     frame['V3.8 flags'] = frame['V3.8 flags'].fillna('')

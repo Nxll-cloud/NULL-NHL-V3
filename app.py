@@ -14,6 +14,7 @@ from storyline_v37 import select_storyline_watch
 from storyline_v38 import fetch_history, merge_history
 from data_integrity_v381 import merge_profile_batches, coverage_audit
 from diagnostics_v382 import diagnostic_summary
+from schedule_validation_v384 import audit_schedule
 
 st.set_page_config(page_title='NULL NHL V3.8.2', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
@@ -314,9 +315,30 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
     if diagnostic['Histories fetched'] and diagnostic['Total prior opponent meetings'] == 0:
         st.warning('Zero prior opponent meetings found. This can be normal early in the season, but check NHL game-log opponent codes before drawing conclusions.')
     if history_for_audit is not None and not history_for_audit.empty:
-        diagnostic_cols = ['Player ID','Opponent','Vs opponent GP','Vs opponent goals','Log rows received','Log rows valid pre-slate','Log rows excluded','Opponent match method','Opponent normalized','Raw opponent samples','Distinct raw opponent values','Rows missing opponent code','Opponent match diagnostic','Season goals (log)','Milestone distance','Milestone watch (not a flag)','V3.8 status']
+        diagnostic_cols = ['Player','Team','Player ID','Opponent','Vs opponent GP','Vs opponent goals','Log rows received','Log rows valid pre-slate','Log rows excluded','Opponent match method','Opponent normalized','Raw opponent samples','Distinct raw opponent values','Rows missing opponent code','Opponent match diagnostic','Season goals (log)','Milestone distance','Milestone watch (not a flag)','V3.8 status']
         st.dataframe(history_for_audit[[c for c in diagnostic_cols if c in history_for_audit]], hide_index=True, use_container_width=True)
         st.download_button('Download opponent-history diagnostics CSV', history_for_audit.to_csv(index=False), file_name=f'null-v382-opponent-diagnostics-{day}.csv', mime='text/csv')
+    st.subheader('V3.8.4 Official Schedule & Player Assignment Audit')
+    st.caption('Cross-checks the displayed slate against the official NHL schedule, then checks prior completed team meetings. A player may have zero personal games even when the teams met earlier.')
+    if st.button('Validate official schedule and opponent assignments'):
+        with st.spinner('Checking official slate and prior team schedules...'):
+            try:
+                schedule_games, schedule_players, schedule_errors = audit_schedule(
+                    st.session_state['signals_ranked'].to_dict('records'), games, day)
+                st.session_state['schedule_v384'] = (schedule_games, schedule_players, schedule_errors)
+                st.session_state['schedule_v384_day'] = day
+            except Exception as exc:
+                st.error(f'Schedule validation unavailable: {type(exc).__name__}: {exc}')
+    if st.session_state.get('schedule_v384_day') == day and 'schedule_v384' in st.session_state:
+        sg, sp, se = st.session_state['schedule_v384']
+        st.dataframe(sg, hide_index=True, use_container_width=True)
+        st.dataframe(sp, hide_index=True, use_container_width=True)
+        if se:
+            st.warning(f'{len(se)} team schedule(s) could not be retrieved; their historical counts are unavailable, not zero.')
+            with st.expander('Team schedule errors'):
+                st.write(se)
+        st.download_button('Download V3.8.4 schedule and player audit CSV', sp.to_csv(index=False),
+                           file_name=f'null-v384-schedule-audit-{day}.csv', mime='text/csv')
     st.download_button('Download V3.8.2 audit CSV', pd.DataFrame([diagnostic]).to_csv(index=False), file_name=f'null-v382-audit-{day}.csv', mime='text/csv')
     st.subheader('V3.8.2 Combined Statistical + Experimental Explorer')
     st.caption('Statistical form and experimental overlaps are separate columns. Neither is a calibrated goal probability. Former-team, milestone and news claims are marked unverified.')
