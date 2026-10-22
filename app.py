@@ -12,10 +12,11 @@ from auto_signals import fetch_metadata
 from storylines_v36 import build_storylines, combined_table
 from storyline_v37 import select_storyline_watch
 from storyline_v38 import fetch_history, merge_history
+from data_integrity_v381 import merge_profile_batches, coverage_audit
 
-st.set_page_config(page_title='NULL NHL V3.8', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.8.1', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.8')
+st.title('NULL NHL V3.8.1')
 storyline_top = st.container()
 with storyline_top:
     st.subheader('🏆 Top Verified Storyline Candidate')
@@ -217,7 +218,8 @@ if st.button('Fetch NHL player biographies and arenas'):
     else:
         with st.spinner('Retrieving source-linked NHL profiles...'):
             data, errors = fetch_metadata(st.session_state['signals_ranked'].to_dict('records'), day, games, max_players=auto_limit)
-        st.session_state['auto_signal_metadata'] = pd.DataFrame(data)
+        prior = st.session_state.get('auto_signal_metadata', pd.DataFrame()) if st.session_state.get('auto_signal_day') == day else pd.DataFrame()
+        st.session_state['auto_signal_metadata'] = merge_profile_batches(prior, pd.DataFrame(data))
         st.session_state['auto_signal_day'] = day
         st.success(f'Fetched {len(data)} profiles; {len(errors)} unavailable.')
         if errors:
@@ -232,7 +234,8 @@ if st.button('Fetch opponent history and milestone evidence'):
     else:
         with st.spinner('Fetching pre-slate NHL game logs...'):
             history_data, history_errors = fetch_history(st.session_state['signals_ranked'].to_dict('records'), games, day, max_players=history_limit)
-        st.session_state['history_v38'] = history_data
+        prior_history = st.session_state.get('history_v38', pd.DataFrame()) if st.session_state.get('history_v38_day') == day else pd.DataFrame()
+        st.session_state['history_v38'] = merge_profile_batches(prior_history, history_data)
         st.session_state['history_v38_day'] = day
         st.success(f'History retrieved for {len(history_data)} players; {len(history_errors)} unavailable.')
         if history_errors:
@@ -290,8 +293,18 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
             st.dataframe(storyline_sleepers[[c for c in ['Player','Team','Storyline count','Verified data flags','Shots/G L5','Evidence URLs'] if c in storyline_sleepers]], hide_index=True, use_container_width=True)
         else:
             st.info('No storyline sleepers meet the current criteria.')
-    st.download_button('Download V3.8 storyline watchlist CSV', top_stories.to_csv(index=False), file_name=f'null-v38-storylines-{day}.csv', mime='text/csv')
-    st.subheader('V3.8 Combined Statistical + Experimental Explorer')
+    st.download_button('Download top 10 storyline watchlist CSV', top_stories.to_csv(index=False), file_name=f'null-v381-top10-{day}.csv', mime='text/csv')
+    st.subheader('V3.8.1 Data Integrity Audit')
+    audit = coverage_audit(combined, st.session_state.get('auto_signal_metadata') if st.session_state.get('auto_signal_day') == day else None,
+                           st.session_state.get('history_v38') if st.session_state.get('history_v38_day') == day else None)
+    st.dataframe(pd.DataFrame([audit]), hide_index=True, use_container_width=True)
+    if audit['Histories fetched'] < audit['Eligible players']:
+        st.info('Opponent-history coverage is partial; zero flags on unfetched players do not mean no storyline.')
+    st.download_button('Download ALL evaluated players + storyline evidence CSV', combined.to_csv(index=False),
+                       file_name=f'null-v381-full-storylines-{day}.csv', mime='text/csv')
+    st.download_button('Download data coverage audit CSV', pd.DataFrame([audit]).to_csv(index=False),
+                       file_name=f'null-v381-audit-{day}.csv', mime='text/csv')
+    st.subheader('V3.8.1 Combined Statistical + Experimental Explorer')
     st.caption('Statistical form and experimental overlaps are separate columns. Neither is a calibrated goal probability. Former-team, milestone and news claims are marked unverified.')
     only_stories = st.checkbox('Show only sourced storyline flags', value=False)
     minimum_overlap = st.slider('Minimum experimental pattern overlaps', 0, 5, 0)
