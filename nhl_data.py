@@ -1,85 +1,78 @@
-
+"""NHL public API client. Historical features use only games before selected date."""
+from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
-BASE_URL = "https://api-web.nhle.com/v1"
-TIMEOUT = 20
+BASE = 'https://api-web.nhle.com/v1'
+SEASON = '20262027'
 
 
-def fetch_json(url):
-    response = requests.get(url, timeout=TIMEOUT)
+def fetch_json(path):
+    url = f'{BASE}/{path}'
+    response = requests.get(url, timeout=25, headers={'User-Agent': 'NULL-NHL-V3/0.2'})
     response.raise_for_status()
     return response.json()
 
 
-def get_team_roster(team, season="20262027"):
-    """Retrieve the official NHL team roster."""
-    url = f"{BASE_URL}/roster/{team}/{season}"
-    data = fetch_json(url)
+def get_schedule(day):
+    payload = fetch_json(f'schedule/{day}')
+    games = []
+    for item in payload.get('gameWeek', []):
+        if item.get('date') != day:
+            continue
+        for game in item.get('games', []):
+            games.append({'Game ID': game.get('id'), 'Away': game.get('awayTeam', {}).get('abbrev'),
+                          'Home': game.get('homeTeam', {}).get('abbrev'),
+                          'Start (UTC)': game.get('startTimeUTC'), 'Status': game.get('gameState')})
+    return games
 
+
+def get_roster(team, season=SEASON):
+    data = fetch_json(f'roster/{team}/{season}')
     players = []
-
-    for group in ("forwards", "defensemen", "goalies"):
-        for player in data.get(group, []):
-            first = player.get("firstName", {})
-            last = player.get("lastName", {})
-
-            players.append({
-                "player_id": player.get("id"),
-                "name": (
-                    first.get("default", "")
-                    + " "
-                    + last.get("default", "")
-                ).strip(),
-                "team": team,
-                "position": player.get("positionCode", ""),
-                "group": group,
-                "source_url": url,
-            })
-
-    return players
+    for group in ('forwards', 'defensemen'):
+        for p in data.get(group, []):
+            players.append({'id': p.get('id'),
+                            'Player': (p.get('firstName', {}).get('default', '') + ' ' + p.get('lastName', {}).get('default', '')).strip(),
+                            'Team': team, 'Position': p.get('positionCode', '')})
+    return [p for p in players if p['id']]
 
 
-def get_player_stats(player_id):
-    """Retrieve player season and game-log data."""
-    url = f"{BASE_URL}/player/{player_id}/landing"
-    data = fetch_json(url)
-
-    featured = data.get("featuredStats", {})
-    regular = featured.get("regularSeason", {})
-    stats = regular.get("subSeason", {})
-
-    return {
-        "player_id": player_id,
-        "goals": stats.get("goals"),
-        "assists": stats.get("assists"),
-        "points": stats.get("points"),
-        "games_played": stats.get("gamesPlayed"),
-        "shots": stats.get("shots"),
-        "shooting_pct": stats.get("shootingPctg"),
-        "source_url": url,
-    }
+def get_game_log(player_id, season=SEASON):
+    data = fetch_json(f'player/{player_id}/game-log/{season}/2')
+    return data.get('gameLog', [])
 
 
-def get_player_game_log(player_id, season="20262027"):
-    """Retrieve a player's regular-season game log."""
-    url = (
-        f"{BASE_URL}/player/{player_id}"
-        f"/game-log/{season}/2"
-    )
-    data = fetch_json(url)
-    return data.get("gameLog", [])
+def summarize_games(log, cutoff_day):
+    """Strictly exclude cutoff day and all later dates to avoid same-day leakage."""
+    previous = sorted((g for g in log if g.get('gameDate', '') < cutoff_day),
+                      key=lambda g: g.get('gameDate', ''), reverse=True)
+    def totals(n):
+        sample = previous[:n]
+        return {'GP': len(sample), 'G': sum(int(g.get('goals') or 0) for g in sample),
+                'SOG': sum(int(g.get('shots') or 0) for g in sample)}
+    return {'L5': totals(5), 'L10': totals(10), 'Season': totals(100)}
 
 
-def recent_goal_stats(game_log, count=5):
-    """Calculate recent goals and shots from game logs."""
-    games = sorted(
-        game_log,
-        key=lambda g: g.get("gameDate", ""),
-        reverse=True,
-    )[:count]
+def player_row(player, cutoff_day, season=SEASON):
+    recent = summarize_games(get_game_log(player['id'], season), cutoff_day)
+    s, l5, l10 = recent['Season'], recent['L5'], recent['L10']
+    return {**player, 'GP': s['GP'], 'Goals': s['G'], 'Shots': s['SOG'],
+            'Goals L5': l5['G'], 'Shots L5': l5['SOG'], 'GP L5': l5['GP'],
+            'Goals L10': l10['G'], 'Shots L10': l10['SOG'], 'GP L10': l10['GP'],
+            'Goals/Game': round(s['G']/s['GP'], 3) if s['GP'] else None,
+            'Shots/Game': round(s['SOG']/s['GP'], 3) if s['GP'] else None,
+            'Data status': 'Verified game log' if s['GP'] else 'No prior games'}
 
-    return {
-        "games": len(games),
-        "goals": sum(g.get("goals", 0) or 0 for g in games),
-        "shots": sum(g.get("shots", 0) or 0 for g in games),
-    }
+
+def load_team(team, cutoff_day, season=SEASON, max_workers=5):
+    roster = get_roster(team, season)
+    rows, errors = [], []
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(player_row, p, cutoff_day, season): p for p in roster}
+        for future in as_completed(futures):
+            try:
+                rows.append(future.result())
+            except (requests.RequestException, ValueError, TypeError, KeyError) as exc:
+                errors.append(f"{futures[future]['Player']}: {exc}")
+    return sorted(rows, key=lambda x: (x['Goals'], x['Shots']), reverse=True), errors

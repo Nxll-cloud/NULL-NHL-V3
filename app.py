@@ -1,152 +1,71 @@
-
-import streamlit as st
+"""NULL NHL V3: source-first NHL slate and pregame player performance."""
+from datetime import date, datetime, timezone
 import pandas as pd
 import requests
-from datetime import date, datetime, timezone
+import streamlit as st
+from nhl_data import get_schedule, load_team, SEASON
 
-st.set_page_config(
-    page_title="NULL NHL V3",
-    page_icon="🏒",
-    layout="wide",
-)
+st.set_page_config(page_title='NULL NHL V3', page_icon='🏒', layout='wide')
+st.markdown('''<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>''', unsafe_allow_html=True)
+st.title('NULL NHL V3')
+st.caption('Verified NHL data | Pregame player form | Model probabilities pending')
+selected_date = st.date_input('NHL slate date', date.today())
+day = selected_date.isoformat()
 
-st.markdown("""
-<style>
-.stApp {background-color: #0d0d17; color: #f2f0ff;}
-h1, h2, h3 {color: #c4a5ff;}
-div.stButton > button {
-    background-color: #6f3cc3;
-    color: white;
-    border-radius: 10px;
-}
-</style>
-""", unsafe_allow_html=True)
+@st.cache_data(ttl=900, show_spinner=False)
+def schedule_cached(day):
+    return get_schedule(day)
 
-st.title("NULL NHL V3")
-st.caption("NHL goal-scorer analytics | Verified data")
+@st.cache_data(ttl=3600, show_spinner=False)
+def team_cached(team, day):
+    return load_team(team, day, SEASON)
 
-selected_date = st.date_input("NHL slate date", date.today())
-
-@st.cache_data(ttl=900)
-def get_schedule(day):
-    url = f"https://api-web.nhle.com/v1/schedule/{day}"
-    response = requests.get(url, timeout=20)
-    response.raise_for_status()
-    return response.json(), url
-
-if st.button("Refresh NHL Data"):
-    get_schedule.clear()
+if st.button('Refresh NHL Data'):
+    schedule_cached.clear()
+    team_cached.clear()
 
 try:
-    data, source_url = get_schedule(selected_date.isoformat())
+    games = schedule_cached(day)
+    st.caption(f'Source: NHL public API | Displayed at {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC')
+    st.caption(f'https://api-web.nhle.com/v1/schedule/{day}')
+    st.subheader('Full NHL Slate')
+    if games:
+        st.dataframe(pd.DataFrame(games), hide_index=True, use_container_width=True)
+        st.metric('Slate Games', len(games))
+    else:
+        st.info('No games found for this date.')
+except (requests.RequestException, ValueError, KeyError) as exc:
+    st.error(f'Schedule request failed: {exc}')
     games = []
 
-    for week in data.get("gameWeek", []):
-        if week.get("date") != selected_date.isoformat():
-            continue
-
-        for game in week.get("games", []):
-            away = game.get("awayTeam", {})
-            home = game.get("homeTeam", {})
-
-            games.append({
-                "Game ID": game.get("id"),
-                "Away": away.get("abbrev", "Unknown"),
-                "Home": home.get("abbrev", "Unknown"),
-                "Start (UTC)": game.get("startTimeUTC", ""),
-                "Status": game.get("gameState", "Unknown"),
-            })
-
-    st.caption(
-        "Source: NHL public API | Retrieved: "
-        + datetime.now(timezone.utc).strftime(
-            "%Y-%m-%d %H:%M UTC"
-        )
-    )
-    st.caption(source_url)
-
-    st.subheader("Full NHL Slate")
-
-    if games:
-        df = pd.DataFrame(games)
-        st.dataframe(df, use_container_width=True, hide_index=True)
-        st.metric("Slate Games", len(games))
-    else:
-        st.info("No NHL games found for this date.")
-
-except (requests.RequestException, ValueError) as error:
-    st.error(f"NHL data unavailable: {error}")
-
 st.divider()
-st.subheader("V3 Goal-Scorer Rankings")
-st.info("Pending verified player statistics and model integration.")
-
-st.subheader("Goalie Matchups")
-st.info("Pending confirmed goalie and defensive data.")
-
-st.subheader("Historical Predictions")
-st.info("Prediction tracking will be added next.")
-
-st.subheader("Model Status")
-st.warning("Goal-scoring predictions are not yet calculated.")
-
-# NULL NHL V3: Player statistics explorer
-
-from nhl_data import get_team_roster, get_player_stats
-
-st.divider()
-st.subheader("Player Statistics Explorer")
-
-if "games" in locals() and games:
-    slate_teams = sorted({
-        team
-        for game in games
-        for team in (game["Home"], game["Away"])
-        if team != "Unknown"
-    })
-
-    selected_team = st.selectbox(
-        "Select a team from the slate",
-        slate_teams,
-    )
-
-    if st.button("Load Player Statistics"):
+st.subheader('Player Statistics Explorer')
+st.caption('Only completed games BEFORE the selected slate date are counted. No future-game leakage.')
+if games:
+    teams = sorted({g[t] for g in games for t in ('Home','Away') if g.get(t)})
+    team = st.selectbox('Team on slate', teams)
+    if st.button('Load Player Statistics'):
         try:
-            with st.spinner("Retrieving official NHL data..."):
-                roster = get_team_roster(selected_team)
-
-                skaters = [
-                    p for p in roster
-                    if p["group"] != "goalies"
-                ]
-
-                rows = []
-                for player in skaters:
-                    stats = get_player_stats(
-                        player["player_id"]
-                    )
-                    rows.append({
-                        "Player": player["name"],
-                        "Position": player["position"],
-                        "Goals": stats["goals"],
-                        "Assists": stats["assists"],
-                        "Points": stats["points"],
-                        "Games": stats["games_played"],
-                        "Shots": stats["shots"],
-                        "Shooting %": stats["shooting_pct"],
-                    })
-
-                if rows:
-                    player_df = pd.DataFrame(rows)
-                    st.dataframe(
-                        player_df,
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-                else:
-                    st.warning("No skaters returned.")
-
-        except (requests.RequestException, ValueError, KeyError) as error:
-            st.error(f"Unable to retrieve player data: {error}")
+            with st.spinner('Loading NHL player game logs...'):
+                rows, errors = team_cached(team, day)
+            if rows:
+                st.dataframe(pd.DataFrame(rows).drop(columns=['id']), hide_index=True, use_container_width=True)
+                st.caption(f'Source: NHL roster and player game-log endpoints | Season {SEASON}')
+            else:
+                st.warning('No player game logs returned.')
+            if errors:
+                st.warning(f'{len(errors)} players could not be loaded; incomplete coverage.')
+                with st.expander('Request errors'):
+                    st.write(errors)
+        except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+            st.error(f'Player data request failed: {exc}')
 else:
-    st.info("Load a slate before selecting a team.")
+    st.info('Choose a date with games to explore player statistics.')
+
+st.divider()
+st.subheader('V3 Goal-Scorer Rankings')
+st.info('Not available yet: model calibration, goalie confirmation, lineup verification, and opponent-defense adjustments are required.')
+st.subheader('Historical Predictions')
+st.info('No saved predictions yet. Future backtests must use pregame snapshots.')
+st.subheader('Experimental Storyline & Numerology Signals')
+st.caption('Not implemented. These signals will be separated from evidence-based probability estimates.')
