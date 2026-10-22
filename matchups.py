@@ -25,7 +25,7 @@ def prior_team_games(schedule, team, cutoff_day, limit=10):
 
 def defense_summary(team, cutoff_day, season):
     """Return defensive stats with coverage and explicit unavailable values."""
-    schedule = fetch_json(f"club-schedule-season/{team}/{season}/2")
+    schedule = fetch_json(f"club-schedule-season/{team}/{season}")
     game_ids = prior_team_games(schedule, team, cutoff_day)
     records, failures = [], []
     for gid in game_ids:
