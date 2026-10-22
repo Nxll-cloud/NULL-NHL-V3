@@ -11,14 +11,15 @@ from signals import build_signals, universal_day
 from auto_signals import fetch_metadata
 from storylines_v36 import build_storylines, combined_table
 from storyline_v37 import select_storyline_watch
+from storyline_v38 import fetch_history, merge_history
 
-st.set_page_config(page_title='NULL NHL V3.7', page_icon='🏒', layout='wide')
+st.set_page_config(page_title='NULL NHL V3.8', page_icon='🏒', layout='wide')
 st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.7')
+st.title('NULL NHL V3.8')
 storyline_top = st.container()
 with storyline_top:
     st.subheader('🏆 Top Verified Storyline Candidate')
-    st.caption('Run Rank Entire Slate and fetch NHL biographies to populate this section. No fabricated revenge, milestone or injury claims.')
+    st.caption('Evidence-first, pre-slate storylines. Former-team and injury/news claims are not inferred.')
 st.caption('Verified NHL data | Pregame player form | Model probabilities pending')
 selected_date = st.date_input('NHL slate date', date.today())
 day = selected_date.isoformat()
@@ -222,6 +223,21 @@ if st.button('Fetch NHL player biographies and arenas'):
         if errors:
             with st.expander('Profile retrieval errors'):
                 st.write(errors)
+st.subheader('V3.8 Opponent History & Season Milestone Evidence')
+st.caption('Fetch pre-slate regular-season NHL game logs. Opponent flags require at least 2 prior meetings and 2 goals; season milestones mean one goal from 10, 20, 30, etc. Not career milestones.')
+history_limit = st.select_slider('Players for opponent history (top ranked)', options=[10, 25, 50, 100, 250, 500], value=50, key='history_limit')
+if st.button('Fetch opponent history and milestone evidence'):
+    if 'signals_ranked' not in st.session_state or st.session_state.get('signals_day') != day:
+        st.warning('Rank Entire Slate first.')
+    else:
+        with st.spinner('Fetching pre-slate NHL game logs...'):
+            history_data, history_errors = fetch_history(st.session_state['signals_ranked'].to_dict('records'), games, day, max_players=history_limit)
+        st.session_state['history_v38'] = history_data
+        st.session_state['history_v38_day'] = day
+        st.success(f'History retrieved for {len(history_data)} players; {len(history_errors)} unavailable.')
+        if history_errors:
+            with st.expander('History fetch errors'):
+                st.write(history_errors)
 meta_file = st.file_uploader('Optional additional sourced storyline metadata CSV', type=['csv'], key='signal_meta')
 metadata = None
 if meta_file is not None:
@@ -245,6 +261,7 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
     st.dataframe(signals, hide_index=True, use_container_width=True)
     storylines = build_storylines(st.session_state['signals_ranked'], metadata if metadata is not None else pd.DataFrame(), day)
     combined = combined_table(st.session_state['signals_ranked'], signals, storylines)
+    combined = merge_history(combined, st.session_state.get('history_v38') if st.session_state.get('history_v38_day') == day else None)
     top_stories, storyline_sleepers, featured = select_storyline_watch(combined)
     # Render featured selection at the top of the dashboard, not buried in the explorer.
     with storyline_top:
@@ -273,8 +290,8 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
             st.dataframe(storyline_sleepers[[c for c in ['Player','Team','Storyline count','Verified data flags','Shots/G L5','Evidence URLs'] if c in storyline_sleepers]], hide_index=True, use_container_width=True)
         else:
             st.info('No storyline sleepers meet the current criteria.')
-    st.download_button('Download V3.7 storyline watchlist CSV', top_stories.to_csv(index=False), file_name=f'null-v37-storylines-{day}.csv', mime='text/csv')
-    st.subheader('V3.6 Combined Statistical + Experimental Explorer')
+    st.download_button('Download V3.8 storyline watchlist CSV', top_stories.to_csv(index=False), file_name=f'null-v38-storylines-{day}.csv', mime='text/csv')
+    st.subheader('V3.8 Combined Statistical + Experimental Explorer')
     st.caption('Statistical form and experimental overlaps are separate columns. Neither is a calibrated goal probability. Former-team, milestone and news claims are marked unverified.')
     only_stories = st.checkbox('Show only sourced storyline flags', value=False)
     minimum_overlap = st.slider('Minimum experimental pattern overlaps', 0, 5, 0)
