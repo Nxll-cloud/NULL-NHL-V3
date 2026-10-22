@@ -1,5 +1,7 @@
 """NULL NHL V3.2: source-first NHL slate and descriptive player form."""
 from datetime import date, datetime, timezone, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 import streamlit as st
@@ -65,6 +67,10 @@ st.markdown("""<style>
 
 st.markdown("""<style>
 @media(max-width:768px){
+ [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+ [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]{width:auto!important;min-width:0!important;flex:none!important}
+ [data-testid="stMetric"]{min-height:76px!important}
+ [data-testid="stToolbar"]{display:none!important}
  .np-hero{padding:16px 17px!important;margin-bottom:10px!important;border-radius:16px!important}
  .np-title{font-size:1.85rem!important;line-height:1.06!important}
  .np-sub{font-size:.78rem!important}
@@ -113,17 +119,54 @@ def team_cached(team, day):
 def defense_cached(team, day):
     return defense_summary(team, day, SEASON)
 
-@st.cache_data(ttl=6 * 3600, show_spinner=False)
+@st.cache_data(ttl=7 * 24 * 3600, show_spinner=False)
 def historical_cached(day, years, player_ids, games_signature, _ranked_rows, _games):
     return fetch_multi_history(_ranked_rows, _games, day, max_players=len(_ranked_rows), years=years)
+
+def format_game_time(raw):
+    try:
+        return datetime.fromisoformat(str(raw).replace('Z', '+00:00')).astimezone(ZoneInfo('America/New_York')).strftime('%-I:%M %p ET')
+    except (TypeError, ValueError, OverflowError):
+        return 'Time pending'
+
+@st.cache_resource
+def history_executor():
+    return ThreadPoolExecutor(max_workers=2, thread_name_prefix='playbook-history')
+
+@st.fragment(run_every='10s')
+def history_status(day):
+    job=st.session_state.get('v43_history_job')
+    if not job or job['day'] != day:
+        return
+    future=job['future']
+    if not future.done():
+        st.caption('⏳ Three-season opponent history is updating separately. Rankings remain usable.')
+        return
+    if st.session_state.get('v43_history_completed') == job['key']:
+        return
+    st.session_state['v43_history_completed']=job['key']
+    try:
+        history, errors=future.result()
+        st.session_state['history_v386']=history
+        st.session_state['history_v386_day']=day
+        st.session_state['history_v386_years']=3
+        st.session_state['history_v386_errors']=errors
+        st.session_state['v42_history_loaded_at']=datetime.now(timezone.utc)
+        st.rerun()
+    except Exception as exc:
+        st.warning(f'History unavailable: {type(exc).__name__}: {exc}')
+
 
 np_home_tab,np_odds_tab,np_research_tab=st.tabs(['🏠 Home','⚡ Odds','📊 Research'])
 with np_home_tab:
 
     import html as _np_html
     from datetime import date as _np_date
-    st.markdown("""<div class="np-hero"><div class="np-kicker">👑 NULL'S PLAYBOOK · V4.2</div><div class="np-title">Your NHL command center.</div><div class="np-sub">Verified rankings · matchup intelligence · historical storylines · sportsbook price comparison</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="np-hero"><div class="np-kicker">👑 NULL'S PLAYBOOK · V4.3</div><div class="np-title">Your NHL command center.</div><div class="np-sub">Verified rankings · matchup intelligence · historical storylines · sportsbook price comparison</div></div>""", unsafe_allow_html=True)
     st.caption('Auto-run enabled · 30-minute refresh while open · three prior seasons · real NHL data only')
+    history_status(np_day)
+    if st.session_state.get('v42_last_rank') and st.session_state.get('signals_day')==np_day:
+        st.caption('Rankings last updated: '+st.session_state['v42_last_rank']['at'].astimezone(ZoneInfo('America/New_York')).strftime('%b %-d, %-I:%M %p ET'))
     try:
         np_games=schedule_cached(np_day)
     except (requests.RequestException, ValueError, KeyError, TypeError) as np_err:
@@ -134,7 +177,7 @@ with np_home_tab:
         np_games_html=[]
         for g in np_games[:16]:
             a=_np_html.escape(str(g.get('Away',''))); h=_np_html.escape(str(g.get('Home','')))
-            np_games_html.append(f'<div class="np-match"><div class="np-match-logos"><img loading="lazy" src="https://assets.nhle.com/logos/nhl/svg/{a}_light.svg" alt="{a}"/><span>VS</span><img loading="lazy" src="https://assets.nhle.com/logos/nhl/svg/{h}_light.svg" alt="{h}"/></div><b>{a} · {h}</b><small>{_np_html.escape(str(g.get("Start (UTC)","Time pending")))}</small></div>')
+            np_games_html.append(f'<div class="np-match"><div class="np-match-logos"><img loading="lazy" src="https://assets.nhle.com/logos/nhl/svg/{a}_light.svg" alt="{a}"/><span>VS</span><img loading="lazy" src="https://assets.nhle.com/logos/nhl/svg/{h}_light.svg" alt="{h}"/></div><b>{a} · {h}</b><small>{_np_html.escape(format_game_time(g.get("Start (UTC)")))}</small></div>')
         st.markdown('<div class="np-match-scroll">'+''.join(np_games_html)+'</div>',unsafe_allow_html=True)
     np_ranked=st.session_state.get('signals_ranked')
     np_ready=isinstance(np_ranked,pd.DataFrame) and not np_ranked.empty and st.session_state.get('signals_day')==np_day
@@ -226,6 +269,7 @@ with np_research_tab:
         historical_cached.clear()
         st.session_state.pop('v42_last_rank', None)
         st.session_state.pop('v42_history_attempt', None)
+        st.session_state.pop('v43_history_completed', None)
         st.rerun()
 
     try:
@@ -308,21 +352,29 @@ with np_research_tab:
             teams_to_load = sorted({g[t] for g in games for t in ('Home', 'Away') if g.get(t)})
             all_rows, all_errors = [], []
             progress = st.progress(0, text='Loading all teams')
-            for i, team_code in enumerate(teams_to_load, start=1):
-                try:
-                    team_rows, team_errors = team_cached(team_code, day)
-                    all_rows.extend(team_rows)
-                    all_errors.extend([f'{team_code}: {e}' for e in team_errors])
-                except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
-                    all_errors.append(f'{team_code}: {exc}')
-                progress.progress(i / len(teams_to_load), text=f'Loaded {i}/{len(teams_to_load)} teams')
+            # Fetch independent team rosters concurrently instead of serially.
+            # Keep worker count modest to avoid overwhelming the NHL endpoints.
+            with ThreadPoolExecutor(max_workers=6) as pool:
+                jobs={pool.submit(team_cached, code, day):code for code in teams_to_load}
+                for i, job in enumerate(as_completed(jobs), start=1):
+                    team_code=jobs[job]
+                    try:
+                        team_rows, team_errors=job.result()
+                        all_rows.extend(team_rows)
+                        all_errors.extend([f'{team_code}: {e}' for e in team_errors])
+                    except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+                        all_errors.append(f'{team_code}: {exc}')
+                    progress.progress(i/len(teams_to_load),text=f'Loaded {i}/{len(teams_to_load)} teams')
             ranked = rank_players(all_rows, min_games)
             defensive, defense_errors = {}, []
-            for team_code in teams_to_load:
-                try:
-                    defensive[team_code] = defense_cached(team_code, day)
-                except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
-                    defense_errors.append(f'{team_code}: {exc}')
+            with ThreadPoolExecutor(max_workers=6) as pool:
+                jobs={pool.submit(defense_cached, code, day):code for code in teams_to_load}
+                for job in as_completed(jobs):
+                    team_code=jobs[job]
+                    try:
+                        defensive[team_code]=job.result()
+                    except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+                        defense_errors.append(f'{team_code}: {exc}')
             ranked = assign_statistical_ranks(attach_matchups(ranked, games, defensive, adjust=use_defense)).to_dict('records')
             coverage = pd.DataFrame([
                 {k:v for k,v in d.items() if k != 'Error details'}
@@ -592,22 +644,13 @@ with np_research_tab:
             _v42_hist_key=(day,3,_v42_ids,_v42_games_sig)
             if st.session_state.get('v42_history_attempt')!=_v42_hist_key:
                 st.session_state['v42_history_attempt']=_v42_hist_key
-                with st.spinner(f'Auto-loading three prior seasons for {len(_v42_ids)} players…'):
-                    try:
-                        _v42_h,_v42_e=historical_cached(day,3,_v42_ids,_v42_games_sig,_v42_ranked.to_dict('records'),games)
-                        st.session_state['history_v386']=_v42_h
-                        st.session_state['history_v386_day']=day
-                        st.session_state['history_v386_years']=3
-                        st.session_state['history_v386_errors']=_v42_e
-                        st.session_state['v42_history_loaded_at']=datetime.now(timezone.utc)
-                        st.session_state['v42_needs_home_refresh']=True
-                        if _v42_e:
-                            st.warning(f'Historical data has {len(_v42_e)} retrieval errors; coverage is shown below.')
-                    except Exception as exc:
-                        st.warning(f'Automatic historical analysis unavailable: {type(exc).__name__}: {exc}. Retry with Refresh now.')
-            # Home is above Research in execution order, so refresh cards after a new fetch.
-            if st.session_state.pop('v42_needs_home_refresh',False):
-                st.rerun()
+                # Return control to the page immediately. The completed future is
+                # collected by the 10-second status fragment at the top of Home.
+                job=history_executor().submit(historical_cached, day, 3, _v42_ids,
+                    _v42_games_sig, _v42_ranked.to_dict('records'), games)
+                st.session_state['v43_history_job']={'day':day,'key':_v42_hist_key,'future':job}
+            if st.session_state.get('history_v386_day')!=day:
+                st.caption('Three-season opponent history is updating separately; statistical rankings are available.')
         st.subheader('V3.8.6 Multi-Season Opponent Storylines')
         st.caption('Previous NHL regular seasons only, with per-season source links and missing-data warnings. Descriptive history is NOT a calibrated goalscorer probability.')
         v386_count = st.select_slider('Players for manual history recheck',options=[10,25,50,100,250,500],value=500,key='v386_count')
