@@ -30,6 +30,7 @@ from odds_api_v45 import fetch_odds, OddsFeedError
 from snapshot_store import load_snapshot
 from numerology_v48 import universal_day as num_universal_day, gematria as num_gematria, analyze_game as num_analyze_game
 from player_targets_v49 import slate_targets as num_slate_targets
+from home_leaders_v52 import all_targets as home_all_targets, choose_leaders as home_choose_leaders, gematria_shortlist as home_gematria_shortlist
 from streamlit_autorefresh import st_autorefresh
 
 st.markdown("""<style>
@@ -177,12 +178,51 @@ def history_status(day):
         st.warning(f'History unavailable: {type(exc).__name__}: {exc}')
 
 
+# V5.1: Load sportsbook data once for all tabs, not only inside Odds.
+# Streamlit executes tab bodies in order; Home must not depend on Odds running first.
+@st.cache_data(ttl=1800,show_spinner=False)
+def np_live_odds_cached(api_key, regions, markets):
+    return fetch_odds(api_key,regions=regions,markets=markets)
+
+def np_api_key():
+    try:
+        return st.secrets.get('ODDS_API_KEY','')
+    except (FileNotFoundError, KeyError):
+        return ''
+
+
+_np_live_quotes=pd.DataFrame()
+_np_live_error=None
+_np_live_warnings=[]
+_np_key=np_api_key()
+if _np_key:
+    try:
+        _np_live_quotes,_np_live_warnings=np_live_odds_cached(_np_key,'us','player_goal_scorer_anytime')
+    except (OddsFeedError,ValueError,KeyError,TypeError) as _exc:
+        _np_live_error=str(_exc)
+_np_csv_quotes=st.session_state.get('playbook_odds_data')
+_np_source=st.session_state.get('v46_source','Automatic API')
+_np_frames=[]
+if _np_source in ('Automatic API','Combine both') and not _np_live_quotes.empty:
+    _np_frames.append(_np_live_quotes)
+if _np_source in ('Uploaded CSV','Combine both') and isinstance(_np_csv_quotes,pd.DataFrame) and not _np_csv_quotes.empty:
+    _np_frames.append(_np_csv_quotes)
+_np_shared_quotes=pd.concat(_np_frames,ignore_index=True) if _np_frames else pd.DataFrame()
+_np_shared_clean=pd.DataFrame()
+_np_shared_discrepancies=pd.DataFrame()
+_np_shared_error=None
+if not _np_shared_quotes.empty:
+    try:
+        _np_shared_clean,_np_shared_discrepancies=compare_odds(_np_shared_quotes)
+    except (ValueError,KeyError,TypeError) as _exc:
+        _np_shared_error=str(_exc)
+
 np_home_tab,np_odds_tab,np_research_tab,np_numbers_tab=st.tabs(['🏠 Home','⚡ Odds','📊 Research','🔮 Numbers'])
 with np_home_tab:
 
     import html as _np_html
     from datetime import date as _np_date
-    st.markdown("""<div class="np-hero"><div class="np-kicker">👑 NULL'S PLAYBOOK · V4.4</div><div class="np-title">Your NHL command center.</div><div class="np-sub">Verified rankings · matchup intelligence · historical storylines · sportsbook price comparison</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="np-hero"><div class="np-kicker">👑 NULL'S PLAYBOOK · V5.2</div><div class="np-title">Your NHL command center.</div><div class="np-sub">Verified rankings · matchup intelligence · historical storylines · sportsbook price comparison</div></div>""", unsafe_allow_html=True)
     st.caption('Auto slate snapshots · scheduled 30-minute updates · three prior seasons · real NHL data only')
     if np_snapshot is not None:
         st.caption('🟢 Saved rankings updated: '+np_snapshot['updated_at'][:19].replace('T',' ')+' UTC · '+str(len(np_snapshot['rankings']))+' players')
@@ -210,7 +250,50 @@ with np_home_tab:
     np_a,np_b,np_c=st.columns(3)
     np_a.metric('Games on slate',len(np_games))
     np_b.metric('Ranked players',len(np_ranked) if np_ready else '—')
-    np_c.metric('Sportsbooks loaded',st.session_state['playbook_odds_data']['sportsbook'].nunique() if isinstance(st.session_state.get('playbook_odds_data'),pd.DataFrame) and 'sportsbook' in st.session_state['playbook_odds_data'] else '—')
+    np_c.metric('Sportsbooks loaded',int(_np_shared_clean['sportsbook'].nunique()) if not _np_shared_clean.empty else '—')
+    # V5.2: four genuinely distinct leaders, computed from the selected day's slate.
+    _home_targets=home_all_targets(np_games,np_ranked if np_ready else None,np_day)
+    _home_leaders=home_choose_leaders(np_ranked if np_ready else None,_home_targets,_np_shared_discrepancies)
+    st.markdown(f'<div class="np-v52-day"><span>🔮 UNIVERSAL DAY · {np_day}</span><strong>{num_universal_day(np_day)}</strong><small>Recreational numeric context · not a scoring probability</small></div>',unsafe_allow_html=True)
+    st.markdown('### 👑 Four distinct slate leaders')
+    st.caption('One different player per category. Categories without sufficient data are left unavailable, not filled with invented picks.')
+    _leader_meta=[('statistical','⚡ STATISTICAL LEADER','gold'),('gematria','🔮 GEMATRIA LEADER','purple'),('odds','📈 PRICE-GAP LEADER','cyan'),('overlap','🔗 STATS + NUMBERS','green')]
+    _leader_html=[]
+    for _key,_label,_color in _leader_meta:
+        _p=_home_leaders.get(_key)
+        if _p is None:
+            _leader_html.append(f'<article class="np-v52-leader {_color}"><span class="np-v52-label">{_label}</span><div class="np-v52-empty">No eligible player available</div><small>Waiting for relevant verified data</small></article>')
+            continue
+        _n=_np_html.escape(_p['player']);_team=_np_html.escape(_p['team']);_id=_p.get('player_id','')
+        _portrait=f'<img src="https://assets.nhle.com/mugs/nhl/20262027/{_team}/{_id}.png" alt="" loading="lazy"/>' if _id else ''
+        if _key=='statistical': _metric=f'{_p["form"]:.1f}';_caption='Goal-scoring Form Score'
+        elif _key=='gematria': _metric=str(_p['matches']);_caption='Symbolic matches (D/T/A)'
+        elif _key=='odds': _metric=price_label(_p.get('best_odds'));_caption=f'{_np_html.escape(str(_p.get("best_sportsbook","")))} · unverified identity'
+        else: _metric=f'{_p["matches"]} + {_p["form"]:.0f}';_caption='Matches + separate Form Score'
+        _leader_html.append(f'<article class="np-v52-leader {_color}"><span class="np-v52-label">{_label}</span><div class="np-v52-person">{_portrait}<div><b>{_n}</b><small>{_team} · vs {_np_html.escape(_p["opponent"])}</small></div></div><strong class="np-v52-number">{_metric}</strong><small>{_caption}</small></article>')
+    st.markdown('<div class="np-v52-leaders">'+''.join(_leader_html)+'</div>',unsafe_allow_html=True)
+    st.markdown('### 🔮 Strongest gematria alignments')
+    _gem_cards=[]
+    for _i,_p in enumerate(home_gematria_shortlist(_home_targets,10),1):
+        _n=_np_html.escape(_p['player']);_team=_np_html.escape(_p['team']);_id=_p.get('player_id','')
+        _pic=f'<img src="https://assets.nhle.com/mugs/nhl/20262027/{_team}/{_id}.png" loading="lazy" alt=""/>' if _id else ''
+        _gem_cards.append(f'<div class="np-v52-gem">{_pic}<div class="np-v52-geminfo"><span>#{_i} · {_team}</span><b>{_n}</b><small>{_p["matches"]} symbolic matches · Form {_p["form"]:.1f}</small><div class="np-v52-chips"><em>D {len(_p["day"])}</em><em>T {len(_p["team_matches"])}</em><em>A {len(_p["arena_matches"])}</em></div></div></div>')
+    if _gem_cards: st.markdown('<div class="np-v52-gemscroll">'+''.join(_gem_cards)+'</div>',unsafe_allow_html=True)
+    else: st.info('Player gematria rankings will appear when this slate’s roster rankings are available.')
+    st.caption('Gematria matches are numerical coincidences, not evidence of a higher likelihood of scoring.')
+    if _home_targets:
+        st.markdown('### 🏒 Player targets by matchup')
+        st.caption('Both teams are grouped under each game. Expand to view the top numerical matches for each roster.')
+        for _match in _home_targets:
+            _g=_match['game'];_away=_g['away'];_home=_g['home']
+            with st.expander(f'{_away}  vs  {_home} · {_g["arena"] or "Venue unavailable"}'):
+                _cols=st.columns(2)
+                for _col,_side,_code in zip(_cols,('away','home'),(_away,_home)):
+                    with _col:
+                        st.markdown(f'**{_code}**')
+                        for _p in _match[_side+'_targets'][:3]:
+                            st.markdown(f'**{_p["player"]}** · {int(_p["matches"])} matches')
+                            st.caption(f'D {len(_p["day"])} · T {len(_p["team_matches"])} · A {len(_p["arena_matches"])} · Form {_p["form"]:.1f}')
     if not np_ready:
         st.info('⏳ Automatically loading the full NHL slate and three seasons of opponent history. This may take a few minutes on first load.')
     else:
@@ -235,46 +318,34 @@ with np_home_tab:
             st.markdown('#### 📋 Historical coverage')
             st.progress(np_cov['fraction'])
             st.caption(f"{np_cov['complete']} / {np_cov['total']} complete · {np_cov['partial']} partial · {np_cov['not_fetched']} not fetched")
-    if 'playbook_odds_data' in st.session_state:
-        try:
-            _,np_disc=compare_odds(st.session_state['playbook_odds_data'])
-            if not np_disc.empty:
-                st.markdown('#### ⚡ Top sportsbook price discrepancies')
-                st.caption('Open Odds Intelligence to compare the biggest price gaps across sportsbooks.')
-        except ValueError:
-            pass
+    st.markdown('#### ⚡ Sportsbook price intelligence')
+    if not _np_shared_discrepancies.empty:
+        st.caption(f"{len(_np_shared_clean):,} validated quotes · {_np_shared_clean['sportsbook'].nunique()} sportsbooks · {len(_np_shared_discrepancies)} comparable props")
+        _np_home_best=_np_shared_discrepancies.sort_values('decimal_price_improvement_pct',ascending=False).head(3)
+        for _,_np_o in _np_home_best.iterrows():
+            st.markdown(f"**{_np_o['player']}** · {price_label(_np_o['best_odds'])} at {_np_o['best_sportsbook']} · {float(_np_o['decimal_price_improvement_pct']):.1f}% payout gap")
+        st.caption('Open Odds for full comparisons. Prices are not verified player identities or scoring probabilities.')
+    elif _np_live_error:
+        st.warning(f'Odds feed unavailable: {_np_live_error}')
+    elif _np_shared_error:
+        st.warning(f'Odds validation issue: {_np_shared_error}')
+    elif _np_key and _np_source != 'Uploaded CSV':
+        st.info('Odds API connected, but no comparable goal-scorer quotes are currently available. Check Odds for coverage details.')
     else:
-        st.markdown('#### ⚡ Sportsbook price intelligence')
-        st.info('No sportsbook odds connected. Open **Odds** to upload real quotes and compare identical props.')
+        st.info('No odds feed configured for this source. Add ODDS_API_KEY to Streamlit Secrets or upload a CSV in Odds.')
     st.markdown('<div class="np-mobile-footer">👑 <b>PLAYBOOK</b> &nbsp; · &nbsp; HOME &nbsp; · &nbsp; ODDS &nbsp; · &nbsp; RESEARCH</div>',unsafe_allow_html=True)
 
-@st.cache_data(ttl=1800,show_spinner=False)
-def np_live_odds_cached(api_key, regions, markets):
-    return fetch_odds(api_key,regions=regions,markets=markets)
-
-def np_api_key():
-    try:
-        return st.secrets.get('ODDS_API_KEY','')
-    except (FileNotFoundError, KeyError):
-        return ''
 
 with np_odds_tab:
     import html as _odds_html
     st.markdown("""<div class="np-odds-hero"><div class="np-kicker">NULL’S PLAYBOOK · V4.6</div><div class="np-odds-title">Odds Intelligence<span class="np-dot">.</span></div><div class="np-odds-sub">Find the strongest prices. Compare the market. Follow your model.</div></div>""",unsafe_allow_html=True)
-    api_key=np_api_key()
-    regions='us'
-    markets='player_goal_scorer_anytime'
-    api_df=None
-    if api_key:
-        try:
-            with st.spinner('Syncing available NHL goal-scorer prices…'):
-                api_df,api_warnings=np_live_odds_cached(api_key,regions,markets)
-            if api_warnings:
-                st.caption(f'Coverage notice: {len(api_warnings)} events could not be retrieved.')
-        except (OddsFeedError,ValueError) as exc:
-            st.warning(f'Live prices unavailable: {exc}')
-    else:
+    api_df=_np_live_quotes
+    if _np_live_error:
+        st.warning(f'Live prices unavailable: {_np_live_error}')
+    elif not _np_key:
         st.info('Connect your odds feed in app secrets to enable automatic price comparison. CSV import is also available.')
+    elif _np_live_warnings:
+        st.caption(f'Coverage notice: {len(_np_live_warnings)} events could not be retrieved.')
     with st.expander('⚙️ Import & display preferences',expanded=False):
         source_choice=st.radio('Odds source',['Automatic API','Uploaded CSV','Combine both'],horizontal=False,key='v46_source')
         uploaded_odds=st.file_uploader('Optional CSV odds import',type=['csv'],key='playbook_odds_upload')
@@ -985,4 +1056,12 @@ st.markdown("""<style>
 .np-v50-teamhead{display:flex;align-items:center;gap:7px;padding:11px 0 8px;border-bottom:1px solid #23435e;min-width:0}.np-v50-teamhead img{width:33px;height:33px;object-fit:contain}.np-v50-teamhead b{display:block;color:white;font-size:.78rem;line-height:1.2}.np-v50-teamhead small{display:block;font-size:.58rem;color:#92b3cd}
 .np-v50-player{display:flex;align-items:center;gap:4px;min-width:0;padding:9px 0;border-bottom:1px solid #1e3a54}.np-v50-rank{font-size:.67rem;color:#a4d8f6;font-weight:800}.np-v50-mug{width:32px;height:39px;object-fit:contain;flex-shrink:0}.np-v50-playerinfo{min-width:0;flex:1}.np-v50-playerinfo b{display:block;font-size:.7rem;line-height:1.15;color:white;overflow-wrap:anywhere}.np-v50-playerinfo small{display:block;font-size:.57rem;color:#a1b8cb;margin-top:4px}.np-v50-pills{display:flex;gap:2px;flex-wrap:wrap;justify-content:flex-end;max-width:65px}.np-v50-pill{font-size:.57rem;padding:2px 3px;border-radius:5px;border:1px solid}.np-v50-pill.purple{color:#d6a5ff;border-color:#8255a9}.np-v50-pill.blue{color:#73d4ff;border-color:#32799e}.np-v50-pill.green{color:#79e8b4;border-color:#368a72}
 @media(max-width:480px){.np-v50-matchup{flex-wrap:wrap}.np-v50-matchup>div{order:-1;width:100%;justify-content:center}.np-v50-teamhead img{width:27px;height:27px}.np-v50-player{gap:3px}.np-v50-mug{width:26px;height:33px}.np-v50-playerinfo b{font-size:.66rem}}
+</style>""",unsafe_allow_html=True)
+
+st.markdown("""<style>
+.np-v52-day{display:flex;align-items:center;gap:12px;border:1px solid #67409a;background:linear-gradient(110deg,#181336,#0a1b30);padding:12px 16px;border-radius:14px;margin:12px 0;color:#d8c0ff}.np-v52-day span{font-size:.75rem;font-weight:800;letter-spacing:.04em;flex:1}.np-v52-day strong{font-size:2rem;color:#e7c6ff}.np-v52-day small{font-size:.65rem;color:#a6a4c9;max-width:135px}
+.np-v52-leaders{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0 24px}.np-v52-leader{border:1px solid #28527b;border-radius:16px;background:linear-gradient(150deg,#102944,#081426);padding:14px;min-width:0;box-shadow:0 10px 30px #0003}.np-v52-leader.gold{border-color:#99712d}.np-v52-leader.purple{border-color:#7845a8}.np-v52-leader.cyan{border-color:#167fa6}.np-v52-leader.green{border-color:#288567}.np-v52-label{font-size:.67rem;letter-spacing:.06em;font-weight:800;color:#a8dfff}.np-v52-leader.gold .np-v52-label{color:#f1d28c}.np-v52-leader.purple .np-v52-label{color:#d8a9ff}.np-v52-leader.green .np-v52-label{color:#7be1b5}.np-v52-person{display:flex;align-items:center;gap:8px;margin:12px 0 6px;min-height:68px}.np-v52-person img{height:70px;width:58px;object-fit:contain;flex-shrink:0}.np-v52-person b{color:white;display:block;font-size:.91rem;line-height:1.15}.np-v52-person small,.np-v52-leader>small{color:#9bb9d2;font-size:.67rem;display:block}.np-v52-number{font-size:1.6rem;color:#73e0b4;display:block}.np-v52-empty{color:#afc2d3;margin:22px 0 12px;font-size:.85rem}
+.np-v52-gemscroll{display:flex;gap:10px;overflow-x:auto;padding:6px 0 15px;scroll-snap-type:x mandatory}.np-v52-gem{display:flex;gap:8px;flex:0 0 220px;scroll-snap-align:start;padding:10px;background:linear-gradient(145deg,#1b2145,#0c1b2c);border:1px solid #5e4592;border-radius:14px;min-width:0}.np-v52-gem img{width:57px;height:82px;object-fit:contain;align-self:center}.np-v52-geminfo{min-width:0}.np-v52-geminfo span,.np-v52-geminfo small{display:block;color:#b5b0d4;font-size:.64rem}.np-v52-geminfo b{display:block;color:#fff;font-size:.86rem;line-height:1.2;margin:4px 0}.np-v52-chips{display:flex;gap:4px;margin-top:8px}.np-v52-chips em{font-size:.65rem;font-style:normal;padding:3px 5px;border:1px solid #7e4aaf;border-radius:6px;color:#e2bbff}.np-v52-chips em:nth-child(2){border-color:#3485a9;color:#8ee3ff}.np-v52-chips em:nth-child(3){border-color:#2f9975;color:#86e7b7}
+@media(max-width:900px){.np-v52-leaders{grid-template-columns:repeat(2,minmax(0,1fr))}.np-v52-leader{padding:11px}.np-v52-person{gap:5px}.np-v52-person img{height:60px;width:48px}.np-v52-person b{font-size:.81rem}.np-v52-number{font-size:1.4rem}}
+@media(max-width:400px){.np-v52-day small{display:none}.np-v52-leader{padding:9px}.np-v52-label{font-size:.58rem}.np-v52-person img{width:42px;height:54px}}
 </style>""",unsafe_allow_html=True)

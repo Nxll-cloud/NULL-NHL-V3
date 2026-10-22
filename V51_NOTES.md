@@ -1,0 +1,1 @@
+V5.1 odds synchronization fix: API loaded before Home and Odds tabs, shared 30-minute cached fetch, accurate empty/error states, home preview and counts. Existing V5.0 Numbers and ranking UI preserved. Live API needs deployment verification.
