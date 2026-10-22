@@ -44,14 +44,57 @@ def get_game_log(player_id, season=SEASON):
 
 
 def summarize_games(log, cutoff_day):
-    """Strictly exclude cutoff day and all later dates to avoid same-day leakage."""
-    previous = sorted((g for g in log if g.get('gameDate', '') < cutoff_day),
-                      key=lambda g: g.get('gameDate', ''), reverse=True)
+    """Strict pre-slate regular-season totals with per-player quality diagnostics.
+
+    Excludes slate date and later dates. Invalid or duplicate records are not
+    silently treated as valid games.
+    """
+    from datetime import date
+
+    cutoff = date.fromisoformat(cutoff_day)
+    previous, seen = [], set()
+    invalid = duplicate = future = 0
+
+    for game in log:
+        try:
+            game_date = date.fromisoformat(game["gameDate"])
+            game_id = game["gameId"]
+            goals = int(game["goals"])
+            shots = int(game["shots"])
+            if not game_id or goals < 0 or shots < 0 or goals > shots:
+                raise ValueError("Invalid game statistics")
+        except (KeyError, ValueError, TypeError):
+            invalid += 1
+            continue
+
+        if game_date >= cutoff:
+            future += 1
+            continue
+        if game_id in seen:
+            duplicate += 1
+            continue
+        seen.add(game_id)
+        previous.append({"date": game_date, "goals": goals, "shots": shots})
+
+    previous.sort(key=lambda g: g["date"], reverse=True)
+
     def totals(n):
         sample = previous[:n]
-        return {'GP': len(sample), 'G': sum(int(g.get('goals') or 0) for g in sample),
-                'SOG': sum(int(g.get('shots') or 0) for g in sample)}
-    return {'L5': totals(5), 'L10': totals(10), 'Season': totals(100)}
+        return {"GP": len(sample),
+                "G": sum(g["goals"] for g in sample),
+                "SOG": sum(g["shots"] for g in sample)}
+
+    return {
+        "L5": totals(5),
+        "L10": totals(10),
+        "Season": totals(len(previous)),
+        "Quality": {
+            "invalid_rows": invalid,
+            "duplicate_rows": duplicate,
+            "excluded_on_or_after_date": future,
+            "usable_prior_games": len(previous),
+        },
+    }
 
 
 def player_row(player, cutoff_day, season=SEASON):
@@ -62,7 +105,11 @@ def player_row(player, cutoff_day, season=SEASON):
             'Goals L10': l10['G'], 'Shots L10': l10['SOG'], 'GP L10': l10['GP'],
             'Goals/Game': round(s['G']/s['GP'], 3) if s['GP'] else None,
             'Shots/Game': round(s['SOG']/s['GP'], 3) if s['GP'] else None,
-            'Data status': 'Verified game log' if s['GP'] else 'No prior games'}
+            'Data status': ('Needs review' if recent['Quality']['invalid_rows'] or recent['Quality']['duplicate_rows']
+                            else 'Historical log available' if s['GP'] else 'No prior games'),
+            'Invalid rows': recent['Quality']['invalid_rows'],
+            'Duplicate rows': recent['Quality']['duplicate_rows'],
+            'Excluded future rows': recent['Quality']['excluded_on_or_after_date']}
 
 
 def load_team(team, cutoff_day, season=SEASON, max_workers=5):

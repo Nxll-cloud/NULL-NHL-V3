@@ -40,7 +40,8 @@ except (requests.RequestException, ValueError, KeyError) as exc:
 
 st.divider()
 st.subheader('Player Statistics Explorer')
-st.caption('Only completed games BEFORE the selected slate date are counted. No future-game leakage.')
+st.caption('Only regular-season game-log entries dated before the selected slate date are counted. '
+           'This prevents date leakage but does not independently verify game completion or historical roster membership.')
 if games:
     teams = sorted({g[t] for g in games for t in ('Home','Away') if g.get(t)})
     team = st.selectbox('Team on slate', teams)
@@ -51,6 +52,16 @@ if games:
             if rows:
                 st.dataframe(pd.DataFrame(rows).drop(columns=['id']), hide_index=True, use_container_width=True)
                 st.caption(f'Source: NHL roster and player game-log endpoints | Season {SEASON}')
+                flagged = sum(r['Data status'] == 'Needs review' for r in rows)
+                missing = sum(r['GP'] == 0 for r in rows)
+                c1, c2, c3 = st.columns(3)
+                c1.metric('Players loaded', len(rows))
+                c2.metric('Flagged records', flagged)
+                c3.metric('No prior games', missing)
+                if flagged or errors:
+                    st.warning('Incomplete or questionable records detected. Do not use for prediction backtests.')
+                st.caption('Historical roster caveat: the current roster endpoint may include players '
+                           'who were not on this team on the selected date. Historical membership is not verified.')
             else:
                 st.warning('No player game logs returned.')
             if errors:

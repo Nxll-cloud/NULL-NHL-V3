@@ -1,17 +1,20 @@
-# NULL NHL V3
+# NULL NHL V3 | Data-validation upgrade
 
-Streamlit NHL slate dashboard using the public NHL API. Displays schedules and player form derived from completed games **strictly before** the selected slate date. No fabricated predictions or odds.
+This package replaces `app.py` and `nhl_data.py` and preserves the existing schedule and player explorer.
 
-## Deploy
+## New validation
+- Reject malformed game dates, game IDs, negative goals/shots and goals exceeding shots.
+- Deduplicate games by game ID.
+- Exclude games on or after the selected date.
+- Display per-player data-quality flags and coverage counts.
+- Clearly disclose that current rosters are **not** historical rosters.
+- No goal-scoring probability or backtest accuracy claims.
 
-1. Upload `app.py`, `nhl_data.py`, and `requirements.txt` to the repository root.
-2. Streamlit Community Cloud: select the repository, `main` branch, and `app.py` as the entry point.
-3. In the app, select a slate date and press **Load Player Statistics** for a team.
+## Install
+Upload the four extracted files into the **root** of your existing GitHub repository,
+overwriting matching files, then commit. Streamlit Community Cloud should redeploy.
 
 ## Limitations
-
-- The historical roster endpoint returns season roster membership, not guaranteed game-day active lineups. Do not interpret as confirmed lineups.
-- Missing player game logs and API failures are reported. A player with no prior games is not a confirmed zero-goal player.
-- Date-only cutoff excludes all games on the selected date. The app does not claim point-in-time availability of injury/goalie/odds information.
-- No goal-scoring probability model or historical prediction archive is implemented yet.
-- GitHub ZIP files are **not** automatically unpacked by GitHub. Unzip on your device and upload the individual files.
+This is a data-quality improvement, not an independent proof of completion
+or historical roster membership. NHL endpoints and field names may change.
+A reliable backtest needs historical roster/lineup snapshots and pregame data archives.
