@@ -29,6 +29,7 @@ from odds_intelligence_v46 import attach_model, order_opportunities, quote_audit
 from odds_api_v45 import fetch_odds, OddsFeedError
 from snapshot_store import load_snapshot
 from numerology_v48 import universal_day as num_universal_day, gematria as num_gematria, analyze_game as num_analyze_game
+from player_targets_v49 import slate_targets as num_slate_targets
 from streamlit_autorefresh import st_autorefresh
 
 st.markdown("""<style>
@@ -864,7 +865,7 @@ with np_numbers_tab:
         _a.metric('Games',len(_analyses))
         _b.metric('Teams',len({t for r in _analyses for t in (r['away'],r['home'])}))
         _c.metric('Arenas',f'{sum(bool(r["arena"]) for r in _analyses)}/{len(_analyses)}')
-        _num_view=st.radio('Explore',['Games','Team Numbers','Arena Numbers','Player Matches','Insights'],horizontal=True,key='v48_view')
+        _num_view=st.radio('Explore',['Games','Player Targets','Team Numbers','Arena Numbers','Player Matches','Insights'],horizontal=True,key='v48_view')
         if _num_view=='Games':
             for r in _analyses:
                 a,h=r['away_values'],r['home_values']
@@ -881,6 +882,45 @@ with np_numbers_tab:
                         else:
                             st.markdown(f'**{label}: {name}**')
                             st.caption(f'English ordinal {v["ordinal"]} → {v["ordinal_root"]} · Full reduction {v["reduction"]} → {v["reduction_root"]} · Reverse {v["reverse"]} → {v["reverse_root"]}')
+        elif _num_view=='Player Targets':
+            _ranked_targets=st.session_state.get('signals_ranked')
+            if not (isinstance(_ranked_targets,pd.DataFrame) and st.session_state.get('signals_day')==np_day):
+                _ranked_targets=None
+            st.markdown('<div class="np-target-heading"><div class="np-kicker">SLATE INTELLIGENCE · V4.9</div><h3>Team Player Targets</h3><p>Ranked numerical coincidences for both teams in every game</p></div>',unsafe_allow_html=True)
+            if _ranked_targets is None:
+                st.info('Player rankings for this date have not been loaded. Generate or load the slate snapshot to see player targets.')
+            else:
+                _tleft,_tright=st.columns(2)
+                with _tleft: _limit=st.selectbox('Players per team',[3,5,10],key='v49_limit')
+                with _tright: _only_matches=st.toggle('Matches only',value=True,key='v49_matches_only')
+                _targets=num_slate_targets(_analyses,_ranked_targets,np_day)
+                def _render_team(code,name,targets,arena,day_root):
+                    safe_name=_num_html.escape(name)
+                    visible=[t for t in targets if t['matches']>0] if _only_matches else targets
+                    logo=f'https://assets.nhle.com/logos/nhl/svg/{code}_light.svg'
+                    st.markdown(f'<div class="np-target-team"><img src="{logo}" alt=""/><div><b>{safe_name}</b><small>{code} · {len(visible)} numerical matches</small></div></div>',unsafe_allow_html=True)
+                    if not visible:
+                        st.caption('No matching players in the available roster data.')
+                    for idx,t in enumerate(visible[:_limit],1):
+                        pname=_num_html.escape(t['player'])
+                        photo=(f'<img src="https://assets.nhle.com/mugs/nhl/20262027/{code}/{t["player_id"]}.png" alt="" loading="lazy"/>' if t['player_id'] else '<span>🏒</span>')
+                        chips=''.join(f'<span class="np-target-chip {cls}">{label} {len(t[key])}</span>' for cls,label,key in [('purple','Day','day'),('blue','Team','team_matches'),('green','Arena','arena_matches')])
+                        st.markdown(f'<div class="np-target-row"><span class="np-target-order">{idx}</span>{photo}<div class="np-target-player"><b>{pname}</b><small>{t["matches"]} numerical matches · Player root {t["number"]}</small></div><div class="np-target-chips">{chips}</div></div>',unsafe_allow_html=True)
+                    if len(visible)>_limit:
+                        with st.expander(f'View remaining {len(visible)-_limit} · {code}'):
+                            for t in visible[_limit:]:
+                                st.write(f'{t["player"]} — {t["matches"]} numerical matches')
+                for item in _targets:
+                    r=item['game']
+                    away,home=r['away'],r['home']
+                    start=format_game_time(r['start'])
+                    venue=_num_html.escape(r['arena'] or 'Venue unavailable')
+                    st.markdown(f'<div class="np-target-game-head"><span>{start}</span><strong>{away} @ {home}</strong><span>{venue}</span></div>',unsafe_allow_html=True)
+                    st.markdown('<div class="np-target-game">',unsafe_allow_html=True)
+                    _render_team(away,r['away_name'],item['away_targets'],r['arena'],_day_num)
+                    _render_team(home,r['home_name'],item['home_targets'],r['arena'],_day_num)
+                    st.markdown('</div>',unsafe_allow_html=True)
+                st.caption('Numerical coincidences are recreational, not predictions or betting recommendations. Player identity uses NHL IDs when available.')
         elif _num_view=='Team Numbers':
             teams={r['away']:(r['away_name'],r['away_values']) for r in _analyses}
             teams.update({r['home']:(r['home_name'],r['home_values']) for r in _analyses})
@@ -916,3 +956,13 @@ st.markdown('''<style>
 .np-num-match{border:1px solid #285780;border-radius:17px;background:linear-gradient(135deg,#12304f,#091624);padding:12px;margin:15px 0 4px}.np-num-top{display:flex;justify-content:space-between;gap:8px;color:#a8c4dd;font-size:.72rem;border-bottom:1px solid #28445e;padding-bottom:9px}.np-num-versus{display:grid;grid-template-columns:minmax(0,1fr) 62px minmax(0,1fr);gap:5px;text-align:center;padding:12px 0}.np-num-versus>div{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}.np-num-versus img{height:52px;width:52px;object-fit:contain}.np-num-versus b{color:#fff}.np-num-versus small{font-size:.62rem;color:#9dbbd4}.np-num-center strong{font-size:1.55rem;color:#d9a5ff}.np-num-center .np-num-green{color:#63e2b2}.np-num-center span{font-size:.7rem;color:#9dbbd4}.np-num-foot{border-top:1px solid #28445e;padding-top:9px;color:#6bd6f7;font-size:.76rem}.np-num-line{display:flex;justify-content:space-between;gap:10px;border:1px solid #264966;background:#102741;border-radius:12px;padding:13px;margin:8px 0;font-size:.8rem}.np-num-line span{color:#71d9ef}
 @media(max-width:600px){.np-num-line{flex-direction:column}.np-num-versus img{width:46px;height:46px}}
 </style>''',unsafe_allow_html=True)
+
+st.markdown("""<style>
+.np-target-heading{margin:16px 0 12px}.np-target-heading h3{font-size:1.6rem;color:#f3f8ff;margin:5px 0}.np-target-heading p{color:#9bbbd6;font-size:.8rem}
+.np-target-game-head{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0c223b;border:1px solid #275b83;border-radius:15px 15px 0 0;padding:12px;margin-top:15px;color:#afc8df;font-size:.72rem}.np-target-game-head strong{font-size:.85rem;color:#fff}
+.np-target-game{background:linear-gradient(135deg,#112b46,#09182b);border:1px solid #275b83;border-top:0;border-radius:0 0 15px 15px;padding:4px 13px 13px;margin-bottom:15px}
+.np-target-team{display:flex;gap:9px;align-items:center;margin:14px 0 8px;padding-bottom:8px;border-bottom:1px solid #27445f}.np-target-team img{width:40px;height:40px;object-fit:contain}.np-target-team b{color:white;font-size:.95rem}.np-target-team small{display:block;color:#91b1ce;font-size:.69rem}
+.np-target-row{display:flex;gap:7px;align-items:center;padding:8px 0;border-bottom:1px solid #1c3a54;min-width:0}.np-target-order{background:#234665;border-radius:7px;padding:5px 8px;color:#d9f0ff;font-weight:700;font-size:.76rem}.np-target-row>img,.np-target-row>span:not(.np-target-order){height:44px;width:39px;object-fit:contain}.np-target-player{flex:1;min-width:0}.np-target-player b{color:#fff;font-size:.84rem;display:block;overflow-wrap:anywhere}.np-target-player small{color:#92b4ce;font-size:.66rem;display:block}.np-target-chips{display:flex;gap:3px}.np-target-chip{font-size:.6rem;padding:4px;border:1px solid;border-radius:6px;white-space:nowrap}.np-target-chip.purple{color:#dcb0ff;border-color:#7e4aaf}.np-target-chip.blue{color:#7edbff;border-color:#347ba3}.np-target-chip.green{color:#7ce8b9;border-color:#2f9975}
+@media(min-width:950px){.np-target-game{display:grid;grid-template-columns:1fr 1fr;gap:24px}}
+@media(max-width:480px){.np-target-game-head{flex-wrap:wrap}.np-target-chips{flex-direction:column}.np-target-chip{font-size:.55rem;padding:2px 4px}}
+</style>""",unsafe_allow_html=True)
