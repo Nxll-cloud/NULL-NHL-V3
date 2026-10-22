@@ -21,9 +21,74 @@ from storyline_v387 import separate_leaders
 from ranking_integrity_v3871 import assign_statistical_ranks, validate_statistical_ranks
 from historical_coverage_v388 import historical_coverage
 
-st.set_page_config(page_title='NULL NHL V3.8.8', page_icon='🏒', layout='wide')
-st.markdown("""<style>.stApp{background:#0d0d17;color:#f2f0ff}h1,h2,h3{color:#c4a5ff}div.stButton>button{background:#6f3cc3;color:white;border-radius:10px}</style>""", unsafe_allow_html=True)
-st.title('NULL NHL V3.8.8')
+st.set_page_config(page_title="Null's Playbook | NHL", page_icon='👑', layout='wide', initial_sidebar_state='expanded')
+from playbook_odds import compare_odds
+
+st.markdown("""<style>
+:root {color-scheme:dark}
+.stApp {background:radial-gradient(ellipse at 25% 0%,#102b4c 0%,#070d1a 36%,#070b14 100%);color:#eaf4ff}
+[data-testid="stSidebar"] {background:#081322;border-right:1px solid #1c3d5e}
+[data-testid="stHeader"] {background:transparent}
+h1,h2,h3 {color:#e8f5ff!important;letter-spacing:-.035em}
+h1 {font-size:clamp(2rem,4vw,3.2rem)!important}
+div.stButton>button[kind="primary"],div.stDownloadButton>button {border:1px solid #187fe9;background:#0a3261;color:#f1faff;border-radius:12px}
+div.stButton>button:hover,div.stDownloadButton>button:hover {border-color:#38bdf8;color:white}
+[data-testid="stMetric"] {border:1px solid #214264;background:linear-gradient(135deg,#0c213b,#091626);border-radius:14px;padding:14px}
+[data-testid="stMetricValue"] {color:#5bd2ff}
+[data-testid="stDataFrame"] {border-radius:12px;overflow:hidden}
+[data-testid="stExpander"] {border:1px solid #1d3654;border-radius:12px}
+.np-hero {border:1px solid #1763a2;border-radius:22px;padding:22px 25px;background:linear-gradient(115deg,#0c3762 0%,#0b2340 48%,#071528 100%);box-shadow:0 8px 35px #0005;margin-bottom:18px}
+.np-kicker {font-size:.7rem;letter-spacing:.2em;font-weight:800;color:#69c9ff}
+.np-title {font-size:clamp(2rem,5vw,3.6rem);font-weight:900;line-height:1.05;letter-spacing:-.05em;color:white;margin:8px 0}
+.np-sub {color:#a5c5e4;font-size:.95rem;max-width:800px}
+.np-tag {display:inline-block;background:#082b4c;border:1px solid #296b9e;color:#a8e7ff;padding:6px 10px;border-radius:999px;font-size:.75rem;margin-top:13px}
+.np-player {border:1px solid #24466b;border-radius:15px;background:linear-gradient(140deg,#102947,#081523);padding:13px;margin:7px 0;min-height:120px}
+.np-player-name {font-size:1.1rem;font-weight:800;color:#fff}
+.np-muted {font-size:.78rem;color:#9bbbd6}
+.np-head {height:76px;width:76px;object-fit:contain;float:right;filter:drop-shadow(0 4px 12px #0008)}
+.np-team {height:22px;width:22px;object-fit:contain;vertical-align:middle}
+@media(max-width:768px){.block-container {padding:1rem .8rem 5rem!important}.np-hero{padding:18px 15px;border-radius:17px}.np-player{min-height:110px} [data-testid="stMetric"]{padding:10px}}
+</style>""",unsafe_allow_html=True)
+st.markdown('''<div class="np-hero"><div class="np-kicker">👑 NULL'S PLAYBOOK · V4.0</div><div class="np-title">The edge is in the details.</div><div class="np-sub">NHL intelligence · verified player form · historical storylines · sportsbook price comparison</div><div class="np-tag">DESKTOP + MOBILE HYBRID</div></div>''',unsafe_allow_html=True)
+with st.sidebar:
+    st.markdown('### 👑 Null’s Playbook')
+    st.caption('DATA · NUMBERS · EDGES')
+    st.markdown('**🏒 NHL**')
+    st.caption('Additional leagues require separate data feeds. NHL remains the live statistical engine.')
+    st.divider()
+    st.markdown('**Sportsbook intelligence**')
+    st.caption('Upload licensed/authorized odds data below to compare available prices. No sportsbook feeds are connected by default.')
+
+st.subheader('⚡ Sportsbook Odds Discrepancies')
+st.caption('Compare the exact same event, player, market, selection and line. Best odds are not automatically positive EV. Prices require a real uploaded feed and timestamps.')
+with st.expander('📥 Connect sportsbook prices using CSV',expanded=False):
+    st.markdown('Required CSV columns: `player, team, market, selection, sportsbook, american_odds, updated_at`. Optional: `event_id, line`. Use ISO-8601 UTC timestamps. All books represented in the uploaded file are supported for comparison; this is **not** a live all-books connection.')
+    st.download_button('Download example CSV template', 'player,team,market,selection,sportsbook,american_odds,updated_at,event_id,line\n',file_name='playbook_odds_template.csv',mime='text/csv')
+    uploaded_odds=st.file_uploader('Upload sportsbook odds CSV',type=['csv'],key='playbook_odds_upload')
+    if uploaded_odds is not None:
+        try:
+            uploaded_frame=pd.read_csv(uploaded_odds,dtype={'event_id':str,'line':str})
+            st.session_state['playbook_odds_data']=uploaded_frame
+        except Exception as exc: st.error(f'Cannot read odds file: {exc}')
+if 'playbook_odds_data' in st.session_state:
+    try:
+        price_rows,discrepancies=compare_odds(st.session_state['playbook_odds_data'])
+        c1,c2,c3=st.columns(3)
+        c1.metric('Sportsbooks in file',price_rows['sportsbook'].nunique())
+        c2.metric('Comparable prop markets',len(discrepancies))
+        c3.metric('Quotes loaded',len(price_rows))
+        if not discrepancies.empty:
+            markets=sorted(discrepancies['market'].unique().tolist())
+            market_filter=st.selectbox('Market', ['All markets']+markets,key='playbook_market')
+            shown=discrepancies if market_filter=='All markets' else discrepancies[discrepancies['market']==market_filter]
+            st.dataframe(shown,hide_index=True,use_container_width=True)
+            st.download_button('Download odds discrepancies CSV',shown.to_csv(index=False),file_name='nulls_playbook_odds_discrepancies.csv',mime='text/csv')
+            st.caption('Price improvement compares decimal payouts, not win probabilities. Quote timestamps and event IDs should be checked before using a price.')
+        else: st.info('No matching props offered by two or more sportsbooks in this upload.')
+    except ValueError as exc: st.error(f'Odds data validation: {exc}')
+else:
+    st.info('No sportsbook odds connected yet. Upload a CSV to highlight real price discrepancies; sample odds are intentionally not displayed.')
+
 storyline_top = st.container()
 with storyline_top:
     st.subheader('🏆 NULL NHL — Four Distinct Leaders')
@@ -55,7 +120,18 @@ try:
     st.caption(f'https://api-web.nhle.com/v1/schedule/{day}')
     st.subheader('Full NHL Slate')
     if games:
-        st.dataframe(pd.DataFrame(games), hide_index=True, use_container_width=True)
+        st.markdown('#### 🏒 Matchup Center')
+        # Official NHL team logos; a broken image does not affect data retrieval.
+        import html as _html
+        for offset in range(0,min(len(games),12),3):
+            cols=st.columns(min(3,len(games)-offset))
+            for col,game in zip(cols,games[offset:offset+3]):
+                away=_html.escape(str(game.get('Away','')))
+                home=_html.escape(str(game.get('Home','')))
+                with col:
+                    st.markdown(f'''<div class="np-player" style="min-height:100px;text-align:center"><div class="np-muted">{_html.escape(str(game.get('Start (UTC)','')))}</div><div style="display:flex;justify-content:center;align-items:center;gap:13px;margin-top:9px"><img alt="{away}" src="https://assets.nhle.com/logos/nhl/svg/{away}_light.svg" style="height:38px;width:38px;object-fit:contain"/><b>{away} vs {home}</b><img alt="{home}" src="https://assets.nhle.com/logos/nhl/svg/{home}_light.svg" style="height:38px;width:38px;object-fit:contain"/></div></div>''',unsafe_allow_html=True)
+        with st.expander('Full NHL slate data'):
+            st.dataframe(pd.DataFrame(games), hide_index=True, use_container_width=True)
         st.metric('Slate Games', len(games))
     else:
         st.info('No games found for this date.')
@@ -293,7 +369,13 @@ if 'signals_ranked' in st.session_state and st.session_state.get('signals_day') 
             if lead is None:
                 st.info('No eligible player with the currently loaded evidence. Fetch historical opponent logs for wider coverage.')
                 continue
-            st.markdown(f"**{lead['Player']} — {lead['Team']}**")
+            import html
+            player_id=lead.get('Player ID')
+            player_id=str(int(player_id)) if pd.notna(player_id) and str(player_id).replace('.0','').isdigit() else ''
+            team_code=html.escape(str(lead.get('Team','')))
+            player_name=html.escape(str(lead.get('Player','')))
+            portrait=(f'<img class="np-head" alt="Player headshot" src="https://assets.nhle.com/mugs/nhl/20262027/{team_code}/{player_id}.png" />' if player_id else '')
+            st.markdown(f'<div class="np-player">{portrait}<div class="np-muted">NHL · {team_code}</div><div class="np-player-name">{player_name}</div><div class="np-muted">Official NHL image where available</div></div>',unsafe_allow_html=True)
             c1,c2,c3 = st.columns(3)
             c1.metric('Statistical rank',int(lead['Statistical rank']))
             c2.metric('Storyline evidence points',f"{lead['Storyline evidence score']:.2f}")
