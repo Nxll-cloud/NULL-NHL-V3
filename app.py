@@ -25,6 +25,7 @@ from historical_coverage_v388 import historical_coverage
 
 st.set_page_config(page_title="Null's Playbook | NHL", page_icon='👑', layout='wide', initial_sidebar_state='collapsed')
 from playbook_odds import compare_odds
+from snapshot_store import load_snapshot
 from streamlit_autorefresh import st_autorefresh
 
 st.markdown("""<style>
@@ -106,6 +107,21 @@ st_autorefresh(interval=30 * 60 * 1000, key='playbook_v42_30min_timer')
 # One shared date for every screen; a date change automatically invalidates the slate.
 np_selected_date=st.date_input('📅 NHL slate date',date.today(),key='playbook_v42_date')
 np_day=np_selected_date.isoformat()
+# Load the last completed, validated snapshot before any live NHL API calls.
+# Research uses the same session state so it does not recompute on each visit.
+np_snapshot=load_snapshot(np_day)
+if np_snapshot is not None:
+    _previous=st.session_state.get('v44_snapshot_at')
+    if _previous != (np_day, np_snapshot['updated_at']):
+        st.session_state['signals_ranked']=pd.DataFrame(np_snapshot['rankings'])
+        st.session_state['signals_day']=np_day
+        st.session_state['v44_snapshot_at']=(np_day,np_snapshot['updated_at'])
+        st.session_state['v42_last_rank']={'key':(np_day,3,True),'at':datetime.now(timezone.utc),'snapshot':True}
+        if np_snapshot.get('history'):
+            st.session_state['history_v386']=pd.DataFrame(np_snapshot['history'])
+            st.session_state['history_v386_day']=np_day
+            st.session_state['history_v386_years']=3
+
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def schedule_cached(day):
@@ -162,13 +178,19 @@ with np_home_tab:
 
     import html as _np_html
     from datetime import date as _np_date
-    st.markdown("""<div class="np-hero"><div class="np-kicker">👑 NULL'S PLAYBOOK · V4.3</div><div class="np-title">Your NHL command center.</div><div class="np-sub">Verified rankings · matchup intelligence · historical storylines · sportsbook price comparison</div></div>""", unsafe_allow_html=True)
-    st.caption('Auto-run enabled · 30-minute refresh while open · three prior seasons · real NHL data only')
+    st.markdown("""<div class="np-hero"><div class="np-kicker">👑 NULL'S PLAYBOOK · V4.4</div><div class="np-title">Your NHL command center.</div><div class="np-sub">Verified rankings · matchup intelligence · historical storylines · sportsbook price comparison</div></div>""", unsafe_allow_html=True)
+    st.caption('Auto slate snapshots · scheduled 30-minute updates · three prior seasons · real NHL data only')
+    if np_snapshot is not None:
+        st.caption('🟢 Saved rankings updated: '+np_snapshot['updated_at'][:19].replace('T',' ')+' UTC · '+str(len(np_snapshot['rankings']))+' players')
+        if np_snapshot.get('errors'):
+            st.caption(f'⚠️ {len(np_snapshot["errors"])} data retrieval warnings in saved snapshot')
+    else:
+        st.warning('No scheduled snapshot for this date yet. Live fallback may take 30 seconds or longer. Run the GitHub workflow to precompute it.')
     history_status(np_day)
     if st.session_state.get('v42_last_rank') and st.session_state.get('signals_day')==np_day:
         st.caption('Rankings last updated: '+st.session_state['v42_last_rank']['at'].astimezone(ZoneInfo('America/New_York')).strftime('%b %-d, %-I:%M %p ET'))
     try:
-        np_games=schedule_cached(np_day)
+        np_games=np_snapshot['games'] if np_snapshot is not None else schedule_cached(np_day)
     except (requests.RequestException, ValueError, KeyError, TypeError) as np_err:
         np_games=[]
         st.warning(f'Unable to load matchups: {np_err}')
@@ -259,7 +281,7 @@ with np_research_tab:
     with storyline_top:
         st.subheader('🏆 NULL NHL — Four Distinct Leaders')
         st.caption('Evidence-first, pre-slate storylines. Former-team and injury/news claims are not inferred.')
-    st.caption('Automatic full-slate ranking · refreshes every 30 minutes while open · three prior seasons · not calibrated probabilities')
+    st.caption('Scheduled 30-minute snapshots when available · live fallback for unsaved dates · three prior seasons · not calibrated probabilities')
     day = np_day
 
     if st.button('↻ Refresh now', key='v42_manual_refresh'):
@@ -268,12 +290,13 @@ with np_research_tab:
         defense_cached.clear()
         historical_cached.clear()
         st.session_state.pop('v42_last_rank', None)
+        st.info('A saved snapshot is active when available. To force a fresh complete slate, run the GitHub Actions workflow.')
         st.session_state.pop('v42_history_attempt', None)
         st.session_state.pop('v43_history_completed', None)
         st.rerun()
 
     try:
-        games = schedule_cached(day)
+        games = np_snapshot['games'] if np_snapshot is not None else schedule_cached(day)
         st.caption(f'Source: NHL public API | Displayed at {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC')
         st.caption(f'https://api-web.nhle.com/v1/schedule/{day}')
         st.subheader('Full NHL Slate')
@@ -344,9 +367,9 @@ with np_research_tab:
         # Never silently replace an older pregame snapshot with a current-time reconstruction.
         _v42_key=(day,int(min_games),bool(use_defense))
         _v42_last=st.session_state.get('v42_last_rank')
-        _v42_due=(not _v42_last or _v42_last.get('key')!=_v42_key
+        _v42_due=(np_snapshot is None and (not _v42_last or _v42_last.get('key')!=_v42_key
                   or datetime.now(timezone.utc)-_v42_last['at']>=timedelta(minutes=30)
-                  or st.session_state.get('signals_day')!=day)
+                  or st.session_state.get('signals_day')!=day))
         if games and _v42_due:
             st.info('⏳ Auto-analyzing all teams for the selected date…')
             teams_to_load = sorted({g[t] for g in games for t in ('Home', 'Away') if g.get(t)})
@@ -642,7 +665,7 @@ with np_research_tab:
             _v42_ids=tuple(_v42_ranked['Player ID'].astype(str).tolist())
             _v42_games_sig=tuple(sorted(str(g.get('Game ID','')) for g in games))
             _v42_hist_key=(day,3,_v42_ids,_v42_games_sig)
-            if st.session_state.get('v42_history_attempt')!=_v42_hist_key:
+            if st.session_state.get('history_v386_day') != day and st.session_state.get('v42_history_attempt')!=_v42_hist_key:
                 st.session_state['v42_history_attempt']=_v42_hist_key
                 # Return control to the page immediately. The completed future is
                 # collected by the 10-second status fragment at the top of Home.
