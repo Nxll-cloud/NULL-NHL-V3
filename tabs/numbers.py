@@ -13,8 +13,11 @@ except (requests.RequestException,ValueError,KeyError):
 _analyses=[num_analyze_game(g,np_day,_TEAM_NAMES) for g in _games_num]
 _nb_ranked=st.session_state.get('signals_ranked')
 _nb_ok=isinstance(_nb_ranked,pd.DataFrame) and st.session_state.get('signals_day')==np_day
-_nb_all=numboard.slate_boards(num_slate_targets(_analyses,_nb_ranked,np_day)) if (_nb_ok and _analyses) else None
+_gm_targets=num_slate_targets(_analyses,_nb_ranked,np_day) if (_nb_ok and _analyses) else None
+_nb_all=numboard.slate_boards(_gm_targets) if _gm_targets is not None else None
 v5.html_block(st,numv58.tonight_strip(np_day,_day_num,_analyses,_nb_all),extra_class='v58-num')
+if _analyses:  # V5.8: Player | Match type (date / arena) | Number
+    v5.html_block(st,gmx.table_html(*gmx.match_table(_gm_targets,_day_num),_day_num,loaded=_gm_targets is not None),extra_class='v58-num')
 with st.expander('ⓘ How numbers are calculated'):
     st.write('Universal day: sum every digit of YYYY-MM-DD and reduce to one digit. English ordinal: A=1 through Z=26. Full reduction: reduce each letter to a single digit, sum, and reduce again. Reverse ordinal: A=26 through Z=1. Punctuation and spaces are ignored. Arena names come from the game schedule.')
 if not _analyses:
@@ -46,11 +49,11 @@ else:
         for r in _analyses:
             a,h=r['away_values'],r['home_values']
             away,home=_num_html.escape(r['away']),_num_html.escape(r['home'])
-            venue=_num_html.escape(r['arena'] or 'Arena unavailable')
+            venue=(f'<span class="np-vn" title="{_num_html.escape(vn.clean(r["arena"]))}">{vn.PIN} {_num_html.escape(vn.clean(r["arena"]))}</span>' if vn.clean(r['arena']) else '')   # V5.8: no arena -> no line
             venue_number=r['arena_values']['ordinal_root'] if r['arena_values'] else '—'
             matches=''.join(ui.badge(m,'gem') for m in r['matches'][:3]) or ui.badge('No direct day-number matches','muted')
             start=format_game_time(r['start'])
-            st.markdown(f'<div class="np-num-match"><div class="np-num-top"><span>{start}</span><span>{venue}</span></div><div class="np-num-versus"><div>{ui.logo(away,52)}<b>{away}</b><small>ENG {a["ordinal_root"]} · RED {a["reduction_root"]} · REV {a["reverse_root"]}</small></div><div class="np-num-center"><strong>{_day_num}</strong><small>DAY</small><span>VS</span><strong class="np-num-green">{venue_number}</strong><small>ARENA</small></div><div>{ui.logo(home,52)}<b>{home}</b><small>ENG {h["ordinal_root"]} · RED {h["reduction_root"]} · REV {h["reverse_root"]}</small></div></div><div class="np-num-foot">{matches}</div></div>',unsafe_allow_html=True)
+            st.markdown(f'<div class="np-num-match"><div class="np-num-top"><span>{start}</span>{venue}</div><div class="np-num-versus"><div>{ui.logo(away,52)}<b>{away}</b><small>ENG {a["ordinal_root"]} · RED {a["reduction_root"]} · REV {a["reverse_root"]}</small></div><div class="np-num-center"><strong>{_day_num}</strong><small>DAY</small><span>VS</span><strong class="np-num-green">{venue_number}</strong><small>ARENA</small></div><div>{ui.logo(home,52)}<b>{home}</b><small>ENG {h["ordinal_root"]} · RED {h["reduction_root"]} · REV {h["reverse_root"]}</small></div></div><div class="np-num-foot">{matches}</div></div>',unsafe_allow_html=True)
             with st.expander(f'View details · {away} @ {home}'):
                 for label,name,v in [('Away team',r['away_name'],a),('Home team',r['home_name'],h),('Arena',r['arena'],r['arena_values'])]:
                     if v is None:
@@ -95,7 +98,6 @@ else:
                             st.write(f'{t["player"]} · {t["matches"]} matches · Form {ui.format_form_pct(t["form"])}')
             for item in _targets:
                 r=item['game']; away,home=r['away'],r['home']
-                venue=_num_html.escape(r['arena'] or 'Venue unavailable')
                 st.markdown(ui.matchup_bar(away,home,format_game_time(r['start']),r['arena']),unsafe_allow_html=True)
                 _away_col,_home_col=st.columns(2,gap='small')
                 with _away_col: _v50_team(away,r['away_name'],item['away_targets'])

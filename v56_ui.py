@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import v55_ui as v5
+import venue_v58 as vn
 from v55_ui import esc
 
 ARROWS = {'up': ('▲', 'up'), 'down': ('▼', 'dn'), 'same': ('•', 'eq'), 'new': ('NEW', 'nw')}
@@ -51,7 +52,7 @@ def team_bar(result):
             f'<div class="ngleg"><span>{esc(a)} {pct(pa)}</span><span>No further goal {pct(pn)}</span><span>{esc(h)} {pct(ph)}</span></div>')
 
 
-def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, title=None, note=''):
+def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, title=None, note='', venue=None):
     """'Live Next Goal' panel: score line, team split, top shooters with headshot, SOG, xG, conv %, next-goal %, rank change."""
     g = result['game']
     a, h = g['away'], g['home']
@@ -68,7 +69,7 @@ def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, ti
     if not rows:
         rows.append('<div class="ngempty">No skaters available for this game yet.</div>')
     head = title or f'{esc(a)} @ {esc(h)}'
-    return (f'<section class="sec ngp-wrap"><div class="ngh">{v5.logo(a, "tl")}<div class="ngt"><h3>{head}</h3>{state_badge(result["phase"], label, updated, demo)}</div>'
+    return (f'<section class="sec ngp-wrap"><div class="ngh">{v5.logo(a, "tl")}<div class="ngt"><h3>{head}</h3>{vn.tag(venue)}{state_badge(result["phase"], label, updated, demo)}</div>'
             f'<div class="ngsc">{score}</div>{v5.logo(h, "tl")}</div>{team_bar(result)}'
             f'<div class="ngl">{"".join(rows)}</div>'
             f'<p class="ngnote">{esc(note, "")} Horizon {result["remaining"]:.1f} min · pace weight {result["pace_weight"]:.2f} · model estimate, uncalibrated, not betting advice.</p></section>')
@@ -85,7 +86,7 @@ def live_strip(items):
         who = f'<small>next: {esc(lead["name"].split(" ")[-1])} {pct(lead["p_next"], 0)}</small>' if lead else f'<small>{idle}</small>'
         pulse = '<i class="pulse"></i>' if it['phase'] == 'live' else ''
         cells.append(f'<div class="ls {esc(it["phase"])}">{pulse}{v5.logo(it["away"], "tl")}<b>{esc(it.get("away_score"), "")}</b>'
-                     f'<span>{esc(it.get("label"), "")}</span><b>{esc(it.get("home_score"), "")}</b>{v5.logo(it["home"], "tl")}{who}</div>')
+                     f'<span>{esc(it.get("label"), "")}</span><b>{esc(it.get("home_score"), "")}</b>{v5.logo(it["home"], "tl")}{who}{vn.tag(it.get("venue"))}</div>')
     n = sum(1 for it in items if it['phase'] == 'live')
     tag = f'<span class="live"><i class="pulse"></i>{n} live</span>' if n else '<span class="live pre">No game live</span>'
     return f'<section class="sec"><div class="sh"><h3>Live next goal {tag}</h3><p>Score endpoint + play-by-play · next-goal leader per game · open the Live Next Goal tab for the full model</p></div><div class="lstrip">{"".join(cells)}</div></section>'
@@ -185,4 +186,4 @@ def edge_card(game, flag, rows, season, label):
             body += f'<div class="efm">Other flagged: {more}</div>'
     fl = '<span class="flagb on">🚩 EDGE</span>' if flag['flagged'] else '<span class="flagb">no edge</span>'
     return (f'<div class="efc{" on" if flag["flagged"] else ""}"><div class="efh">{v5.logo(a, "tl")}<b>{esc(a)} @ {esc(h)}</b>{v5.logo(h, "tl")}{fl}'
-            f'<small>{esc(label)}</small></div>{body}</div>')
+            f'<small>{esc(label)}</small>{vn.tag(game.get("venue"))}</div>{body}</div>')

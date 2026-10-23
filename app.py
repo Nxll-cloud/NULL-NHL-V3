@@ -65,6 +65,8 @@ import numbers_v58_ui as numv58
 import feature_flags_v58 as np_flags
 import edgelab_v58 as elv58
 import storylines_v58 as slx
+import venue_v58 as vn
+import gem_match_v58 as gmx
 # V5.8: display-only 'Scored tonight' badges in every model view (markdown/html/dataframe pass-through proxy).
 st = sctn.MarkingStreamlit(st)
 

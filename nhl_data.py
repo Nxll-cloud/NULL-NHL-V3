@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
+import venue_v58
+
 BASE = 'https://api-web.nhle.com/v1'
 SEASON = '20262027'
 
@@ -24,7 +26,7 @@ def get_schedule(day):
             games.append({'Game ID': game.get('id'), 'Away': game.get('awayTeam', {}).get('abbrev'),
                           'Home': game.get('homeTeam', {}).get('abbrev'),
                           'Start (UTC)': game.get('startTimeUTC'), 'Status': game.get('gameState'),
-                          'Venue': (game.get('venue') or {}).get('default')})
+                          'Venue': venue_v58.from_api(game) or None})
     return games
 
 

@@ -10,6 +10,7 @@ import html as _html
 import math
 import re
 from pathlib import Path as _Path
+import venue_v58 as vn
 
 NHL_SEASON_DEFAULT = '20262027'
 _TEAM_RE = re.compile(r'^[A-Z]{2,3}$')
@@ -257,10 +258,17 @@ def matchup_chip(away, home, when):
             f'<b>{esc(away)} <i>at</i> {esc(home)}</b><small>{esc(when)}</small></div>')
 
 
+def arena_line(venue):
+    """V5.8: compact muted pin line for st.markdown cards ('' when the NHL schedule has no arena)."""
+    a = vn.clean(venue)
+    return f'<div class="np-vn" title="{esc(a)}">{vn.PIN} {esc(a)}</div>' if a else ''
+
+
 def matchup_bar(away, home, when, venue):
     return (f'<div class="np-mbar"><span class="np-mbar-meta">{esc(when)}</span><div class="np-mbar-teams">'
             f'{logo(away, 30)}<b>{esc(away)}</b><em>VS</em><b>{esc(home)}</b>{logo(home, 30)}</div>'
-            f'<span class="np-mbar-meta">{esc(venue, "Venue unavailable")}</span></div>')
+            + (f'<span class="np-mbar-meta np-vn" title="{esc(vn.clean(venue))}">{vn.PIN} {esc(vn.clean(venue))}</span>' if vn.clean(venue) else '')
+            + '</div>')
 
 
 def gap_meter(pct, cap=100.0):
@@ -403,6 +411,7 @@ div.stButton>button[kind="primary"]{background:linear-gradient(135deg,#0ea5e9,#2
 .np-mbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:11px 14px;margin:18px 0 6px;border-radius:var(--r2);border:1px solid var(--line2);background:linear-gradient(110deg,#15294a,#101a2e)}
 .np-mbar-teams{display:flex;align-items:center;gap:9px}.np-mbar-teams b{color:#fff;font-size:1rem}.np-mbar-teams em{font-style:normal;font-size:.66rem;font-weight:800;color:var(--odds);letter-spacing:.1em}
 .np-mbar-meta{color:var(--mut);font-size:.74rem}
+.np-vn{max-width:100%;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--mut);font-size:.78rem;margin-top:6px}
 .np-thead{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:4px}.np-thead b{display:block;color:#fff;font-size:.9rem}.np-thead small{display:block;color:var(--mut);font-size:.7rem}
 .np-trow{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid rgba(36,52,79,.6);min-width:0}
 .np-trow-rank{display:grid;place-items:center;width:22px;height:22px;border-radius:7px;background:var(--s3);color:var(--tx2);font-size:.7rem;font-weight:800;flex-shrink:0}

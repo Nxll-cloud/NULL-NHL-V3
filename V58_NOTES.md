@@ -57,5 +57,26 @@ V5.8 is V5.7 tuned for phones, plus the requested Home/Numbers/EdgeLab/Storyline
 - Real NHL/ESPN data, covering revenge games, former teams, birthdays, first games, hometowns, VS opponent, streaks/milestones and news (last 36h).
 - Nothing is fabricated. Topics with no data source (e.g. new dads) are not shown.
 
-## Not pushed
-Nothing was pushed to GitHub. Odds keys stay in Streamlit secrets.
+## Arena names on slate displays
+- Each game shows its arena as a small muted 📍 line next to the matchup. The name comes from the real NHL API `venue.default` (schedule and score endpoints) and is carried through the slate rows and the saved snapshots (`Venue`).
+- Where it appears:
+  - Home: Tonight's Board tiles, the Featured matchup banner, the Matchup targets heading, the live next-goal strip, the Top four-leg parlay legs, the Top long shot, and the "Player targets by matchup" expanders.
+  - Numbers: the game board headers (arena chip with its number) and the Games and Player Targets views.
+  - Matchup Center: the game picker, the header banner, the per-game "Goalies vs tonight's threats" headings and the Live Next Goal panel.
+  - Live Next Goal panels, Edge Flags game cards (display only, the logic is unchanged) and the Research slate cards.
+- If a game has no venue (e.g. an older snapshot), the score endpoint's real arena is used. If neither has one, the line is hidden. It never shows "None" and the app never guesses an arena. The DEMO replay panel shows no arena.
+- Mobile (320–430px): the line stays on one line, cuts off with an ellipsis (the full name is in the tooltip) and uses 13px text. On desktop the layout is unchanged.
+- Code: `venue_v58.py` (`clean`, `of`, `fill`, `label`, `tag`). Tests: `test_v58_venue.py`.
+
+## Numbers: date & arena match table
+- Near the top of the Numbers page there is a compact table with exactly three columns: **Player | Match type | Number**.
+- Match type is only ever `date` (the player's name number equals tonight's universal day number) or `arena` (it equals the arena number of the player's game). The code filters and asserts this.
+- A player who matches both gets two rows. Number is the matched value: the day number for `date`, and the arena's root in the first matching cipher (English, then Reduction, then Reverse) for `arena`.
+- It uses the same three ciphers as the rest of the page. The arena number comes only from the real NHL venue name. Games without a venue get no arena rows, and a small note under the table lists them.
+- Empty states: "No player matches tonight's date or arena numbers", or a note that the table appears once the slate rankings are loaded.
+- The table scrolls vertically (max 420px) and never horizontally. Text is 13px on phones. Scored-tonight badges still appear next to player names.
+- Entertainment only, not a scoring signal. Code: `gem_match_v58.py`. Tests: `test_v58_gem_match.py`.
+
+## GitHub status
+- V5.8 (with arena names and the date & arena match table) is on GitHub main, and the `V5.8` tag points to that commit. The earlier V5.8 commit was 0f91d5f.
+- Odds keys stay in Streamlit secrets.

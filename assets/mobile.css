@@ -12,6 +12,12 @@
   .v55 .gl{flex-wrap:wrap}
 }
 @media (max-width:760px){
+  .v55 small.vn,.np-vn{font-size:13px}
+  .v55 .v58-gm .gm,.v55 .v58-gm .gm-note,.v55 .v58-gm .gm-t{font-size:13px}
+  .v55 .v58-gm .gm th:nth-child(2),.v55 .v58-gm .gm td:nth-child(2){width:84px}
+  .v55 .v58-gm .gm th:nth-child(3),.v55 .v58-gm .gm td:nth-child(3){width:58px}
+  .v55 .v58-gm .gm td,.v55 .v58-gm .gm th{padding:7px 8px}
+  .v55 .hero small.hvn{display:block;margin:10px auto 0;text-align:center}
   html,body{overflow-x:hidden}
   .block-container,[data-testid="stMainBlockContainer"]{padding-left:.85rem!important;padding-right:.85rem!important;max-width:100%!important}
   [data-testid="stHorizontalBlock"]{flex-wrap:wrap!important;gap:.6rem!important}

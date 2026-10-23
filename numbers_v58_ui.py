@@ -8,6 +8,7 @@ number, and by which cipher.
 from datetime import date
 
 import v55_ui as v5
+import venue_v58 as vn
 from numboard_v56 import TIERS, W_DAY, W_ARENA, W_TEAM, RAW_MAX
 
 esc = v5.esc
@@ -155,9 +156,11 @@ def game_board(board, day_num, ranks=None, pin=True):
     g = board['game']
     a, h = g['away'], g['home']
     when = v5.et_time(g.get('start')) if g.get('start') else ''
-    arena = esc(g.get('arena') or 'Arena unavailable')
+    arena = esc(vn.clean(g.get('arena')), '')
     root = esc(board.get('arena_root'), '—')
-    if board['arena_hit']:
+    if not arena:   # V5.8: older snapshots without a venue: no arena chip (never 'None', never a guessed arena)
+        arena_html = ''
+    elif board['arena_hit']:
         n = len(board['arena_players'])
         arena_html = (f'<span class="nga hit" title="Matches: {esc(", ".join(board["arena_players"]))}">🏟 {arena} <b>= {root}</b>'
                       f'<em>✓ arena match · {n} player{"s" if n != 1 else ""}</em></span>')

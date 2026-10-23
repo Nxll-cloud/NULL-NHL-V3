@@ -143,3 +143,25 @@
 .v58-el .el-g th{background:linear-gradient(90deg,rgba(148,170,255,.1),transparent);color:var(--mut);font:700 .74rem var(--fb);letter-spacing:.1em;text-transform:uppercase}
 .v58-el .el-live{font-style:normal;color:var(--hot);font-weight:800}
 .v58-el .el-settled{margin:10px 0 0;color:var(--mut);font-size:.86rem;line-height:1.6}
+/* V5.8 arena line (NHL venue.default): small muted pin line, one line + ellipsis, full name in the tooltip; hidden when unknown */
+.v55 small.vn{display:block;max-width:100%;min-width:0;margin:5px 0 0;grid-column:1/-1;flex-basis:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--mut);font:600 .75rem/1.35 var(--fb);letter-spacing:.02em;text-transform:none}
+.v55 small.vn i{font-style:normal;margin-right:4px;color:transparent;text-shadow:0 0 0 var(--neon)}
+.v55 .vs em{max-width:190px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.v55 small.hvn{display:none}
+.v55 .tile small.vn{margin-top:6px}
+.v55 .ngt small.vn{margin:2px 0 4px}
+.v55 h3 small.vn{margin-top:3px}
+/* V5.8 Numbers: date & arena match table (Player | Match type | Number), vertical scroll only */
+.v55 .v58-gm .gm-w{max-height:420px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--line);border-radius:14px}
+.v55 .v58-gm .gm{width:100%;table-layout:fixed;border-collapse:collapse;font:600 .85rem/1.3 var(--fb)}
+.v55 .v58-gm .gm th{position:sticky;top:0;z-index:1;padding:8px 10px;text-align:left;color:var(--mut);font:800 .72rem var(--fd);letter-spacing:.1em;text-transform:uppercase;background:var(--bg,#070a16)}
+.v55 .v58-gm .gm th:nth-child(2),.v55 .v58-gm .gm td:nth-child(2){width:96px}
+.v55 .v58-gm .gm th:nth-child(3),.v55 .v58-gm .gm td:nth-child(3){width:70px;text-align:right}
+.v55 .v58-gm .gm td{padding:7px 10px;border-top:1px solid var(--line);color:var(--ink);vertical-align:middle}
+.v55 .v58-gm .gm-p b{display:inline;overflow-wrap:anywhere;font-weight:700}
+.v55 .v58-gm .gm-t{display:inline-block;padding:2px 9px;border-radius:999px;font:800 .72rem var(--fb);letter-spacing:.06em}
+.v55 .v58-gm .gm-t.date{color:var(--gem);border:1px solid color-mix(in srgb,var(--gem) 55%,transparent);background:color-mix(in srgb,var(--gem) 12%,transparent)}
+.v55 .v58-gm .gm-t.arena{color:var(--neon);border:1px solid color-mix(in srgb,var(--neon) 55%,transparent);background:color-mix(in srgb,var(--neon) 10%,transparent)}
+.v55 .v58-gm .gm-n{font:800 1rem var(--fd);color:var(--ink)}
+.v55 .v58-gm .gm-empty{padding:14px;border:1px dashed var(--line);border-radius:14px;color:var(--mut)}
+.v55 .v58-gm .gm-note{margin:6px 2px 0;color:var(--dim);font-size:.75rem}

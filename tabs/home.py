@@ -49,6 +49,7 @@ for _g in (_v5_state.get('games') or [])+([_v5_state['featured']] if _v5_state.g
     _sc=_v56_scores.get(str(_g.get('game_id') or ''))
     if _sc and _sc.get('state'):
         _g['status']=_sc['state']
+    _g['venue']=vn.of(_g) or vn.clean((_sc or {}).get('venue'))   # V5.8: arena on the board tile / hero (real NHL venue only)
 # V5.8: Top four-leg parlay (price-free): best combined model chance, one leg per game, below the Featured matchup hero.
 try:
     _pl_inj=slx.espn_fetch('injuries')
@@ -105,7 +106,7 @@ if _home_targets:
     st.markdown(ui.section('Player targets by matchup','Both teams are grouped under each game · expand for the top numerical matches per roster','🎯','team'),unsafe_allow_html=True)
     for _match in _home_targets:
         _g=_match['game'];_away=_g['away'];_home=_g['home']
-        with st.expander(f'{_away}  vs  {_home} · {format_game_time(_g.get("start"))} · {_g["arena"] or "Venue unavailable"}'):
+        with st.expander(f'{_away}  vs  {_home} · {format_game_time(_g.get("start"))}{vn.label(_g.get("arena"))}'):
             _cols=st.columns(2)
             for _col,_side,_code in zip(_cols,('away','home'),(_away,_home)):
                 with _col:

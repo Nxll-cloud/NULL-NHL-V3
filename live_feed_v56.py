@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import venue_v58
+
 API = 'https://api-web.nhle.com/v1/'
 HERE = Path(__file__).resolve().parent
 DEMO_FIXTURE = HERE / 'test_fixtures_v56' / 'pbp_2026020162.json'
@@ -46,7 +48,7 @@ def period_label(period, ptype, clock=None):
 
 
 def parse_scores(payload):
-    """score payload -> {game_id(str): {'state','away','home','away_score','home_score','away_sog','home_sog','label'}}."""
+    """score payload -> {game_id(str): {'state','away','home','away_score','home_score','away_sog','home_sog','label','venue'}}."""
     out = {}
     for g in (payload or {}).get('games') or []:
         gid = g.get('id')
@@ -58,7 +60,8 @@ def parse_scores(payload):
         label = ('Final' + ('/' + pd_.get('periodType') if pd_.get('periodType') in ('OT', 'SO') else '')) if state in ('OFF', 'FINAL') \
             else period_label(pd_.get('number', g.get('period')), pd_.get('periodType'), g.get('clock')) if state in ('LIVE', 'CRIT') else ''
         out[str(gid)] = {'state': state, 'away': a.get('abbrev'), 'home': h.get('abbrev'), 'away_score': a.get('score'),
-                         'home_score': h.get('score'), 'away_sog': a.get('sog'), 'home_sog': h.get('sog'), 'label': label}
+                         'home_score': h.get('score'), 'away_sog': a.get('sog'), 'home_sog': h.get('sog'), 'label': label,
+                         'venue': venue_v58.from_api(g)}   # V5.8: arena (score endpoint games[].venue.default)
     return out
 
 

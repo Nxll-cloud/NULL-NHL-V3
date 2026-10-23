@@ -25,7 +25,7 @@ def _mc_pick():
 
 st.markdown(v5.tab_head('NULL’S PLAYBOOK · MATCHUP CENTER','Matchup Center','Start from a pick · open its game · see both rosters’ targets, the goalies they face, live next-goal odds and real H2H',
     chips=[(f'📅 {np_day}','muted'),(f'{len(mc.slate_games(np_games))} games','odds')]),unsafe_allow_html=True)
-_mc_games = mc.slate_games(np_games)
+_mc_games = vn.fill(mc.slate_games(np_games), _v56_scores)   # V5.8: arena per game (real NHL venue only)
 _mc_keys = [g['key'] for g in _mc_games]
 if 'v54_mc_game' not in st.session_state and hasattr(st, 'query_params'):
     try:
@@ -48,12 +48,13 @@ for _col,(_k,_l) in zip(_mc_cols, INTEL_LABELS):
         else:
             st.caption('No pick yet for this category.')
 _labels = {'—': 'Choose any slate game…'}
-_labels.update({g['key']: f'{g["away"]} @ {g["home"]} · {format_game_time(g["start"])}' for g in _mc_games})
+_labels.update({g['key']: f'{g["away"]} @ {g["home"]} · {format_game_time(g["start"])}{vn.label(g.get("venue"))}' for g in _mc_games})
 if st.session_state.get('v54_mc_select') not in ['—'] + _mc_keys:
     st.session_state['v54_mc_select'] = st.session_state.get('v54_mc_game') if st.session_state.get('v54_mc_game') in _mc_keys else '—'
 st.selectbox('Open any game on the slate', ['—'] + _mc_keys, format_func=lambda k: _labels.get(k, k), key='v54_mc_select', on_change=_mc_pick)
 _sel_key = st.session_state.get('v54_mc_game')
 _game = mc.find_game(np_games, _sel_key) if _sel_key else None
+if _game is not None: vn.fill([_game], _v56_scores)
 if _sel_key and _game is None:
     st.warning('That matchup is not on the selected slate. Choose another game.')
     st.button('← Back to overview', key='v54_mc_back_missing', on_click=_mc_back)
@@ -106,7 +107,7 @@ elif _game is None:
             _d=_v56_h2h.get((_g['away'],_g['home'])) or {}
             _cards=''.join(v56.goalie_threats(_v['goalies'][_t],_t,_v['threats'][_t],SEASON,h2h.coverage_label(SEASON,games=_d.get('games',0)))
                            for _t in (_g['away'],_g['home']) if _v['goalies'].get(_t))
-            v5.html_block(st,f'<section class="sec"><div class="sh"><h3>{v5.esc(_gl)} {"🚩"*len(_v["flags"])}</h3><p>Threats ranked by {v5.esc(_v["basis"])}</p></div>'
+            v5.html_block(st,f'<section class="sec"><div class="sh"><h3>{v5.esc(_gl)} {"🚩"*len(_v["flags"])}{vn.tag(_g.get("venue"))}</h3><p>Threats ranked by {v5.esc(_v["basis"])}</p></div>'
                           +v56.h2h_flag(_v['flags'],_gl)+f'<div class="gtgrid">{_cards or "<p>No goalie data for this game.</p>"}</div></section>')
             with st.expander(f'Reverse view · {_gl}: each top shooter’s hardest goalie'):
                 v5.html_block(st,v56.reverse_view(_v['reverse'],SEASON))
@@ -147,7 +148,7 @@ else:
     # V5.6: Live Next Goal panel + this game's goalie threats / reverse view / H2H flags.
     _v56_r=_v56_by_key.get(_game['key'])
     if _v56_r is not None:
-        v5.html_block(st,v56.nextgoal_panel(_v56_r['result'],SEASON,_v56_r['label'],v56_updated(_game['game_id']),note=_v56_r['note']+' Arrows: '+_v56_r['result'].get('rank_basis','')+'.',title='Live Next Goal'))
+        v5.html_block(st,v56.nextgoal_panel(_v56_r['result'],SEASON,_v56_r['label'],v56_updated(_game['game_id']),note=_v56_r['note']+' Arrows: '+_v56_r['result'].get('rank_basis','')+'.',title='Live Next Goal',venue=_game.get('venue')))
         _v56_h=v56_h2h_cached(((_game['away'],_game['home']),),np_day,SEASON).get((_game['away'],_game['home'])) or {}
         _v56_v=mcg.game_view(_game,_v56_r['result'],_v56_r['game'],_starters,_gk_rows,_v56_h,priors=_v56_priors)
         _v56_c=h2h.coverage_label(SEASON,games=_v56_h.get('games',0))

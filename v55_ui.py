@@ -19,6 +19,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import venue_v58 as vn
+
 HERE = Path(__file__).resolve().parent
 ASSETS = HERE / 'assets'
 FONT_DIR = ASSETS / 'fonts'
@@ -455,9 +457,9 @@ def hero(data, now):
 <div class="hero-bg"><i class="beam b1"></i><i class="beam b2"></i><i class="ice"></i>{logo(a, "wm wm-a")}{logo(h, "wm wm-h")}</div>
 <div class="hero-top"><span class="hero-brand">{logo_mark()}<span class="kicker">Featured matchup · {esc(data.get("day"))}</span></span>{when}</div>
 <div class="versus"><div class="side" style="{team_vars(a)}">{logo(a, "hlogo")}<div><small>Away</small><h2>{esc(TEAM_NAMES.get(a, a))}</h2></div></div>
-<div class="vs"><b>VS</b><span>{et_time(fg.get("start"))}</span><em>{esc(fg.get("venue"), "")}</em></div>
+<div class="vs"><b>VS</b><span>{et_time(fg.get("start"))}</span>{_vs_arena(fg)}</div>
 <div class="side home" style="{team_vars(h)}"><div><small>Home</small><h2>{esc(TEAM_NAMES.get(h, h))}</h2></div>{logo(h, "hlogo")}</div></div>
-{feature}
+{vn.tag(fg.get("venue"), "vn hvn")}{feature}
 <div class="duel"><span class="lbl">Goalie duel · {esc(src.get("source"), "no starter feed yet")}</span>{duel(a)}<b class="dvs">vs</b>{duel(h)}</div></section>'''
 
 
@@ -489,7 +491,7 @@ def scoreboard(data, now):
         sa = f'<span class="scr">{esc(sc.get("away"), "")}</span>' if sc else ''
         sh = f'<span class="scr">{esc(sc.get("home"), "")}</span>' if sc else ''
         tiles.append(f'''<div class="tile{" feat" if g["key"] == fk else ""}" style="--pa:{colors(a)[0]};--ph:{colors(h)[0]}">
-{badge}<div class="row">{logo(a, "tl")}<b>{esc(a)}</b>{gl(a)}{sa}</div><div class="row">{logo(h, "tl")}<b>{esc(h)}</b>{gl(h)}{sh}</div></div>''')
+{badge}<div class="row">{logo(a, "tl")}<b>{esc(a)}</b>{gl(a)}{sa}</div><div class="row">{logo(h, "tl")}<b>{esc(h)}</b>{gl(h)}{sh}</div>{vn.tag(g.get("venue"), "vn tvn")}</div>''')
     live = sum(1 for g in games if game_state(g, now) == 'live')
     status = f'<span class="live"><i class="pulse"></i>{live} live</span>' if live else ''
     return f'''<section class="sec"><div class="sh"><h3>Tonight’s board {status}</h3><p>{len(games)} games · goalie dots: <i class="dot ok"></i>confirmed <i class="dot warn"></i>expected <i class="dot"></i>not announced · open any game in Matchup Center</p></div>
@@ -608,9 +610,15 @@ def matchup_section(data, title=None, limit=5):
         cols.append(f'''<div class="mcol" style="{team_vars(t)}"><div class="mhead">{logo(t, "ml")}<div><h4>{esc(TEAM_NAMES.get(t, t))} shooters</h4><p>vs {esc(opp)} goaltending</p></div>
 {'<span class="chip leak">▲ Faces the leakier goalie (by GAA)</span>' if t == weak else ''}</div>
 <div class="gcs">{goalie_card(season, opp, og, "starter")}{goalie_card(season, opp, og, "leaky")}</div><ol class="tl">{rows}</ol></div>''')
-    head = title or f'Matchup targets · {esc(fg["away"])} @ {esc(fg["home"])}'
+    head = title or f'Matchup targets · {esc(fg["away"])} @ {esc(fg["home"])}{vn.tag(fg.get("venue"))}'
     return f'''<section class="sec mc"><div class="sh"><h3>{head}</h3><p>Both rosters ranked by Form % · bars are Form % (0–100) · strips are the last 10 games (heat = shots, number = goals) · none of this is a probability</p></div>
 <div class="mgrid">{"".join(cols)}</div></section>'''
+
+
+def _vs_arena(g):
+    """Desktop arena under the VS (mobile shows the .hvn line under the teams instead). '' when the arena is unknown."""
+    a = vn.clean((g or {}).get('venue'))
+    return f'<em title="{esc(a)}">{vn.PIN} {esc(a)}</em>' if a else ''
 
 
 def versus_bar(game, now):
@@ -622,8 +630,8 @@ def versus_bar(game, now):
 <div class="hero-bg"><i class="beam b1"></i><i class="beam b2"></i><i class="ice"></i>{logo(a, "wm wm-a")}{logo(h, "wm wm-h")}</div>
 <div class="hero-top"><span class="kicker">Matchup Center</span>{when}</div>
 <div class="versus"><div class="side" style="{team_vars(a)}">{logo(a, "hlogo")}<div><small>Away</small><h2>{esc(TEAM_NAMES.get(a, a))}</h2></div></div>
-<div class="vs"><b>VS</b><span>{et_time(game.get("start"))}</span><em>{esc(game.get("venue"), "")}</em></div>
-<div class="side home" style="{team_vars(h)}"><div><small>Home</small><h2>{esc(TEAM_NAMES.get(h, h))}</h2></div>{logo(h, "hlogo")}</div></div></section>'''
+<div class="vs"><b>VS</b><span>{et_time(game.get("start"))}</span>{_vs_arena(game)}</div>
+<div class="side home" style="{team_vars(h)}"><div><small>Home</small><h2>{esc(TEAM_NAMES.get(h, h))}</h2></div>{logo(h, "hlogo")}</div></div>{vn.tag(game.get("venue"), "vn hvn")}</section>'''
 
 
 def footer(data):

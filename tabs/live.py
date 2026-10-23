@@ -14,6 +14,7 @@ _v56_priors=ng.priors_from_rankings(_v56_rows)
 _v56_now=datetime.now(timezone.utc)
 _v56_scores,_v56_scores_err=v56_scores_cached(np_day) if _v56_games else ({},None)
 _v56_force=st.session_state.pop('v56_force_refresh',False)
+vn.fill(_v56_games,_v56_scores)   # V5.8: older snapshots without a Venue get the score endpoint's real arena (never guessed)
 
 
 def v56_collect(force=False):

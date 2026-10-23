@@ -39,7 +39,7 @@ try:
                 away=_html.escape(str(game.get('Away','')))
                 home=_html.escape(str(game.get('Home','')))
                 with col:
-                    st.markdown(f'''<div class="np-player" style="min-height:100px;text-align:center"><div class="np-muted">{_html.escape(format_game_time(game.get('Start (UTC)')))}</div><div style="display:flex;justify-content:center;align-items:center;gap:13px;margin-top:9px"><img alt="{away}" src="https://assets.nhle.com/logos/nhl/svg/{away}_light.svg" style="height:38px;width:38px;object-fit:contain"/><b>{away} vs {home}</b><img alt="{home}" src="https://assets.nhle.com/logos/nhl/svg/{home}_light.svg" style="height:38px;width:38px;object-fit:contain"/></div></div>''',unsafe_allow_html=True)
+                    st.markdown(f'''<div class="np-player" style="min-height:100px;text-align:center"><div class="np-muted">{_html.escape(format_game_time(game.get('Start (UTC)')))}</div><div style="display:flex;justify-content:center;align-items:center;gap:13px;margin-top:9px"><img alt="{away}" src="https://assets.nhle.com/logos/nhl/svg/{away}_light.svg" style="height:38px;width:38px;object-fit:contain"/><b>{away} vs {home}</b><img alt="{home}" src="https://assets.nhle.com/logos/nhl/svg/{home}_light.svg" style="height:38px;width:38px;object-fit:contain"/></div>{ui.arena_line(game.get('Venue'))}</div>''',unsafe_allow_html=True)
         with st.expander('Full NHL slate data'):
             st.dataframe(pd.DataFrame(games), hide_index=True, use_container_width=True)
         st.metric('Slate Games', len(games))

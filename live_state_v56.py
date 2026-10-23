@@ -84,7 +84,8 @@ def strip_items(results):
         lead = res['players'][0] if res['players'] and res['phase'] == 'live' else None
         items.append({'away': g['away'], 'home': g['home'], 'phase': res['phase'], 'label': r['label'] or ('Pregame' if res['phase'] == 'pregame' else ''),
                       'away_score': g.get('away_score') if g.get('away_score') is not None else sc.get('away_score'),
-                      'home_score': g.get('home_score') if g.get('home_score') is not None else sc.get('home_score'), 'leader': lead})
+                      'home_score': g.get('home_score') if g.get('home_score') is not None else sc.get('home_score'), 'leader': lead,
+                      'venue': (r.get('slate') or {}).get('venue') or ''})
     order = {'live': 0, 'shootout': 1, 'pregame': 2, 'final': 3}
     return sorted(items, key=lambda i: order.get(i['phase'], 9))
 

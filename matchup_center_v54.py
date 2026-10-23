@@ -16,6 +16,7 @@ Badge rules (descriptive, never probabilities):
 import pandas as pd
 
 from home_leaders_v52 import flatten_targets, TEAM_NAMES
+import venue_v58
 from odds_intelligence_v46 import normalized_name
 
 STATS_TOP = 20
@@ -49,7 +50,7 @@ def slate_games(games):
             continue
         seen.add(k)
         out.append({'key': k, 'game_id': _pid(g.get('Game ID')), 'away': _code(g.get('Away')), 'home': _code(g.get('Home')),
-                    'start': g.get('Start (UTC)') or '', 'venue': g.get('Venue') or '', 'status': g.get('Status') or ''})
+                    'start': g.get('Start (UTC)') or '', 'venue': venue_v58.of(g), 'status': g.get('Status') or ''})
     return sorted(out, key=lambda g: (str(g['start']), g['away']))
 
 
