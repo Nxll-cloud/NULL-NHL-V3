@@ -17,6 +17,9 @@
   .v55 .v58-gm .gm th:nth-child(2),.v55 .v58-gm .gm td:nth-child(2){width:84px}
   .v55 .v58-gm .gm th:nth-child(3),.v55 .v58-gm .gm td:nth-child(3){width:58px}
   .v55 .v58-gm .gm td,.v55 .v58-gm .gm th{padding:7px 8px}
+  .v55 .v58-gm .gm tr.gm-r td{padding-bottom:3px}
+  .v55 .v58-gm .gm tr.gm-c td{padding:0 8px 8px;font-size:13px}
+  .v55 .v58-gm .gm-rev{font-size:11px;padding:0 5px}
   .v55 .hero small.hvn{display:block;margin:10px auto 0;text-align:center}
   html,body{overflow-x:hidden}
   .block-container,[data-testid="stMainBlockContainer"]{padding-left:.85rem!important;padding-right:.85rem!important;max-width:100%!important}
