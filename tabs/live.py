@@ -43,7 +43,21 @@ if _v56_games and _v56_priors and np_flags.model_situational(st.secrets):
     _v56_parts=np_flags.model_parts(st.secrets)
     _v56_st=starters_cached(np_day,tuple((g['key'],g['game_id'],g['away'],g['home'],g['status']) for g in _v56_games))[0] if 'goalie' in _v56_parts else {}
     _v56_situ=sit.Situ(sit.with_starters(situ_cached(np_day,SEASON,_v56_parts),_v56_st))
-_v56_results=lstate.slate_results(_v56_games,_v56_priors,_v56_scores,_v56_pbp,_v56_mem,situ=_v56_situ)
+
+
+def v56_slate_results(scores=None, pbp=None, memory=None, use_form=False):
+    """V5.9: the ONE next-goal path for every surface (Home, Matchup Center, Live Next Goal, Edge Flags): same priors and
+    the same situational layer ``_v56_situ`` (None when MODEL_SITUATIONAL is off, i.e. the V5.6 model exactly)."""
+    return lstate.slate_results(_v56_games,_v56_priors,_v56_scores if scores is None else scores,_v56_pbp if pbp is None else pbp,
+                                _v56_mem if memory is None else memory,use_form=use_form,situ=_v56_situ)
+
+
+def v56_model(game, use_form=False):
+    """One game through the same model + situational layer (used by the Live Next Goal DEMO replay)."""
+    return ng.model(game,_v56_priors,use_form=use_form,situ=_v56_situ)
+
+
+_v56_results=v56_slate_results()
 _v56_by_key={r['slate']['key']:r for r in _v56_results}
 _v56_live_n=sum(1 for r in _v56_results if r['result']['phase']=='live')
 

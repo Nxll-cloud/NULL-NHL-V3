@@ -24,8 +24,12 @@ def _ng_panels(force=False):
         pbp, _ = v56_collect(False)
     else:
         pbp = _v56_pbp
-    res = lstate.slate_results(_v56_games, _v56_priors, v56_scores_cached(np_day)[0] if force else _v56_scores, pbp,
-                               st.session_state.setdefault('v56_rank_mem_form' if _ng_form else 'v56_rank_mem', {}), use_form=_ng_form)
+    # V5.9: same path + situational layer as Home / Matchup Center (tabs/live.py); unchanged inputs reuse their results.
+    if not force and not _ng_form:
+        res = _v56_results
+    else:
+        res = v56_slate_results(v56_scores_cached(np_day)[0] if force else _v56_scores, pbp,
+                                st.session_state.setdefault('v56_rank_mem_form' if _ng_form else 'v56_rank_mem', {}), use_form=_ng_form)
     want = {'All': None, 'Live': 'live', 'Pregame': 'pregame', 'Final': 'final'}.get(_ng_filter or 'All')
     shown = 0
     for r in sorted(res, key=lambda r: {'live': 0, 'shootout': 1, 'pregame': 2, 'final': 3}.get(r['result']['phase'], 9)):
@@ -75,8 +79,8 @@ if _ng_demo is not None:
     _k=st.session_state['v56_demo_step']
     _g_now=ng.truncate(_ng_demo,_k) if _k>0 else ng.pregame_game(_ng_demo['game_id'],_ng_demo['away'],_ng_demo['home'],_ng_demo.get('start'))
     _g_prev=ng.truncate(_ng_demo,_k-1) if _k>1 else ng.pregame_game(_ng_demo['game_id'],_ng_demo['away'],_ng_demo['home'])
-    _r_prev=ng.model(_g_prev,_v56_priors,use_form=_ng_form)
-    _r_now=ng.model(_g_now,_v56_priors,use_form=_ng_form)
+    _r_prev=v56_model(_g_prev,use_form=_ng_form)   # V5.9: same situational layer as the live panels
+    _r_now=v56_model(_g_now,use_form=_ng_form)
     ng.rerank(_r_now['players'],ng.rerank(_r_prev['players'],None) if _k>0 else None)
     _r_now['rank_basis']='vs previous replay step' if _k>0 else 'pregame prior'
     _ev=_ng_demo['events'][_k-1] if _k>0 else None
