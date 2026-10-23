@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import h2h_v56 as h2h
 import live_nextgoal_v56 as ng
+import live_state_v56 as lstate
 import probable_goalies_v54 as pgk
 
 
@@ -78,12 +79,13 @@ def _shooter(p, opp):
             'headshot': p.get('headshot', ''), 'pos': p.get('pos')}
 
 
-def game_view(slate_game, result, game, starters, goalie_rows, h2h_data, top=5, priors=None):
-    """priors given -> finished games rank threats by the pregame prior (see threat_result); 'phase'/'basis' are reported."""
+def game_view(slate_game, result, game, starters, goalie_rows, h2h_data, top=5, priors=None, situ=None):
+    """priors given -> finished games rank threats by the pregame prior (see threat_result); 'phase'/'basis' are reported.
+    ``situ``: the app's situational layer (_v56_situ), so that prior matches every other surface."""
     phase = result.get('phase')
     basis_txt = 'live next-goal %' if phase == 'live' else 'pregame prior'
     if priors is not None:
-        result, basis_txt = threat_result(result, game or {}, priors, slate_game['away'], slate_game['home'])
+        result, basis_txt = threat_result(result, game or {}, priors, slate_game['away'], slate_game['home'], situ=situ)
     a, h = slate_game['away'], slate_game['home']
     pairs = (h2h_data or {}).get('pairs') or {}
     goalies = {t: pick_goalie(t, game, (starters or {}).get(t), goalie_rows) for t in (a, h)}
@@ -108,11 +110,12 @@ def game_view(slate_game, result, game, starters, goalie_rows, h2h_data, top=5, 
     return {'goalies': goalies, 'threats': threats, 'reverse': reverse, 'flags': flags, 'phase': phase, 'basis': basis_txt}
 
 
-def threat_result(result, game, priors, away=None, home=None):
+def threat_result(result, game, priors, away=None, home=None, situ=None):
     """Ranking used for the threat lists. Once a game is over (final / shootout) live next-goal % is 0 for everyone, so the
-    threats fall back to the pregame prior of the same model (no Form), labelled. Returns (result, basis)."""
+    threats fall back to the pregame prior of the same model (no Form), labelled. Returns (result, basis).
+    V5.9: the shared calculation (live_state_v56.pregame_model) with the same situational layer as the live panels."""
     if result.get('phase') in ('final', 'shootout'):
-        base = ng.model(ng.pregame_game(game.get('game_id'), game.get('away') or away, game.get('home') or home), priors)
+        base = lstate.pregame_model(game.get('game_id'), game.get('away') or away, game.get('home') or home, priors, situ=situ)
         ng.rerank(base['players'], None)
         return base, 'pregame prior (game over)'
     return result, 'live next-goal %' if result.get('phase') == 'live' else 'pregame prior'

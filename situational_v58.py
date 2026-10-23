@@ -224,6 +224,17 @@ def with_starters(ctx, starters):
     return dict(ctx or context(), starters=fresh['starters'])
 
 
+def layer(ctx, starters=None):
+    """V5.9: the ONE way a context becomes the model's situational layer (tabs/live.py and accuracy_v58 both call it)."""
+    return Situ(with_starters(ctx, starters or {}))
+
+
+def load_context(day, season, parts=PARTS, getter=None, xg_getter=None):
+    """Non-UI twin of app.situ_cached (no cache): fetch_context + the MoneyPuck xG data gated per day. Never raises."""
+    ctx = fetch_context(day, season, getter, parts=parts)
+    return with_xg(ctx, xgm.fetch(season, xg_getter), day, season) if 'xg' in (parts or ()) else ctx
+
+
 def _goalie_faced(ctx, team, opp, live_goalie_id=None):
     """Multiplier for ``team``'s shooters against ``opp``'s goalie: (mult, label, source)."""
     rows = [r for r in ctx['goalies'] if r['Team'] == opp]

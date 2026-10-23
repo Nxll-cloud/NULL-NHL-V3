@@ -7,6 +7,11 @@ Point-in-time by construction:
     predictions are never rewritten.
   * Model chance = 1 - exp(-lambda_game) from the V5.6 next-goal priors (the same number the Home parlay uses), stored
     at freeze time, so later model changes never rewrite history.
+    V5.9: with MODEL_SITUATIONAL on (default) the priors carry the same situational layer as Home / Matchup Center /
+    Live Next Goal (situational_v58: PP, goalie, ice time, xG; stats strictly before the slate day). The workflow
+    freeze uses the probable starters it can see pre-game; catch-up / backfill / the app's on-the-fly entry have no
+    point-in-time starter list, so the goalie part uses each team's goalies weighted by shots against. The entry's
+    'model' tag says which model froze it; entries frozen earlier keep their V5.6 numbers.
   * Parlay = rebuilt deterministically from the saved pre-game slate with parlay_v58.build (all games pregame). The
     workflow adds the ESPN 'out' list it can see before puck drop; a git-history backfill has no injury list.
   * Edge Flags need real opening prices. The app only keeps openers in session state and has no odds key, so no flag
@@ -42,6 +47,8 @@ ET = ZoneInfo('America/New_York')
 NHL = 'https://api-web.nhle.com/v1/'
 FINAL = ('OFF', 'FINAL')
 MODEL_TAG = 'V5.6 next-goal prior: 1 - exp(-lambda_game)'
+MODEL_TAG_SITU = 'V5.9 next-goal prior + situational layer ({parts}): 1 - exp(-lambda_game)'
+UA = {'User-Agent': 'NULL-NHL-V5.9 accuracy'}
 FLAG_NA = 'flag n/a (no saved prices)'
 PARLAY_NOTE = 'parlay rebuilt from the saved pre-game slate'
 
@@ -84,8 +91,49 @@ def short_day(day):
 
 
 # ------------------------------------------------------------------------------------------------ predictions
-def predictions(snapshot, out_ids=(), source='snapshot', now=None, injuries_note=None):
-    """Saved pre-game slate snapshot -> frozen prediction entry (no network). Every skater the model prices is kept."""
+def season_of(day):
+    """'2026-10-22' -> '20262027' (NHL seasons start in the autumn)."""
+    d = date.fromisoformat(str(day))
+    y = d.year if d.month >= 7 else d.year - 1
+    return f'{y}{y + 1}'
+
+
+def situ_for(day, games=(), getter=None, starters=False, environ=None):
+    """V5.9: the app's situational layer for ``day`` without Streamlit (feature_flags_v58 MODEL_SITUATIONAL /
+    MODEL_SITUATIONAL_PARTS / MODEL_XG from the environment; off -> None = the V5.6 model exactly). ``getter`` is
+    requests.get-like. ``starters`` True -> probable starters for the slate (only meaningful before puck drop).
+    Never raises: a failed feed leaves its adjustment neutral."""
+    import feature_flags_v58 as ff
+    import situational_v58 as sit
+    if not ff.model_situational(None, environ):
+        return None
+    if getter is None:
+        import requests
+        getter = requests.get
+
+    def js(url, params=None):
+        r = getter(url, params=params, timeout=20, headers=UA)
+        r.raise_for_status()
+        return r.json()
+    parts = ff.model_parts(None, environ)
+    try:
+        ctx = sit.load_context(day, season_of(day), parts, js, lambda url: getter(url, timeout=30, headers=UA))
+    except Exception:
+        ctx = sit.context(parts=parts)
+    st = {}
+    if starters and 'goalie' in parts:
+        try:
+            import matchup_center_v54 as mc
+            import probable_goalies_v54 as pgk
+            st = pgk.fetch_starters(day, mc.slate_games(games), getter=js)[0]
+        except Exception:
+            st = {}
+    return sit.layer(ctx, st)
+
+
+def predictions(snapshot, out_ids=(), source='snapshot', now=None, injuries_note=None, situ=None):
+    """Saved pre-game slate snapshot -> frozen prediction entry (no network). Every skater the model prices is kept.
+    ``situ``: the situational layer (situ_for), the same one the app's surfaces use; None = the V5.6 model."""
     import matchup_center_v54 as mc
     import live_nextgoal_v56 as ng
     import live_state_v56 as lstate
@@ -94,7 +142,7 @@ def predictions(snapshot, out_ids=(), source='snapshot', now=None, injuries_note
     games = mc.slate_games(snapshot.get('games') or [])
     priors = ng.priors_from_rankings(rows)
     pre = [dict(g, status='FUT') for g in games]           # a frozen pre-game view: every game is pregame
-    results = lstate.slate_results(pre, priors, {}, {}, {})
+    results = lstate.slate_results(pre, priors, {}, {}, {}, situ=situ)   # V5.9: the shared calculation + layer
     cands = parlay.candidates(results, rows)               # model chance + model rank for every priced skater
     pdata = parlay.build(results, rows, set(out_ids or ()), {})
     players = [[c['pid'], c['name'], c['team'], round(c['p'], 4), c['model_rank'],
@@ -115,7 +163,8 @@ def predictions(snapshot, out_ids=(), source='snapshot', now=None, injuries_note
                 continue
         flags = {'available': True, 'note': 'real opening lines saved with the snapshot', 'flagged': fl}
     fs = first_start(snapshot)
-    return {'schema': SCHEMA, 'day': snapshot.get('day'), 'source': source, 'model': MODEL_TAG,
+    tag = MODEL_TAG_SITU.format(parts=', '.join(situ.ctx.get('parts') or ()) or 'none') if situ is not None else MODEL_TAG
+    return {'schema': SCHEMA, 'day': snapshot.get('day'), 'source': source, 'model': tag,
             'frozen_at': (now or datetime.now(timezone.utc)).isoformat(timespec='seconds'),
             'snapshot_at': snapshot.get('updated_at'), 'first_start': fs.isoformat() if fs else None,
             'games': [g['game_id'] for g in games], 'n_players': len(players),
@@ -343,7 +392,7 @@ def update(now=None, getter=None, snap_root=SNAP_DIR, root=LOG_DIR, injuries_fn=
                 note = f'ESPN out list at freeze time ({len(out)} out)'
             except Exception as exc:
                 note = f'no injury list ({type(exc).__name__})'
-            save_entry(predictions(snap, out, 'workflow', now, note), root)
+            save_entry(predictions(snap, out, 'workflow', now, note, situ_for(today, snap.get('games'), getter, starters=True)), root)
             done.append(f'froze {today}')
     except Exception as exc:
         log(f'accuracy: freeze skipped ({type(exc).__name__}: {exc})')
@@ -354,7 +403,7 @@ def update(now=None, getter=None, snap_root=SNAP_DIR, root=LOG_DIR, injuries_fn=
             continue
         snap = _load_snap(day, snap_root)
         if snap and snap.get('rankings') and is_pregame(snap):
-            save_entry(predictions(snap, (), 'workflow catch-up', now), root)
+            save_entry(predictions(snap, (), 'workflow catch-up', now, situ=situ_for(day, getter=getter)), root)
             done.append(f'caught up {day}')
     for e in load_all(root):
         if e.get('results') or e['day'] >= today:
@@ -414,7 +463,7 @@ def backfill(repo=HERE, root=LOG_DIR, getter=None, now=None, log=print):
             report[day] = 'already scored'
             continue
         if not cur:
-            cur = predictions(snap, (), f'backfill git {c[:7]}', now, 'no injury list in git history')
+            cur = predictions(snap, (), f'backfill git {c[:7]}', now, 'no injury list in git history', situ_for(day, getter=getter))
             save_entry(cur, root)
         msg = f'frozen from {c[:7]} (snapshot {snap["updated_at"][:19]}Z, first puck drop {cur["first_start"]})'
         try:
@@ -451,7 +500,7 @@ def _live_entry(day, getter, snap_root):
     else:
         try:
             res = fetch_results(day, getter)
-            ent = predictions(snap, (), 'app on-the-fly')
+            ent = predictions(snap, (), 'app on-the-fly', situ=situ_for(day, getter=getter))
             val = score(ent, res) if res['complete'] else ent
             why = None if res['complete'] else 'pending'
         except Exception:

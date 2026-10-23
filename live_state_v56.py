@@ -32,13 +32,24 @@ def signature(game):
     return (len(game.get('events') or []), game.get('period'), game.get('secs_remaining'), game.get('state'))
 
 
+def model(game, priors, use_form=False, situ=None):
+    """V5.9: the ONE next-goal calculation every surface shares (tabs/live.py, Live Next Goal DEMO, goalie views,
+    accuracy log): the V5.6 model plus the situational layer ``situ`` (situational_v58.layer; None = V5.6 exactly)."""
+    return ng.model(game, priors, use_form=use_form, situ=situ)
+
+
+def pregame_model(game_id, away, home, priors, use_form=False, situ=None):
+    """The same calculation on the pregame (no events) version of a game."""
+    return model(ng.pregame_game(game_id, away, home), priors, use_form=use_form, situ=situ)
+
+
 def ranked_result(game, priors, memory, key, use_form=False, situ=None):
     """Model + rank arrows with per-game memory. ``memory`` is a dict the caller persists (session_state)."""
-    res = ng.model(game, priors, use_form=use_form, situ=situ)
+    res = model(game, priors, use_form=use_form, situ=situ)
     mem = memory.get(key)
     sig = signature(game)
     if mem is None:
-        base = ng.model(ng.pregame_game(game.get('game_id'), game['away'], game['home']), priors, use_form=use_form, situ=situ)
+        base = pregame_model(game.get('game_id'), game['away'], game['home'], priors, use_form=use_form, situ=situ)
         prev = ng.rerank(base['players'], None)
         basis = 'vs pregame prior'
         if ng.phase(game) == 'pregame':

@@ -99,7 +99,7 @@ elif _game is None:
         for _g in _mc_games:
             _r=_v56_by_key.get(_g['key'])
             if _r is not None:
-                _v56_views.append((_g,mcg.game_view(_g,_r['result'],_r['game'],(_v5_st or {}).get(_g['key'],{}),_v56_gk_rows,_v56_h2h.get((_g['away'],_g['home'])),priors=_v56_priors)))
+                _v56_views.append((_g,mcg.game_view(_g,_r['result'],_r['game'],(_v5_st or {}).get(_g['key'],{}),_v56_gk_rows,_v56_h2h.get((_g['away'],_g['home'])),priors=_v56_priors,situ=_v56_situ)))
         _v56_nflag=sum(len(v['flags']) for _,v in _v56_views)
         st.caption(f'🚩 {_v56_nflag} H2H flag(s): a top-3 next-goal shooter facing a goalie he has scored on in a real meeting of these two clubs {_v56_cov}.')
         for _g,_v in mcg.sort_games(_v56_views,_v56_sort):
@@ -150,7 +150,7 @@ else:
     if _v56_r is not None:
         v5.html_block(st,v56.nextgoal_panel(_v56_r['result'],SEASON,_v56_r['label'],v56_updated(_game['game_id']),note=_v56_r['note']+' Arrows: '+_v56_r['result'].get('rank_basis','')+'.',title='Live Next Goal',venue=_game.get('venue'),scored=sctn.active(st.session_state,np_day)))
         _v56_h=v56_h2h_cached(((_game['away'],_game['home']),),np_day,SEASON).get((_game['away'],_game['home'])) or {}
-        _v56_v=mcg.game_view(_game,_v56_r['result'],_v56_r['game'],_starters,_gk_rows,_v56_h,priors=_v56_priors)
+        _v56_v=mcg.game_view(_game,_v56_r['result'],_v56_r['game'],_starters,_gk_rows,_v56_h,priors=_v56_priors,situ=_v56_situ)
         _v56_c=h2h.coverage_label(SEASON,games=_v56_h.get('games',0))
         st.markdown(ui.section('Goalies vs threats','Opposing shooters by next-goal % · real H2H '+_v56_c,'🧤','warn'),unsafe_allow_html=True)
         v5.html_block(st,v56.h2h_flag(_v56_v['flags'],f'{_game["away"]} @ {_game["home"]}')+'<div class="gtgrid">'

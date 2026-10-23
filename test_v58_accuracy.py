@@ -195,7 +195,9 @@ def test_on_the_fly_when_log_missing_and_post_drop_snapshot_rejected(tmp_path):
     calls = []
     v = acc.view(NOW, getter_for({'score/2026-10-22': SCORE}, calls), tmp_path / 'log', tmp_path / 'snaps')
     assert v['shown']['day'] == '2026-10-22' and v['shown']['summary']['top_hits'] == 4
-    assert all('api-web.nhle.com' in c for c in calls)
+    # real sources only: NHL results (api-web) + V5.9 situational layer inputs (NHL stats API, MoneyPuck xG)
+    assert any('api-web.nhle.com' in c for c in calls)
+    assert all(c.startswith(('https://api-web.nhle.com/', 'https://api.nhle.com/stats/', 'https://moneypuck.com/')) for c in calls)
     acc._LIVE.clear()
     write_snap(tmp_path / 's2', dict(SNAP, updated_at='2026-10-22T23:30:00+00:00'))
     v2 = acc.view(NOW, getter_for({'score/2026-10-22': SCORE}), tmp_path / 'log2', tmp_path / 's2')
