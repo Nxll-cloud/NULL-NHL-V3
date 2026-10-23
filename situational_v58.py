@@ -116,10 +116,17 @@ def parse_skaters(summary=None, powerplay=None, toi_season=None, toi_recent=None
     return out
 
 
-def parse_teams(pp_rows=None, pk_rows=None, team_list=None):
-    """team/powerplay + team/penaltykill (isAggregate=false: teamId) + /team (id -> triCode) -> {tri: {...}}."""
+def parse_teams(pp_rows=None, pk_rows=None, team_list=None, summary_rows=None):
+    """team/powerplay + team/penaltykill (isAggregate=false: teamId) + /team (id -> triCode) -> {tri: {...}}.
+    Audit (win% fix): ``summary_rows`` = team/summary (goals for / against per game, games played) -> gf_pg, ga_pg, team_gp
+    (used only by winprob_v59 with MODEL_WINPROB_V2; never by the next-goal model)."""
     tri = {_pid(t.get('id')): str(t.get('triCode') or t.get('rawTricode') or '').upper() for t in team_list or []}
     out = {}
+    for r in summary_rows or []:
+        code = tri.get(_pid(r.get('teamId')))
+        if code and r.get('goalsForPerGame') is not None and r.get('goalsAgainstPerGame') is not None:
+            out.setdefault(code, {}).update(gf_pg=_f(r.get('goalsForPerGame')), ga_pg=_f(r.get('goalsAgainstPerGame')),
+                                            team_gp=_f(r.get('gamesPlayed')))
     for rows, keys in ((pp_rows, ('ppOpportunities', 'pp_opps', 'pp_gp')), (pk_rows, ('timesShorthanded', 'times_sh', 'sh_gp'))):
         for r in rows or []:
             code = tri.get(_pid(r.get('teamId')))
@@ -457,7 +464,7 @@ def fetch_context(day, season, getter=None, starters=None, parts=PARTS):
     since = (date.fromisoformat(str(day)) - timedelta(days=LINE_DAYS)).isoformat()
     plan = {'summary': ('skater/summary', None), 'powerplay': ('skater/powerplay', None), 'toi_season': ('skater/timeonice', None),
             'toi_recent': ('skater/timeonice', since), 'team_pp': ('team/powerplay', None), 'team_pk': ('team/penaltykill', None),
-            'goalies': ('goalie/summary', None), 'teams': ('team', None)}
+            'goalies': ('goalie/summary', None), 'team_summary': ('team/summary', None), 'teams': ('team', None)}
     got, errors, sources = {}, [], {}
     for key, (path, since_) in plan.items():
         params = None if key == 'teams' else {'isAggregate': 'false', 'isGame': 'false', 'limit': -1, 'start': 0,
@@ -470,5 +477,5 @@ def fetch_context(day, season, getter=None, starters=None, parts=PARTS):
             got[key] = []
             errors.append(f'{key}: {type(exc).__name__}')
     return context(parse_skaters(got['summary'], got['powerplay'], got['toi_season'], got['toi_recent']),
-                   parse_teams(got['team_pp'], got['team_pk'], got['teams']), parse_goalies(got['goalies']),
+                   parse_teams(got['team_pp'], got['team_pk'], got['teams'], got['team_summary']), parse_goalies(got['goalies']),
                    starters, parts, sources, errors)

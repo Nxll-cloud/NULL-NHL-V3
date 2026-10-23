@@ -336,8 +336,9 @@ def model(game, priors=None, use_form=False, lineup=None, situ=None):
 
     # dressed skaters (roster spots) for both teams, else everyone with a prior on either team
     pool = lineup if lineup is not None else {pid: r for pid, r in roster.items() if str(r.get('pos', '')).upper() != 'G'}
+    pool_kind = 'lineup' if lineup is not None else 'roster'
     if not pool:
-        pool = {pid: p for pid, p in priors.items() if p.get('team') in teams}
+        pool, pool_kind = {pid: p for pid, p in priors.items() if p.get('team') in teams}, 'priors'
     for pid, r in pool.items():
         if (r.get('team') or (priors.get(pid) or {}).get('team')) in teams:
             ensure(pid, r.get('team'))
@@ -411,7 +412,7 @@ def model(game, priors=None, use_form=False, lineup=None, situ=None):
     out.sort(key=lambda r: (-r['p_next'], -r['sog'], r['name']))
     return {'phase': ph, 'elapsed': round(elapsed, 2), 'remaining': round(remaining, 2), 'pace_weight': round(w, 3),
             'team_rate': team_rate, 'team_mult': mult, 'p_team': p_team, 'p_any': p_any, 'p_none': 1 - p_any,
-            'players': out, 'game': {k: game.get(k) for k in ('game_id', 'away', 'home', 'away_score', 'home_score',
+            'pool': pool_kind, 'players': out, 'game': {k: game.get(k) for k in ('game_id', 'away', 'home', 'away_score', 'home_score',
                                                                'away_sog', 'home_sog', 'period', 'ptype', 'state', 'situation', 'intermission')}}
 
 

@@ -61,7 +61,8 @@ if np_flags.show_threat_badges(st.secrets):
         _v5_state['threat_html']=''
 # V5.9: favorite + model win estimate per board tile (from the same _v56_results; games without inputs show nothing).
 try:
-    _v5_state['winprob']=winprob.by_key(_v56_results) if np_flags.show_win_prob(st.secrets) else {}
+    _v5_state['winprob']=(winprob.by_key(_v56_results,np_flags.model_winprob_v2(st.secrets),_v56_situ.ctx if _v56_situ is not None else None)
+                          if np_flags.show_win_prob(st.secrets) else {})
 except Exception:   # never break Home
     _v5_state['winprob']={}
 # V5.6: board tiles carry live/final scores and the official game state (score endpoint, else play-by-play).

@@ -92,6 +92,20 @@ def model_pp_coherent(secrets=None, environ=None):
     return MODEL_PP_COHERENT if p is None else p
 
 
+# Audit win% fix (winprob_v59 'Fav' pill on Tonight's Board; display only, never rankings/picks/EdgeLab): 18 dressed
+# skaters (roster, else top 12 F + 6 D by TOI), team GF/GA blend, home ice, real regulation-tie / OT-shootout rates and a
+# range. MODEL_WINPROB_V2 = "false" (secrets) / =0 (env) restores the V5.9 estimate exactly. Default set from the
+# 2026-04-04 backtest (backtests/audit_winprob_2026-04-04.json): ON only with no log-loss regression.
+MODEL_WINPROB_V2 = False   # 2026-04-04 (15 games): log loss 0.6499 (V5.9) -> 0.6645 (V2) = regression -> OFF.
+# Context only (not the rule): 7 other March/April 2026 slates 0.7043 -> 0.6776; all 8 slates (93 games) 0.6955 -> 0.6755
+# (backtests/audit_winprob_context_2026-03-07_04-02.json). Re-decide in the Phase 2 multi-night backtest.
+
+
+def model_winprob_v2(secrets=None, environ=None):
+    v = _lookup('MODEL_WINPROB_V2', secrets, environ)
+    p = _parse(v) if v is not None else None
+    return MODEL_WINPROB_V2 if p is None else p
+
 
 # V5.9 goalie weak-spot identifier on Home 'Matchup targets' (goalie_weak_v59; display only, never in the model).
 # On by default; FEATURE_GOALIE_WEAK = "false" (secrets) or FEATURE_GOALIE_WEAK=0 (env) hides it. Env wins over secrets.
