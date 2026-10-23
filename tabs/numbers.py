@@ -42,8 +42,9 @@ else:
                 _nb_boards=sorted(_nb_boards,key=lambda b:-b['badge'])
             _nb_mp={str(_r.get('pid')):ng.p_anytime(_r.get('lam_game',0)) for _r in (_v56_rows or [])}  # model P for the TOP PICK tie-break
             v5.html_block(st,numv58.boards_html(_nb_boards,_day_num,_nb_mp),extra_class='v58-num')
-            st.caption('Threat score = round(100 × (3·D + 2·A + 1·T) / 18): D = day-number matches, A = arena matches, T = team matches, each 0–3 methods (English, reduction, reverse). '
-                       'Tiers by raw points: ≥6 blaze · 4–5 hot · 2–3 warm · 1 mild · 0 cool. Arena glows when any player in the game matches it. Badge = players with a score above 0. '
+            st.caption('Threat score = round(100 × (3·D + 2·A + 1·T) / 6): D = day-number match, A = arena match, T = team match, each counted once (0 or 1). '
+                       'The three ciphers are not independent: reduction always gives the same digit as English, and reverse mirrors English (the two always add up to 9), so each name has one number. '
+                       'Tiers by raw points: 5–6 blaze · 3–4 hot · 2 warm · 1 mild · 0 cool. Eng = the full name’s English total before reducing, used to order equal scores. Arena glows when any player in the game matches it. Badge = players with a score above 0. '
                        'Same matches as Player Targets (unchanged); entertainment only, not a scoring probability.')
     elif _num_view=='Games':
         for r in _analyses:
@@ -104,7 +105,7 @@ else:
                 with _home_col: _v50_team(home,r['home_name'],item['home_targets'])
                 st.divider()
             with st.expander('What do D, T and A mean?'):
-                st.write('D = Universal Day; T = team-name gematria; A = arena-name gematria. The number beside each letter counts matching methods (English ordinal, reduction, reverse).')
+                st.write('D = Universal Day; T = team-name gematria; A = arena-name gematria. The number beside each letter is 1 when the player’s name number matches (each counted once: reduction always equals English and reverse mirrors English, so they are not separate matches).')
                 st.write('Numbers ranks symbolic coincidences. Statistics ranks the existing Form index (shown as Form %). Overlap brings players with both numerical matches and a positive statistical score to the top; it is not a calibrated goal probability.')
             st.caption('Recreational numerical patterns only. Not verified predictors of goals or betting outcomes.')
     elif _num_view=='Team Numbers':

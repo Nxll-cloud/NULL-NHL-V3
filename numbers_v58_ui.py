@@ -13,7 +13,7 @@ from numboard_v56 import TIERS, W_DAY, W_ARENA, W_TEAM, RAW_MAX
 
 esc = v5.esc
 TIER_ICON = {'blaze': '🔥', 'hot': '♨', 'warm': '▲', 'mild': '◆', 'cool': '○'}
-TIER_RANGE = {'blaze': '6+ pts', 'hot': '4–5 pts', 'warm': '2–3 pts', 'mild': '1 pt', 'cool': '0 pts'}
+TIER_RANGE = {'blaze': '5–6 pts', 'hot': '3–4 pts', 'warm': '2 pts', 'mild': '1 pt', 'cool': '0 pts'}
 METHOD_FIELD = (('English', 'ordinal_root', 'ENG'), ('Reduction', 'reduction_root', 'RED'), ('Reverse', 'reverse_root', 'REV'))
 CIPHERS = (('English ordinal', 'A=1 … Z=26', 'Add every letter, reduce to one digit'),
            ('Full reduction', 'each letter → 1–9', 'Reduce each letter first, then the sum'),
@@ -47,7 +47,10 @@ def tonight_strip(day, day_num, analyses, boards=None):
 def legend():
     items = ''.join(f'<li class="t-{n}" style="--c:{c}"><span class="ti">{TIER_ICON[n]}</span><b>{n.title()}</b><small>{TIER_RANGE[n]}</small></li>' for _, n, c in TIERS)
     return (f'<section class="nlg nleg-v58"><div class="nlg-h"><b>How to read a row</b><span>Score 0–100 = ({W_DAY}·DAY + {W_ARENA}·ARENA + {W_TEAM}·TEAM) ÷ {RAW_MAX} × 100 · '
-            f'each counts the ciphers (0–3) where the player’s name number equals that target · ring fill = score</span></div>'
+            f'each counts once (0 or 1) when the player’s name number equals that target · ring fill = score · '
+            f'Eng = the full name’s English total before reducing to one digit</span></div>'
+            '<p class="nlg-k">The three ciphers are not independent: Reduction always gives the same digit as English, and '
+            'Reverse mirrors English (the two digits always add up to 9, e.g. 7 and 2). So each name has one number, and it is counted once.</p>'
             f'<ul class="nlg-t" aria-label="Threat tiers, warm = higher">{items}</ul>'
             '<p class="nlg-k"><span class="mc d">DAY</span> matches the universal day · <span class="mc a">ARENA</span> matches the game’s arena name · '
             '<span class="mc t">TEAM</span> matches his own team name · warm colours = higher score; every tier also has its icon and word</p>'
@@ -149,7 +152,8 @@ def player_row(p, rank=None):
             f'<span>{TIER_ICON.get(p["tier"], "")}</span></span>'
             f'<div class="npr-id"><span class="npr-nl"><b class="npr-name">{esc(p["player"])}</b>{pick_badge(rank)}</span><small>{esc(p["team"])} · <span class="tn">{esc(roots)}</span></small></div>'
             f'<div class="npr-m">{match_chips(p)}</div>'
-            f'<div class="npr-s"><strong class="tn">{p["threat"]}</strong><small>{TIER_ICON.get(p["tier"], "")} {p["tier"]}</small></div></li>')
+            f'<div class="npr-s"><strong class="tn">{p["threat"]}</strong><small>{TIER_ICON.get(p["tier"], "")} {p["tier"]}'
+            + (f' · Eng {int(p["eng_total"])}' if p.get('eng_total') is not None else '') + '</small></div></li>')
 
 
 def game_board(board, day_num, ranks=None, pin=True):

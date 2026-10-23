@@ -19,3 +19,11 @@ def test_venue_missing_not_fabricated():
     r = analyze_game({'Away':'MIN','Home':'CGY','Venue':None},'2026-10-22',{'MIN':'Minnesota Wild','CGY':'Calgary Flames'})
     assert r['arena_values'] is None and r['arena'] == ''
     assert r['universal'] == 6
+
+
+def test_ciphers_are_one_digit():
+    """Reduction always equals English and Reverse mirrors English (digits sum to 9), so a name carries one digit."""
+    for name in ('Alex Newhook', 'Cale Makar', "Charle-Edouard D'Astous", 'Juraj Slafkovský', 'Blaze', 'ABC', 'Z'):
+        g = gematria(name)
+        assert g['reduction_root'] == g['ordinal_root']
+        assert (g['ordinal_root'] + g['reverse_root']) % 9 == 0

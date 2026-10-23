@@ -197,11 +197,11 @@ def _t(player, day=(), arena=(), team=(), form=50):
 
 
 def test_threat_score_formula_and_tiers():
-    assert nb.RAW_MAX == 18
-    t = _t('x', day=['ENG'], arena=['RED'], team=['REV'])
-    assert nb.threat_raw(t) == 6 and nb.threat_score(t) == 33 and nb.tier(6)[0] == 'blaze'
-    assert [nb.tier(r)[0] for r in (5, 4, 3, 2, 1, 0)] == ['hot', 'hot', 'warm', 'warm', 'mild', 'cool']
-    assert nb.threat_score(_t('y', day=[1, 2, 3], arena=[1, 2, 3], team=[1, 2, 3])) == 100
+    assert nb.RAW_MAX == 6   # each of day / arena / team counts once
+    t = _t('x', day=['ENG'], arena=['ENG'], team=['ENG'])
+    assert nb.threat_raw(t) == 6 and nb.threat_score(t) == 100 and nb.tier(6)[0] == 'blaze'
+    assert [nb.tier(r)[0] for r in (6, 5, 4, 3, 2, 1, 0)] == ['blaze', 'blaze', 'hot', 'hot', 'warm', 'mild', 'cool']
+    assert [nb.threat_score(_t('d', day=['ENG'])), nb.threat_score(_t('a', arena=['ENG'])), nb.threat_score(_t('t', team=['ENG']))] == [50, 33, 17]
 
 
 def test_game_board_sort_badge_arena():

@@ -3,7 +3,19 @@ import math
 import pandas as pd
 from numerology_v48 import gematria, universal_day
 
-METHODS=(('ordinal_root','English'),('reduction_root','Reduction'),('reverse_root','Reverse'))
+METHODS=(('ordinal_root','English'),('reduction_root','Reduction'),('reverse_root','Reverse'))  # display order (all three digits)
+# The three digits are not independent: Reduction always equals English (both are the name total reduced mod 9), and
+# Reverse mirrors English (English + Reverse always reduces to 9, e.g. 7 <-> 2, 3 <-> 6). So a name carries ONE digit.
+# Scoring counts that digit once per target: vs the day number, the English or the Reverse digit may hit (at most one
+# label); vs a team or arena name, Reverse agrees whenever English does, so only English is compared.
+DAY_METHODS=(('ordinal_root','English'),('reverse_root','Reverse'))
+NAME_METHODS=(('ordinal_root','English'),)
+
+def _first_hit(values, target, methods):
+    """[label] of the first cipher whose digit equals the target (each name digit counts once), else []."""
+    if not target:
+        return []
+    return next(([label] for field,label in methods if values[field]==target[field]), [])
 
 def target_rows(ranked, team, team_name, arena, day):
     """Rank named, ID-distinct roster members using reproducible numerical coincidences."""
@@ -24,9 +36,9 @@ def target_rows(ranked, team, team_name, arena, day):
         if key in seen: continue
         seen.add(key)
         values=gematria(name)
-        day_matches=[label for field,label in METHODS if values[field]==day_root]
-        team_matches=[label for field,label in METHODS if values[field]==team_values[field]]
-        arena_matches=[label for field,label in METHODS if arena_values and values[field]==arena_values[field]]
+        day_matches=_first_hit(values,{f:day_root for f,_ in DAY_METHODS},DAY_METHODS)
+        team_matches=_first_hit(values,team_values if team_values['letters'] else None,NAME_METHODS)
+        arena_matches=_first_hit(values,arena_values if arena_values and arena_values['letters'] else None,NAME_METHODS)
         # Match counts are descriptive only, not estimated probabilities.
         total=len(day_matches)+len(team_matches)+len(arena_matches)
         try: form=float(row.get('V3.2 Adjusted Index',0))
@@ -34,7 +46,9 @@ def target_rows(ranked, team, team_name, arena, day):
         if not math.isfinite(form): form=0.0  # V5.3: NaN would break sorting and display
         out.append({'player':name,'player_id':player_id,'team':team,'number':values['ordinal_root'],
                     'day':day_matches,'team_matches':team_matches,'arena_matches':arena_matches,
-                    'matches':total,'form':form,'values':values})
+                    'matches':total,'form':form,'values':values,
+                    # raw cipher totals before the one-digit reduction: unique-ish per name, shown and used for ties
+                    'eng_total':values['ordinal'],'rev_total':values['reverse'],'letters':values['letters']})
     out.sort(key=lambda x:(-x['matches'],-len(x['day']),-len(x['arena_matches']),-x['form'],x['player']))
     return out
 
