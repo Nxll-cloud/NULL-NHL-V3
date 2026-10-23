@@ -95,6 +95,7 @@ if _trk_conn is not None and np_ready and np_day>=np_eastern_today().isoformat()
             st.session_state['v54_trk_status']=_res
     except Exception as _trk_exc:  # tracking must never break Home
         st.session_state['v54_trk_status']={'status':'error','error':str(_trk_exc)}
+if xgm.attribution(_v56_results): st.caption(xgm.attribution(_v56_results)+' (model chances use shot quality; non-commercial use, see MoneyPuck terms).')  # V5.9 credit
 st.markdown(ui.day_banner(np_day,num_universal_day(np_day)),unsafe_allow_html=True)
 st.markdown(ui.section('Strongest gematria alignments','Top ten symbolic matches across the slate · D = day, T = team, A = arena','🔮','gem'),unsafe_allow_html=True)
 _gem_cards=[ui.gem_card(_i,_p['player'],_p['team'],_p.get('player_id',''),_p['matches'],_p['form'],len(_p['day']),len(_p['team_matches']),len(_p['arena_matches']),season=SEASON)

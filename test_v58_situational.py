@@ -75,7 +75,7 @@ def test_flag_off_means_no_situ_and_old_code_path():
     assert ff.model_situational(secrets={'MODEL_SITUATIONAL': 'false'}, environ={'MODEL_SITUATIONAL': 'on'}) is True
     assert ff.model_situational(environ={}) is True
     assert ff.model_parts(environ={'MODEL_SITUATIONAL_PARTS': 'goalie, PP ,bogus'}) == ('goalie', 'pp')
-    assert ff.model_parts(environ={}) == ('pp', 'goalie', 'line')
+    assert ff.model_parts(environ={}) == ('pp', 'goalie', 'line', 'xg')   # V5.9: + xG shot quality
 
 
 # ------------------------------------------------------------------ power play

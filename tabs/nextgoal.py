@@ -87,4 +87,5 @@ if _ng_demo is not None:
 with st.expander('ⓘ How the next-goal model works'):
     st.markdown(ng.__doc__)
 st.caption('Next-goal % is a model estimate from shot counts, shot quality and season priors; it is not calibrated and not betting advice.')
+if xgm.attribution(_v56_results): st.caption(xgm.attribution(_v56_results)+' (model chances use shot quality; non-commercial use, see MoneyPuck terms).')  # V5.9 credit
 st.markdown(ui.footer("NULL’S PLAYBOOK · LIVE NEXT GOAL"),unsafe_allow_html=True)

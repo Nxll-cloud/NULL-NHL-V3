@@ -44,4 +44,5 @@ st.caption('λ: pregame = prior shots/game × shrunk sh% (k=50); live = the play
            'A player who already scored is settled (anytime prop won) and never flagged. Openers: the Odds API current-odds endpoint has no '
            'historical openers, so the opener is the first quote this session saw (kept with remember_openers). Moneyline is not flagged: the model has no win-probability part. '
            'Model estimates are uncalibrated; entertainment and research only.')
+if xgm.attribution(_v56_results): st.caption(xgm.attribution(_v56_results)+' (model chances use shot quality; non-commercial use, see MoneyPuck terms).')  # V5.9 credit
 st.markdown(ui.footer("NULL’S PLAYBOOK · EDGE FLAGS"),unsafe_allow_html=True)
