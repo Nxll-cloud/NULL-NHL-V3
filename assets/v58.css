@@ -182,3 +182,13 @@
 .v55 .tr .gwr{grid-column:3/-1;margin-top:-6px;min-width:0}.v55 .tr .gwr .gwk{margin-left:0}
 @media(max-width:760px){.v55 .tr .gwr{grid-column:2/5;margin-top:-2px}}
 .v55 .gwk-l{color:var(--mut)}.v55 .gwk-l b{color:var(--neon);font-weight:800;letter-spacing:.06em}
+.v55 .thr{margin:14px 0 4px;padding:10px 12px 8px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(120deg,color-mix(in srgb,var(--neon) 6%,transparent),color-mix(in srgb,var(--neon2) 8%,transparent))}
+.v55 .thh{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-bottom:6px}.v55 .thh small{color:var(--mut);font-size:.72rem}
+.v55 .throw{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;padding:2px 2px 6px;scrollbar-width:thin}
+.v55 a.thb{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px;max-width:84px;min-height:44px;padding:4px 2px;border-radius:14px;color:var(--ink);text-decoration:none;scroll-snap-align:start;transition:background .2s,box-shadow .2s}
+.v55 a.thb:hover,.v55 a.thb:focus-visible{background:color-mix(in srgb,var(--a) 14%,transparent);box-shadow:0 0 0 1px var(--neon),0 0 18px -6px var(--neon);outline:none}
+.v55 .thc{display:flex;flex-direction:column;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--p) 85%,#fff 15%),var(--p));border:2px solid var(--s);box-shadow:0 0 0 1px color-mix(in srgb,var(--neon) 60%,transparent),0 0 14px -4px var(--neon);color:#fff;line-height:1}
+.v55 .thc .thn{font:800 1.05rem/1 var(--fd,var(--fb));letter-spacing:.01em;text-shadow:0 1px 2px #0009}.v55 .thc small{font:700 .55rem/1 var(--fb);letter-spacing:.08em;opacity:.92;margin-top:2px}
+.v55 .thc .tha{font:800 .8rem/1 var(--fb);letter-spacing:.06em;text-shadow:0 1px 2px #0009}
+.v55 .thl{max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 .72rem/1.2 var(--fb)}.v55 .thg{color:var(--mut);font:600 .62rem/1.1 var(--fb);letter-spacing:.04em}
+.v55 .ngr.ng-hit{box-shadow:0 0 0 2px var(--neon),0 0 26px -6px var(--neon);background:color-mix(in srgb,var(--neon) 12%,transparent)}

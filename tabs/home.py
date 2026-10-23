@@ -49,6 +49,16 @@ if np_flags.show_goalie_weak(st.secrets):
         _gw_stat=gweak.home_markers(_v5_state,_v5_gk,lambda _gid,_t:v59_goalie_weak_cached(_gid,_t,np_day,SEASON))
     except Exception as _gw_exc:   # the identifier must never break Home
         _gw_stat={'errors':[f'goalie weak-spot: {type(_gw_exc).__name__}']}
+# V5.9: top-threat badge per game (the #1 of the shared next-goal ranking _v56_results; jersey from PBP roster, else NHL roster feed).
+if np_flags.show_threat_badges(st.secrets):
+    try:
+        _th_teams=tuple(sorted({t for g in _v5_mg for t in (g['away'],g['home']) if t}))
+        _th_jersey={}
+        for _m in (v55_rosters_cached(_th_teams)[0] if _th_teams else {}).values():
+            _th_jersey.update({str(_k):_v for _k,_v in (_m or {}).items()})
+        _v5_state['threat_html']=threat.section_html(threat.top_threats(_v56_results,_th_jersey))
+    except Exception:   # the badge row must never break Home
+        _v5_state['threat_html']=''
 # V5.6: board tiles carry live/final scores and the official game state (score endpoint, else play-by-play).
 _v5_state['scores']=lstate.tile_scores(_v56_results)
 for _g in (_v5_state.get('games') or [])+([_v5_state['featured']] if _v5_state.get('featured') else []):

@@ -87,3 +87,10 @@ SHOW_GOALIE_WEAK = True
 
 def show_goalie_weak(secrets=None, environ=None):
     return _flag('FEATURE_GOALIE_WEAK', SHOW_GOALIE_WEAK, secrets, environ)
+
+# V5.9: top-threat mini badges under Home's top-target card. FEATURE_THREAT_BADGES = "false" / =0 hides them.
+SHOW_THREAT_BADGES = True
+
+
+def show_threat_badges(secrets=None, environ=None):
+    return _flag('FEATURE_THREAT_BADGES', SHOW_THREAT_BADGES, secrets, environ)

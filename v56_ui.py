@@ -61,7 +61,7 @@ def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, ti
     score = f'<b class="sc">{esc(sa, "0")}</b><span>–</span><b class="sc">{esc(sh, "0")}</b>' if result['phase'] != 'pregame' else '<span class="vs">VS</span>'
     rows = []
     for p in result['players'][:top]:
-        rows.append(f'<div class="ngr" style="--tc:{v5.colors(p["team"])[0]}"><span class="rk">{p.get("rank", "")}</span>{_arrow(p.get("delta"))}'
+        rows.append(f'<div class="ngr" data-ng="ng-{esc(g.get("game_id"), "")}-{esc(p.get("pid"), "")}" style="--tc:{v5.colors(p["team"])[0]}"><span class="rk">{p.get("rank", "")}</span>{_arrow(p.get("delta"))}'
                     f'{_headshot(p, season)}<div class="ngn"><b>{esc(p["name"])}{sctn.badge_for(scored, p.get("pid"), p.get("name"))}</b><small>{esc(p["team"])} · {esc(p.get("pos"), "")}'
                     f'{" · prior: league" if p.get("prior_source") == "league" else ""}</small></div>'
                     f'<span class="ngs"><em>{p["sog"]}</em><small>SOG</small></span><span class="ngs"><em>{p["xg"]:.2f}</em><small>xG</small></span>'

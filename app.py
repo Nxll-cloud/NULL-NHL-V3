@@ -68,6 +68,7 @@ import storylines_v58 as slx
 import venue_v58 as vn
 import gem_match_v58 as gmx
 import goalie_weak_v59 as gweak
+import threat_badges_v59 as threat
 import situational_v58 as sit
 import xg_v59 as xgm
 # V5.8: display-only 'Scored tonight' badges in every model view (markdown/html/dataframe pass-through proxy).

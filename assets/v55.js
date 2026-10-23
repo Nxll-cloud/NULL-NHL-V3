@@ -32,4 +32,20 @@
     });
   }
   var timer = setInterval(tick, 30000);
+  // V5.9: top-threat badges -> open the Live Next Goal tab (native st.tabs button) and scroll to that player's row.
+  root.addEventListener('click', function(ev){
+    var a = ev.target && ev.target.closest ? ev.target.closest('a[data-ng]') : null; if (!a) return;
+    var want = a.dataset.ng, tabTxt = a.dataset.tab || 'Live Next Goal', tab = null;
+    document.querySelectorAll('[data-testid=stTabs] [role=tab]').forEach(function(b){ if (!tab && b.textContent.indexOf(tabTxt) !== -1) tab = b; });
+    if (!tab) return;   // no tab bar: leave the plain #hash link alone
+    ev.preventDefault(); tab.click();
+    var tries = 0;
+    (function seek(){
+      var hit = null;
+      document.querySelectorAll('[data-ng="' + want + '"]').forEach(function(el){ if (!hit && el.getClientRects().length && !el.closest('a')) hit = el; });
+      if (hit) { hit.scrollIntoView({behavior: reduce ? 'auto' : 'smooth', block: 'center'}); hit.classList.add('ng-hit');
+        setTimeout(function(){ hit.classList.remove('ng-hit'); }, 2600); return; }
+      if (++tries !== 25) setTimeout(seek, 120); else tab.scrollIntoView({block: 'start'});
+    })();
+  });
 })();

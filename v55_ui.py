@@ -654,6 +654,7 @@ def render_home(data, now=None):
     # V5.8: the track-record rings live only in the Track Record tab (track_section is rendered there).
     # V5.8: Tonight's board sits directly above the Featured matchup hero (single swap; everything else in V5.7 order).
     # V5.8: the Top four-leg parlay (data['parlay_html'], price-free) sits directly below the Featured matchup hero.
-    return (scoreboard(data, now) + hero(data, now) + (data.get('parlay_html') or '') + leaders_row(data)
+    return (scoreboard(data, now) + hero(data, now) + (data.get('threat_html') or '')  # V5.9: top-threat badges under the hero
+            + (data.get('parlay_html') or '') + leaders_row(data)
             + (data.get('longshot_html') or '')  # V5.8: Top long shot candidate, directly under Leaders & intelligence
             + matchup_section(data) + footer(data))
