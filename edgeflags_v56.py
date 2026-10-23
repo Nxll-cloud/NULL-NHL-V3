@@ -2,7 +2,8 @@
 
 Math (EdgeLab's, unchanged): implied = ``edgelab_v55.american_to_implied(odds)``; edge = model_p - implied.
 Model p = 1 - exp(-lambda), lambda = the player's goal expectation from the V5.6 model (``live_nextgoal_v56``):
-  * pregame / pregame prior: lambda = prior shots/game x shrunk sh%  (per-game expectation, ``lam_game``)
+  * pregame / pregame prior: lambda = prior shots/game x shrunk sh%  (per-game expectation, ``lam_game``; V5.8: times the
+    bounded situational ratio from ``situational_v58`` when MODEL_SITUATIONAL is on - opener, threshold and UI unchanged)
   * live: lambda = r_i x remaining minutes (expectation for the rest of the game); a player who already scored is
     'settled' (the anytime prop has won) and is never flagged.
   * final / shootout (regulation + OT over; the anytime market ignores shootout goals): settled, model p is None,

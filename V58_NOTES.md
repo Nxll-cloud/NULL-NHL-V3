@@ -79,6 +79,20 @@ V5.8 is V5.7 tuned for phones, plus the requested Home/Numbers/EdgeLab/Storyline
 - Calculation line: under every row a muted subtitle line shows the player's reduced digit for each cipher and the target, e.g. `Eng 2 · Red 2 · Rev 7 ✓ → day 7` for a date row, or `Eng 3=3 ✓ · Red 3=3 ✓ · Rev 6=6 ✓ → United Center` for an arena row (compared like for like). ✓ marks the cipher(s) that hit. Hovering the line on desktop shows the raw totals before reduction (e.g. `Eng 96→6`). The line is built from the same per-cipher values that decide the match (`player_matches`), so it can't disagree with the table. It's never a column: there are still exactly three, and match type stays `date`/`arena`.
 - REV tag: a small outlined violet `REV` pill next to the player name marks rows that matched only through the Reverse cipher (tooltip "Matched through Reverse cipher only"). Note: English and Reduction roots are always equal, and English + Reverse totals are a multiple of 9, so an arena row can never be Reverse-only. In practice only date rows get the tag.
 
+## Next-goal model: situational layer (V5.8)
+- Code: `situational_v58.py`, hooked into `live_nextgoal_v56.model(..., situ=...)`. Tests: `test_v58_situational.py`.
+- Baseline is unchanged: prior shots/game (5 ghost games) × shrunk sh% `(G + 50×0.10)/(SOG + 50)` = base λ.
+- Layers on top (each bounded, logged per player in `rec['situ']`, switchable):
+  - **PP**: base λ is split into EV + PP. EV = (prior SOG/g − season PP SOG/g, floor 25%) × EV sh% shrunk 50 shots to 9.17%. PP = PP shots per PP minute (shrunk with 20 ghost minutes at the league 10.42/60) × PP TOI/game × tonight's PP-opportunity factor (team PP opps × opponent times shorthanded vs league, 10 ghost games, clamp 0.75–1.30) × PP sh% shrunk 50 shots to 14.8%. EV and PP targets are anchored so the league mix still converts at 10%.
+  - **Goalie**: opponent goalie SV% shrunk 600 shots to .896; mult = (1 − SV)/(1 − .896), clamp 0.85–1.15. Order: live in-net goalie (PBP) → confirmed/probable starter (same `starters_cached` source as Matchup Center) → SA-weighted team average → neutral.
+  - **Line/TOI**: EV TOI per game last 14 days vs season (3 ghost games), elasticity 0.5, clamp 0.90–1.10. A deployment proxy, not linemate identity.
+  - final = (EV + PP + (line − 1)×EV) × goalie; ratio final/base clamped 0.5–2.0. Live rate is scaled by the same ratio.
+- No data → ratio exactly 1.0 → the V5.6 numbers exactly. Flag `MODEL_SITUATIONAL` (env > secrets, default on) turns it off; `MODEL_SITUATIONAL_PARTS` picks layers (`pp,goalie,line`).
+- Data: NHL stats API (skater summary/powerplay/timeonice, team powerplay/penaltykill, goalie summary), games before the slate date, cached 3 h; a failed report leaves its layer neutral.
+- Downstream (all read `_v56_results`): Edge Flags (model input only), EdgeLab (model-p cell has a "why" tooltip), four-leg parlay, long shot, scored-tonight. Scored players stay settled/excluded. DEMO replay, MC goalie panel and the backtest stay on the V5.6 model.
+- Rankings "Starting goalie" now reads the same starter source (e.g. `Spencer Knight (Probable)`; `Unconfirmed` only when no source lists one), and "Goalie adjustment" shows the model's actual SV% step for that row (`sit.goalie_columns`). Form % itself still has no goalie adjustment.
+- Gaps: no linemate/line-combo feed (TOI proxy only); live per-player strength is not redistributed (team-level PP/SH multiplier as before); backtest not yet rerun on the new model.
+
 ## GitHub status
 - V5.8 (with arena names and the date & arena match table) is on GitHub main, and the `V5.8` tag points to that commit. The earlier V5.8 commit was 0f91d5f.
 - Odds keys stay in Streamlit secrets.

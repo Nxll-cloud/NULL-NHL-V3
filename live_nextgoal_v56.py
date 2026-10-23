@@ -298,8 +298,12 @@ def situation_mult(situation_code, team_is_home):
 
 
 # ---------------------------------------------------------------- model
-def model(game, priors=None, use_form=False, lineup=None):
-    """Next-goal probabilities for one game. ``lineup``: optional {pid: {...}} restricting to dressed skaters."""
+def model(game, priors=None, use_form=False, lineup=None, situ=None):
+    """Next-goal probabilities for one game. ``lineup``: optional {pid: {...}} restricting to dressed skaters.
+
+    ``situ``: optional V5.8 situational layer (``situational_v58.Situ``). None = the V5.6 model exactly. With it, each
+    skater's pregame lambda and live per-minute rate are scaled by the bounded ratio it returns (PP split, opposing
+    goalie, TOI deployment); the per-player breakdown is kept in ``rec['situ']``. Ratio 1.0 (no data) = old numbers."""
     priors = priors or {}
     ph = phase(game)
     elapsed, remaining = elapsed_remaining(game)
@@ -352,9 +356,15 @@ def model(game, priors=None, use_form=False, lineup=None):
         sh = shrunk_sh(rec['season_g'], rec['season_sog'])
         v = min(XG_VMAX, rec['sog'] / (rec['sog'] + XG_TAU)) if rec['sog'] else 0.0
         conv = (1 - v) * sh + v * (rec['xg_sog'] / rec['sog'] if rec['sog'] else 0.0)
-        rate = s * conv * (form_mult(rec['form']) if use_form else 1.0)
-        rec.update(prior_pg=round(prior_pg, 3), shot_rate=s, shrunk_sh=sh, conv=conv, rate=rate,
-                   lam_game=round(prior_pg * sh * (form_mult(rec['form']) if use_form else 1.0), 4))
+        fm = form_mult(rec['form']) if use_form else 1.0
+        rate = s * conv * fm
+        lam_game = prior_pg * sh * fm
+        if situ is not None:
+            bd = situ(rec, rec['team'], teams[0] if rec['team'] == teams[1] else teams[1], game, prior_pg, lam_game, ph)
+            rec['situ'] = bd
+            if bd and bd.get('ratio', 1.0) != 1.0:
+                rate, lam_game = rate * bd['ratio'], bd['final']
+        rec.update(prior_pg=round(prior_pg, 3), shot_rate=s, shrunk_sh=sh, conv=conv, rate=rate, lam_game=round(lam_game, 4))
         team_rate[rec['team']] += rate
 
     mult = {t: situation_mult(game.get('situation'), t == teams[1]) if ph == 'live' else 1.0 for t in teams}

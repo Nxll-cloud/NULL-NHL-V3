@@ -67,6 +67,7 @@ import edgelab_v58 as elv58
 import storylines_v58 as slx
 import venue_v58 as vn
 import gem_match_v58 as gmx
+import situational_v58 as sit
 # V5.8: display-only 'Scored tonight' badges in every model view (markdown/html/dataframe pass-through proxy).
 st = sctn.MarkingStreamlit(st)
 
@@ -126,6 +127,21 @@ if np_snapshot is not None:
             st.session_state['history_v386_day']=np_day
             st.session_state['history_v386_years']=3
 
+def np_goalie_columns(ranked, day, games):
+    """V5.8: rankings 'Starting goalie' / 'Goalie adjustment' from the SAME probable-starter source (starters_cached) and
+    the same situational goalie step the next-goal model uses. Never invents a starter; never raises."""
+    if ranked is None or getattr(ranked, 'empty', True) or not games:
+        return ranked
+    try:
+        sg=mc.slate_games(games)
+        starters=starters_cached(day,tuple((g['key'],g['game_id'],g['away'],g['home'],g['status']) for g in sg))[0] if sg else {}
+        parts=np_flags.model_parts(st.secrets) if np_flags.model_situational(st.secrets) else ()
+        ctx=sit.with_starters(situ_cached(day,SEASON,parts) if 'goalie' in parts else sit.context(parts=()),starters)
+        return pd.DataFrame(sit.goalie_columns(ranked.to_dict('records'),ctx))
+    except Exception:  # keep the rankings visible even if the goalie lookup fails
+        return ranked
+
+
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def schedule_cached(day):
@@ -154,6 +170,12 @@ def goalies_cached(teams, season):
             except Exception as exc:  # network/HTTP/JSON -> team shown as 'No data'
                 errors.append(f'{futures[f]}: {type(exc).__name__}')
     return rows, sorted(errors)
+
+@st.cache_data(ttl=3 * 3600, show_spinner=False)
+def situ_cached(day, season, parts):
+    """V5.8: situational next-goal inputs (NHL stats API: PP / TOI / goalie / team PP reports, games before ``day``).
+    Cached 3 h. Never raises: a failed report leaves its adjustment neutral."""
+    return sit.fetch_context(day, season, parts=parts)
 
 @st.cache_data(ttl=pgk.STARTER_TTL_SECONDS, show_spinner=False)
 def starters_cached(day, games_key):
@@ -310,6 +332,10 @@ _np_tab_map=dict(zip(_np_tab_labels,st.tabs(_np_tab_labels)))
 np_home_tab,np_mc_tab,np_odds_tab,np_research_tab,np_numbers_tab=(_np_tab_map[k] for k in _np_tab_labels[:5])
 np_track_tab=_np_tab_map.get('📈 Track Record')
 np_edgelab_tab,np_nextgoal_tab,np_edgeflags_tab,np_storylines_tab=(_np_tab_map[k] for k in _np_tab_labels[-4:])
+# V5.8: rankings 'Starting goalie' / 'Goalie adjustment' read the same starter source as the model
+if st.session_state.get('signals_day')==np_day and 'signals_ranked' in st.session_state:
+    st.session_state['signals_ranked']=np_goalie_columns(st.session_state['signals_ranked'],np_day,
+        np_snapshot['games'] if np_snapshot is not None else schedule_cached(np_day))
 run_tab('live', globals())  # V5.6: shared live state (scores, PBP, next-goal model) for Home, Matchup Center and the new tabs
 # V5.8: one scorer record per slate date from the same polled play-by-play (a new date starts empty).
 sctn.for_slate(st.session_state, np_day, sctn.from_pbp(_v56_pbp, np_day, demo=bool(_V56_DIR)))

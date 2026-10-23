@@ -95,7 +95,8 @@ if _rx:
     st.subheader('V3.2 Goal-Scorer Rankings')
     st.caption('Goal-scoring Form % is a relative index (share of the 100-point benchmark, clipped at 100%), NOT a scoring probability. Opponent goals/shots allowed '
                'adjust the Form index (shown as Form %) by at most 15% where coverage is sufficient. '
-               'No goalie adjustment is applied to these rankings; probable starters are shown for information in Matchup Center.')
+               'Form % has no goalie adjustment. "Starting goalie" is the opponent starter from the same probable-starter source as Matchup Center '
+               '(Unconfirmed only when no source lists one); "Goalie adjustment" is the next-goal model\'s SV% step for that starter.')
 if games:
     min_games = st.slider('Minimum prior games per player', 1, 10, 3) if _rx else 3
     use_defense = st.checkbox('Apply opponent defense adjustment', value=True) if _rx else True
@@ -135,6 +136,7 @@ if games:
                 except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
                     defense_errors.append(f'{team_code}: {exc}')
         ranked = assign_statistical_ranks(attach_matchups(ranked, games, defensive, adjust=use_defense)).to_dict('records')
+        ranked = np_goalie_columns(pd.DataFrame(ranked), day, games).to_dict('records') if ranked else ranked  # V5.8: shared starter source
         coverage = pd.DataFrame([
             {k:v for k,v in d.items() if k != 'Error details'}
             for d in defensive.values()

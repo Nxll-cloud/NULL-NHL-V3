@@ -32,13 +32,13 @@ def signature(game):
     return (len(game.get('events') or []), game.get('period'), game.get('secs_remaining'), game.get('state'))
 
 
-def ranked_result(game, priors, memory, key, use_form=False):
+def ranked_result(game, priors, memory, key, use_form=False, situ=None):
     """Model + rank arrows with per-game memory. ``memory`` is a dict the caller persists (session_state)."""
-    res = ng.model(game, priors, use_form=use_form)
+    res = ng.model(game, priors, use_form=use_form, situ=situ)
     mem = memory.get(key)
     sig = signature(game)
     if mem is None:
-        base = ng.model(ng.pregame_game(game.get('game_id'), game['away'], game['home']), priors, use_form=use_form)
+        base = ng.model(ng.pregame_game(game.get('game_id'), game['away'], game['home']), priors, use_form=use_form, situ=situ)
         prev = ng.rerank(base['players'], None)
         basis = 'vs pregame prior'
         if ng.phase(game) == 'pregame':
@@ -54,7 +54,7 @@ def ranked_result(game, priors, memory, key, use_form=False):
     return res
 
 
-def slate_results(games, priors, scores=None, pbp=None, memory=None, use_form=False):
+def slate_results(games, priors, scores=None, pbp=None, memory=None, use_form=False, situ=None):
     """games: matchup_center slate_games rows. scores: live_feed.parse_scores. pbp: {game_id: parsed game}.
 
     Returns one dict per game: {'slate', 'game', 'result', 'label', 'note', 'score'}."""
@@ -70,7 +70,7 @@ def slate_results(games, priors, scores=None, pbp=None, memory=None, use_form=Fa
             if needs_pbp(state):
                 note = 'Play-by-play unavailable right now; showing the pregame prior.'
             parsed = ng.pregame_game(gid, g['away'], g['home'], g.get('start'))
-        res = ranked_result(parsed, priors, memory, gid, use_form)
+        res = ranked_result(parsed, priors, memory, gid, use_form, situ)
         label = game_label(parsed) or sc.get('label', '')
         out.append({'slate': g, 'game': parsed, 'result': res, 'label': label, 'note': note, 'score': sc})
     return out

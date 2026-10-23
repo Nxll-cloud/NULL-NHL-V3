@@ -3,7 +3,8 @@
 Display only and price-free by design: no sportsbook prices, fair odds, implied probabilities or edges are computed or
 shown here, and this module never calls an odds API.
 
-Leg chance = the app's pregame V5.6 model P(anytime goal) = 1 - exp(-lambda_game) (live_nextgoal_v56.p_anytime),
+Leg chance = the app's pregame next-goal model P(anytime goal) = 1 - exp(-lambda_game) (live_nextgoal_v56.p_anytime;
+lambda_game includes the V5.8 situational layer when MODEL_SITUATIONAL is on),
 an uncalibrated model estimate. Combined model chance = product of the four leg chances, i.e. it ASSUMES the legs are
 independent. Correlation guard: by default at most one leg per game (which implies at most one per team), because two
 skaters in the same game are positively correlated and the product would overstate the chance.

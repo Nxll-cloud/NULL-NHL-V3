@@ -39,3 +39,32 @@ def show_track_record(secrets=None, environ=None):
 
 def show_research_extras(secrets=None, environ=None):
     return _flag('FEATURE_RESEARCH_EXTRAS', SHOW_RESEARCH_EXTRAS, secrets, environ)
+
+
+# V5.8 situational next-goal model (situational_v58). On by default; MODEL_SITUATIONAL = "false" (secrets) or
+# MODEL_SITUATIONAL=0 (env) falls back to the V5.6 model exactly. MODEL_SITUATIONAL_PARTS picks the layers
+# (comma list of pp, goalie, line; default all). Env wins over secrets, as above.
+MODEL_SITUATIONAL = True
+MODEL_PARTS = ('pp', 'goalie', 'line')
+
+
+def _lookup(name, secrets, environ):
+    env = (environ if environ is not None else os.environ).get(name)
+    if env is not None:
+        return env
+    try:
+        return secrets.get(name) if secrets is not None else None
+    except Exception:  # no secrets.toml
+        return None
+
+
+def model_situational(secrets=None, environ=None):
+    v = _parse(_lookup('MODEL_SITUATIONAL', secrets, environ)) if _lookup('MODEL_SITUATIONAL', secrets, environ) is not None else None
+    return MODEL_SITUATIONAL if v is None else v
+
+
+def model_parts(secrets=None, environ=None):
+    v = _lookup('MODEL_SITUATIONAL_PARTS', secrets, environ)
+    if v is None:
+        return MODEL_PARTS
+    return tuple(p for p in (x.strip().lower() for x in str(v).split(',')) if p in MODEL_PARTS)
