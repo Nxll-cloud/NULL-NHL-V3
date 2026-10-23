@@ -20,8 +20,11 @@ Point-in-time by construction:
   * Results = real NHL goals (api-web score endpoint, play-by-play fallback), matched to predictions by player ID.
     Shootout goals are excluded (the anytime market ignores them). DEMO data is never read.
 
-Log: one small file per slate in snapshots/accuracy/YYYY-MM-DD.json (well under the 100 KB per-file rule: pending
-~20-40 KB on a full slate, compacted to the scorers + top-10 + parlay legs once scored). The workflow writes it
+Log: one small file per slate in snapshots/accuracy/YYYY-MM-DD.json (well under the 100 KB per-file rule: ~20-40 KB
+on a full slate). Audit fix (2026-10): every priced skater's frozen chance is KEPT after scoring (no compaction), so each
+night is calibration data: the summary carries Brier score, log loss and a reliability table over every priced skater.
+Entries compacted by older versions (``compacted`` True) still load; their calibration metrics are None (incomplete).
+The workflow writes it
 (``python accuracy_v58.py update``); ``backfill`` reads earlier snapshot versions from git history. The app reads the log
 and, if a date's log is missing, computes the same entry on the fly from the saved snapshot + live NHL results.
 """
@@ -43,6 +46,8 @@ LOG_DIR = Path(os.environ.get('PLAYBOOK_ACCURACY_DIR') or SNAP_DIR / 'accuracy')
 SCHEMA = 1
 TOP_N = 10
 TREND_N = 10
+REL_EDGES = (0.0, 0.10, 0.20, 0.30, 0.40, 1.0001)   # reliability buckets for P(anytime goal)
+P_EPS = 1e-4                                        # log-loss clip
 ET = ZoneInfo('America/New_York')
 NHL = 'https://api-web.nhle.com/v1/'
 FINAL = ('OFF', 'FINAL')
@@ -270,8 +275,32 @@ def fetch_results(day, getter):
 
 
 # ------------------------------------------------------------------------------------------------ scoring
-def score(entry, results, now=None, compact=True):
-    """Attach real results + a summary to a frozen prediction entry (pure)."""
+def _bucket_label(lo, hi):
+    return f'{lo * 100:.0f}%+' if hi > 1 else f'{lo * 100:.0f}-{hi * 100:.0f}%'
+
+
+def calibration(pairs):
+    """[(p, y)] -> {'n', 'brier', 'log_loss', 'reliability': [{bucket, n, mean_pred, observed}]} (None when empty).
+    y = 1 when the skater scored at least one (non-shootout) goal. Pure."""
+    pairs = [(float(p), int(bool(y))) for p, y in pairs if p is not None]
+    if not pairs:
+        return None
+    n = len(pairs)
+    brier = sum((p - y) ** 2 for p, y in pairs) / n
+    ll = -sum(math.log(min(max(p, P_EPS), 1 - P_EPS)) if y else math.log(1 - min(max(p, P_EPS), 1 - P_EPS)) for p, y in pairs) / n
+    rel = []
+    for lo, hi in zip(REL_EDGES, REL_EDGES[1:]):
+        b = [(p, y) for p, y in pairs if lo <= p < hi]
+        if b:
+            rel.append({'bucket': _bucket_label(lo, hi), 'n': len(b), 'mean_pred': round(sum(p for p, _ in b) / len(b), 4),
+                        'observed': round(sum(y for _, y in b) / len(b), 4)})
+    return {'n': n, 'brier': round(brier, 5), 'log_loss': round(ll, 5), 'reliability': rel}
+
+
+def score(entry, results, now=None, compact=False):
+    """Attach real results + a summary to a frozen prediction entry (pure).
+    Audit fix: every priced skater is kept (``compact`` stays only for callers that explicitly want the old trimmed
+    entry). Calibration metrics need the FULL priced list, so they are None for an already-compacted entry."""
     e = dict(entry)
     pred = {p[0]: p for p in e.get('players') or []}
     legs = list((e.get('parlay') or {}).get('legs') or [])
@@ -292,6 +321,8 @@ def score(entry, results, now=None, compact=True):
                     'avg_p_scorers': round(sum(p[3] for p in modeled) / len(modeled), 4) if modeled else None,
                     'mean_p': e.get('mean_p'), 'n_players': e.get('n_players'),
                     'realized': round(len(modeled) / len(pred), 4) if pred else None}
+    full = not e.get('compacted')
+    e['summary']['calibration'] = calibration((p[3], p[0] in sids) for p in pred.values()) if full else None
     if compact:   # rolling compaction: keep only what the card can show
         keep = sids | set(top) | set(legs) | flagged
         e['players'] = [p for p in e.get('players') or [] if p[0] in keep]
@@ -324,13 +355,32 @@ def trend(entries, n=TREND_N):
     nights = [{'day': e['day'], 'top_hits': e['summary']['top_hits'], 'top_n': e['summary']['top_n'],
                'rate': e['summary']['top_hits'] / e['summary']['top_n'] if e['summary']['top_n'] else None,
                'avg_p_scorers': e['summary']['avg_p_scorers'], 'mean_p': e['summary']['mean_p'],
-               'realized': e['summary']['realized']} for e in done]
+               'realized': e['summary']['realized'], 'calibration': e['summary'].get('calibration')} for e in done]
     hits, tot = sum(x['top_hits'] for x in nights), sum(x['top_n'] for x in nights)
     def avg(k):
         v = [x[k] for x in nights if x[k] is not None]
         return sum(v) / len(v) if v else None
     return {'nights': nights, 'top_hits': hits, 'top_n': tot, 'top_rate': hits / tot if tot else None,
-            'avg_p_scorers': avg('avg_p_scorers'), 'mean_p': avg('mean_p'), 'realized': avg('realized')}
+            'avg_p_scorers': avg('avg_p_scorers'), 'mean_p': avg('mean_p'), 'realized': avg('realized'),
+            'calibration': pooled_calibration(nights)}
+
+
+def pooled_calibration(nights):
+    """Player-weighted pooled Brier / log loss over nights that carry full calibration (compacted nights skipped)."""
+    cs = [x['calibration'] for x in nights if x.get('calibration')]
+    n = sum(c['n'] for c in cs)
+    if not n:
+        return None
+    rel = {}
+    for c in cs:
+        for b in c.get('reliability') or []:
+            r = rel.setdefault(b['bucket'], [0, 0.0, 0.0])
+            r[0] += b['n']; r[1] += b['mean_pred'] * b['n']; r[2] += b['observed'] * b['n']
+    order = [_bucket_label(lo, hi) for lo, hi in zip(REL_EDGES, REL_EDGES[1:])]
+    return {'nights': len(cs), 'n': n, 'brier': round(sum(c['brier'] * c['n'] for c in cs) / n, 5),
+            'log_loss': round(sum(c['log_loss'] * c['n'] for c in cs) / n, 5),
+            'reliability': [{'bucket': k, 'n': rel[k][0], 'mean_pred': round(rel[k][1] / rel[k][0], 4),
+                             'observed': round(rel[k][2] / rel[k][0], 4)} for k in order if k in rel]}
 
 
 # ------------------------------------------------------------------------------------------------ log I/O
@@ -604,6 +654,28 @@ def snapshot_positions(day, snap_root=SNAP_DIR):
         return {}
 
 
+def calib_html(night, pooled):
+    """Brier / log loss line + reliability table (every priced skater; lower Brier / log loss = better)."""
+    import v55_ui as v5
+    esc = v5.esc
+    if not night and not pooled:
+        return ('<p class="npacc-cal">Calibration (Brier, log loss): n/a for this night (logged before every priced '
+                'skater was kept).</p>')
+    parts = []
+    if night:
+        parts.append(f'Night: Brier <b>{night["brier"]:.3f}</b> · log loss <b>{night["log_loss"]:.3f}</b> ({night["n"]} skaters)')
+    if pooled:
+        parts.append(f'Last {pooled["nights"]} scored night{"s" if pooled["nights"] != 1 else ""}: Brier <b>{pooled["brier"]:.3f}</b> · '
+                     f'log loss <b>{pooled["log_loss"]:.3f}</b> ({pooled["n"]} skaters)')
+    rel = (pooled or night or {}).get('reliability') or []
+    rows_ = ''.join(f'<tr><td>{esc(b["bucket"])}</td><td class="n">{b["n"]}</td><td class="n">{_pct(b["mean_pred"])}</td>'
+                    f'<td class="n">{_pct(b["observed"])}</td></tr>' for b in rel)
+    table = (f'<details><summary>Reliability table (predicted vs actually scored)</summary><div class="npacc-tw"><table class="npacc-t">'
+             f'<thead><tr><th>Model chance</th><th class="n">Skaters</th><th class="n">Avg predicted</th><th class="n">Scored</th></tr></thead>'
+             f'<tbody>{rows_}</tbody></table></div></details>') if rel else ''
+    return f'<p class="npacc-cal">{" · ".join(parts)}. Lower is better.</p>{table}'
+
+
 def card_html(v, max_rows=8, snap_root=SNAP_DIR):
     import position_badge_v59 as pb
     import v55_ui as v5
@@ -648,6 +720,7 @@ def card_html(v, max_rows=8, snap_root=SNAP_DIR):
         trend_line = (f'<div class="npacc-tr"><span>Last {len(n)} night{"s" if len(n) != 1 else ""}: top-10 hit <b>{tr["top_hits"]}/{tr["top_n"]}</b>'
                       f' ({_pct(tr["top_rate"])})</span>{spark(n)}<span>scorers averaged <b>{_pct(tr["avg_p_scorers"])}</b> model chance vs '
                       f'<b>{_pct(tr["mean_p"])}</b> slate average · <b>{_pct(tr["realized"])}</b> of priced skaters scored</span></div>')
+    trend_line += calib_html(s.get('calibration'), tr.get('calibration'))
     unpriced = s['n_scorers'] - s['n_modeled_scorers']
     foot = (f'<p class="npacc-f">Pre-game chances frozen from the saved slate ({esc(str(shown.get("snapshot_at", ""))[:16].replace("T", " "))} UTC); '
             f'real NHL goals matched by player ID; marked rows = model top {s["top_n"]}. '

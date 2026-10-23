@@ -148,7 +148,8 @@ def test_summary_numbers_and_compaction():
     assert (s['n_scorers'], s['top_hits'], s['top_n'], s['parlay_hits'], s['parlay_legs']) == (22, 4, 10, 2, 4)
     assert s['n_modeled_scorers'] == 20 and s['flag_n'] is None
     assert s['mean_p'] < s['avg_p_scorers'] and abs(s['realized'] - 20 / s['n_players']) < 1e-4
-    assert e['compacted'] and len(e['players']) < s['n_players']
+    # audit fix: every priced skater is kept after scoring (calibration data), still well under 100 KB
+    assert not e.get('compacted') and len(e['players']) == s['n_players']
     assert len(json.dumps(e)) < 100 * 1024
 
 
@@ -228,7 +229,7 @@ def test_update_freezes_pregame_then_scores_after_final(tmp_path):
     assert acc.load_entry('2026-10-22', log)['n_players'] == e['n_players']
     acc.update(NOW, getter_for({'score/2026-10-22': SCORE}), snaps, log, log=lambda *_: None)
     done = acc.load_entry('2026-10-22', log)
-    assert done['summary']['top_hits'] == 4 and done['compacted']
+    assert done['summary']['top_hits'] == 4 and not done.get('compacted') and len(done['players']) == done['n_players']
 
 
 def test_update_never_raises_when_feeds_are_down(tmp_path):
