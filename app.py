@@ -112,6 +112,7 @@ import storylines_v58 as slx
 import venue_v58 as vn
 import gem_match_v58 as gmx
 import gematria_log_v59 as gemlog
+import odds_scorers_v59 as oddsc
 import goalie_weak_v59 as gweak
 import threat_badges_v59 as threat
 import winprob_v59 as winprob
@@ -395,6 +396,19 @@ if not _np_shared_quotes.empty:
     except (ValueError,KeyError,TypeError) as _exc:
         _np_shared_error=str(_exc)
 
+# V5.9: Projected scorers (odds) - one shared data load for Home + Odds. Source order: the Odds API quotes above (same
+# 30-min cache, no extra credits) -> free ESPN DraftKings props (cached 30 min) -> empty state. Odds only, never the model.
+@st.cache_data(ttl=1800,show_spinner=False)
+def np_espn_scorer_quotes(day, idx):
+    return oddsc.fetch_espn(day, idx)
+
+_np_odds_scorers=None
+if np_flags.show_odds_scorers(st.secrets):
+    try:
+        _np_odds_scorers=oddsc.load(np_day,(np_snapshot or {}).get('games') or [],(np_snapshot or {}).get('rankings') or [],
+                                    _np_live_quotes,np_espn_scorer_quotes)
+    except Exception:  # never break Home / Odds
+        _np_odds_scorers=None
 _np_scorer_slot=st.container()  # V5.8: 'Scored tonight' header chip (filled after the live state below)
 # V5.8: Track Record is hidden behind one feature flag (feature_flags_v58); its tracker/DB/auto-save keep running.
 np_show_track=np_flags.show_track_record(st.secrets)

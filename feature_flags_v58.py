@@ -158,3 +158,12 @@ SHOW_GEM_HISTORY = True
 
 def show_gem_history(secrets=None, environ=None):
     return _flag('FEATURE_GEM_HISTORY', SHOW_GEM_HISTORY, secrets, environ)
+
+
+# V5.9: 'Projected scorers (odds)' (odds_scorers_v59) at the top of the Odds tab and above Home's Matchup targets.
+# FEATURE_ODDS_SCORERS = "false" (secrets) / =0 (env) hides both and skips the ESPN fetch.
+SHOW_ODDS_SCORERS = True
+
+
+def show_odds_scorers(secrets=None, environ=None):
+    return _flag('FEATURE_ODDS_SCORERS', SHOW_ODDS_SCORERS, secrets, environ)

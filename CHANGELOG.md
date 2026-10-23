@@ -2,6 +2,12 @@
 
 Newest first. Model details: [MODEL_CARD.md](MODEL_CARD.md). Older release notes: [docs/notes/](docs/notes/).
 
+## Projected scorers from sportsbook odds (2026-10-23)
+
+- New **Projected scorers (odds)** section (`odds_scorers_v59.py`): anytime-goal prices → implied chance → no-vig chance (fixed 0.86 margin, measured on 4,958 real DraftKings props, because the market only posts "Yes" prices) → consensus (median) across books, best price + book, every book's price. Odds only, no model numbers.
+- Sources in order: The Odds API (only with `ODDS_API_KEY`; reuses the Odds tab's cached fetch, no extra credits) → free ESPN DraftKings props (cached 30 min) → empty state. Never demo data. OddsJam is paid/key-gated and not used.
+- Placement: very top of the ⚡ Odds tab (everything else unchanged below), and on Home directly above Matchup targets (top 5, same renderer and data). Flag `FEATURE_ODDS_SCORERS` (default on).
+
 ## Numbers fixes (2026-10-23)
 * Numbers TOP PICK tie-break: the model chance now comes from the next-goal model's player records (`pid` + `lam_game`,
   the same ones Home uses) via `numbers_v58_ui.model_p_from_results`. Before, it was built from ranking rows, came out

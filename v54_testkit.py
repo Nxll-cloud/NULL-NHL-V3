@@ -38,7 +38,7 @@ class _Resp:
             raise requests.HTTPError(str(self.status_code))
 
 
-def run_app(monkeypatch, tmp_path, espn='fixture', session=None, timeout=180, pbp_files=None, extra_games=(), games=None):
+def run_app(monkeypatch, tmp_path, espn='fixture', session=None, timeout=180, pbp_files=None, extra_games=(), games=None, routes=None):
     """AppTest of app.py on the trimmed real slate with every HTTP call faked (offline).
 
     V5.6: ``pbp_files`` {target name: fixture path} are copied to a temp folder served through PLAYBOOK_V56_PBP_DIR
@@ -65,6 +65,9 @@ def run_app(monkeypatch, tmp_path, espn='fixture', session=None, timeout=180, pb
                 c.pop('probables', None)
 
     def fake_get(url, params=None, timeout=None, headers=None, **kw):
+        for frag, payload in (routes or {}).items():   # V5.9: extra canned responses {url substring: json}
+            if frag in url:
+                return _Resp(payload)
         if 'club-stats/' in url:
             return _Resp(club.get(url.split('club-stats/')[1].split('/')[0], {'goalies': []}))
         if 'site.api.espn.com' in url:

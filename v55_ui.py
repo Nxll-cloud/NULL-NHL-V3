@@ -658,4 +658,5 @@ def render_home(data, now=None):
     return (scoreboard(data, now) + hero(data, now) + (data.get('threat_html') or '')  # V5.9: top-threat badges under the hero
             + (data.get('parlay_html') or '') + leaders_row(data)
             + (data.get('longshot_html') or '')  # V5.8: Top long shot candidate, directly under Leaders & intelligence
+            + (data.get('odds_scorers_html') or '')  # V5.9: Projected scorers (odds), directly above Matchup targets
             + matchup_section(data) + footer(data))
