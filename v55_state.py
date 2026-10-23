@@ -70,7 +70,7 @@ def _pid(v):
 
 
 def _gline(g):
-    return None if not g else {k: g.get(k) for k in ('Goalie', 'Player ID', 'Team', 'GP', 'GS', 'GA', 'GAA', 'SV%')}
+    return None if not g else {k: g.get(k) for k in ('Goalie', 'Player ID', 'Team', 'GP', 'GS', 'GA', 'GAA', 'SV%', 'Position')}
 
 
 def track_summary(evals, rolling):
@@ -160,7 +160,7 @@ def build_state(*, day, season, games, ranked=None, targets=None, leaders=None, 
     out_targets = {t: [{'player': p.get('player'), 'player_id': p.get('player_id'), 'team': t, 'form_pct': ui.form_pct(p.get('form')),
                         'form_label': ui.format_form_pct(p.get('form')), 'stat_rank': p.get('stat_rank'), 'matches': p.get('matches'),
                         'badges': [b[0] for b in p.get('badges', [])], 'jersey': jersey.get(_pid(p.get('player_id'))),
-                        'log': logs.get(_pid(p.get('player_id'))) or []} for p in lst] for t, lst in tg.items()}
+                        'log': logs.get(_pid(p.get('player_id'))) or [], 'position': rows.get(_pid(p.get('player_id')), {}).get('Position')} for p in lst] for t, lst in tg.items()}
     goalies = {}
     if fg:
         smap = (starters or {}).get(fg['key'], {}) or {}

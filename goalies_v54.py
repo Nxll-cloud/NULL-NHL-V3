@@ -70,7 +70,8 @@ def parse_club_goalies(payload, team):
             row_sv = _num(p.get('savePercentage'))
         rows.append({'Team': str(team).upper(), 'Goalie': _name(p), 'Player ID': str(p.get('playerId') or ''),
                      'GP': _int(p.get('gamesPlayed')), 'GS': _int(p.get('gamesStarted')), 'GA': ga, 'SA': sa,
-                     'Saves': saves, 'TOI (sec)': toi, 'GAA': row_gaa, 'SV%': row_sv})
+                     'Saves': saves, 'TOI (sec)': toi, 'GAA': row_gaa, 'SV%': row_sv,
+                     'Position': str(p.get('positionCode') or 'G').upper()})   # V5.9: club-stats 'goalies' array = NHL position G
     return rows
 
 

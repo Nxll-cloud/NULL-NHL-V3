@@ -73,7 +73,8 @@ def candidates(results, ranked_rows=None, out_ids=(), scored=None, exclude_start
             cands.append({'pid': pid, 'name': rec.get('name') or str(pid), 'team': team, 'opp': opp, 'home': team == s['home'],
                           'game': s.get('key') or f"{s['away']}@{s['home']}", 'game_id': str(s.get('game_id') or ''),
                           'start': s.get('start'), 'venue': s.get('venue') or '', 'phase': phase, 'p': p, 'p_next': rec.get('p_next') if phase == 'live' else None,
-                          'np_rank': rr.get('Statistical rank'), 'form': rr.get('V3.2 Adjusted Index')})
+                          'np_rank': rr.get('Statistical rank'), 'form': rr.get('V3.2 Adjusted Index'),
+                          'position': rr.get('Position') or rec.get('pos') or None})   # V5.9: for the Home goalie pill
     cands.sort(key=lambda c: (-c['p'], c['name']))
     for i, c in enumerate(cands, 1):
         c['model_rank'] = i
@@ -179,6 +180,7 @@ STATUS = {'hit': ('✓', 'Hit'), 'lost': ('✕', 'No goal'), 'live': ('●', 'Li
 
 def section_html(data, statuses, chips_by_pid, empty_reason='', scored=None):
     """Home section (st.html fragment). Price-free: chances, ranks and signals only."""
+    import position_badge_v59 as pb
     import scorers_tonight_v58 as sctn
     import v55_ui as v5
     import venue_v58 as vn
@@ -205,7 +207,7 @@ def section_html(data, statuses, chips_by_pid, empty_reason='', scored=None):
         where = f'{v5.esc(l["team"])} {"vs" if l.get("home") else "@"} {v5.esc(l["opp"])}'
         when = v5.et_time(l.get('start')) if l.get('start') else ''
         cards.append(f'''<article class="npp-leg s-{s}" style="{v5.team_vars(l['team'])}"><div class="npp-top"><span class="npp-n">{i}</span>{v5.logo(l['team'], 'npp-lg')}
-<div class="npp-id"><b class="npp-name">{v5.esc(l['name'])}{sctn.badge_for(scored, l.get('pid'), l.get('name'))}</b><small>{where}{' · ' + v5.esc(when) if when else ''}</small>{vn.tag(l.get('venue'))}</div>
+<div class="npp-id"><b class="npp-name">{v5.esc(l['name'])}{pb.goalie_badge(pb.position_of(l))}{sctn.badge_for(scored, l.get('pid'), l.get('name'))}</b><small>{where}{' · ' + v5.esc(when) if when else ''}</small>{vn.tag(l.get('venue'))}</div>
 <span class="npp-st s-{s}" title="Leg status">{sic} {stxt}</span></div>
 <div class="npp-p"><span class="lbl">Model chance</span><strong>{l['p'] * 100:.1f}%</strong></div>
 <div class="cats">{v5.chips(chips_by_pid.get(l['pid'], []))}</div></article>''')

@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import position_badge_v59 as pb   # V5.9: Home goalie pill
 import venue_v58 as vn
 
 HERE = Path(__file__).resolve().parent
@@ -434,8 +435,9 @@ def hero(data, now):
         lab = g.get('starter_label') or 'Team goalie stats — starter not yet announced'
         tone = 'ok' if 'Confirmed' in lab else ('warn' if 'Probable' in lab else '')
         name = s.get('Goalie') or (g.get('starter') or {}).get('goalie') or 'Starter TBD'
+        gb = pb.goalie_badge(pb.position_of(s) or pb.position_of(g.get('starter')))   # V5.9: 'G' pill from feed position data
         return f'''<div class="duel-g" style="{team_vars(t)}">{mug(season, t, s.get("Player ID"), "gmug")}
-<div><span class="chip {tone}">{esc(lab)}</span><b>{esc(name)}</b>
+<div><span class="chip {tone}">{esc(lab)}</span><b>{esc(name)}{gb}</b>
 <div class="gl"><span>{count(s.get("GAA"), "", 2, "gnum")}<small>GAA</small></span><span><em class="gnum">{_goalie_line(s)}</em><small>SV%</small></span><span>{count(s.get("GP"), "", 0, "gnum")}<small>GP</small></span></div></div></div>'''
 
     if lead:
@@ -444,7 +446,7 @@ def hero(data, now):
         feature = f'''<div class="feature glass" style="{team_vars(lead["team"])}">
 <div class="fmug">{mug(season, lead["team"], lead.get("player_id"), "bigmug")}<span class="jersey">{esc(lead.get("jersey"), "")}</span></div>
 <div class="fbody"><span class="kicker">Tonight’s top target</span>
-<h1>{f'<small>#{esc(lead.get("jersey"))}</small>' if lead.get("jersey") else ''}{esc(lead.get("player"))}</h1>
+<h1>{f'<small>#{esc(lead.get("jersey"))}</small>' if lead.get("jersey") else ''}{esc(lead.get("player"))}{pb.goalie_badge(lead.get("position"))}</h1>
 <p class="fmeta">{logo(lead["team"], "mini")}<span>{esc(lead["team"])} vs {esc(opp)}</span><span>{esc(POS.get(lead.get("position"), lead.get("position")))}</span></p>
 <div class="cats lead">{chip("Top statistical", "neon")}{"".join(chip(c, "neon") for c in cats)}</div><span class="leads">Stat rank #{esc(lead.get("stat_rank"))} · leads {len(cats) + 1} of 8 categories</span></div>
 <div class="fnum"><span class="lbl">Goal-scoring Form %</span>{form_count(lead.get("form_pct"), lead.get("form_label"), "mega")}
@@ -483,7 +485,7 @@ def scoreboard(data, now):
         def gl(t):
             x = sts.get(t) or {}; stt = x.get('status', 'unknown')
             mark = {'confirmed': '<i class="dot ok"></i>', 'probable': '<i class="dot warn"></i>'}.get(stt, '<i class="dot"></i>')
-            return f'<span class="sg">{mark}{esc((x.get("goalie") or "TBD").split(" ")[-1])}</span>'
+            return f'<span class="sg">{mark}{esc((x.get("goalie") or "TBD").split(" ")[-1])}{pb.goalie_badge(pb.position_of(x)) if x.get("goalie") else ""}</span>'
         sc = (data.get('scores') or {}).get(g['key'])  # V5.6: live/final score from the score endpoint or PBP
         clk = f'<span class="clk">{esc(sc.get("label"), "")}</span>' if sc and s == 'live' else ''
         badge = (f'<span class="st live"><i class="pulse"></i>Live{clk}</span>' if s == 'live' else
@@ -501,10 +503,10 @@ def scoreboard(data, now):
 def player_card(season, kind, tone, p, metric_html, caption, chip_html, big=False, empty_title=None, empty_body=None):
     if p is None:
         return f'''<article class="pc empty {tone}"><span class="kind">{esc(kind)}</span><span class="ghost">{"$" if tone == "odds" else "—"}</span><div class="ebody"><b>{esc(empty_title or "Load sportsbook odds to unlock")}</b><p>{esc(empty_body or "No eligible player — this category stays empty until real prices are imported. Nothing is invented.")}</p></div></article>'''
-    return f'''<article class="pc {tone}{" big" if big else ""}" style="{team_vars(p.get("team"))}">
+    return f'''<article class="pc {tone}{" big" if big else ""}{pb.goalie_row_class(p.get("position"))}" style="{team_vars(p.get("team"))}">
 <span class="kind">{esc(kind)}</span><span class="jbg">{esc(p.get("jersey"), "")}</span>
 {mug(season, p.get("team"), p.get("player_id"), "pmug")}
-<div class="pcb"><h4>{esc(p.get("player"))}</h4><p>{logo(p.get("team"), "mini")} {esc(p.get("team"))} · vs {esc(p.get("opponent"))}{" · #" + esc(p.get("jersey")) if p.get("jersey") else ""}</p>
+<div class="pcb"><h4>{esc(p.get("player"))}{pb.goalie_badge(p.get("position"))}</h4><p>{logo(p.get("team"), "mini")} {esc(p.get("team"))} · vs {esc(p.get("opponent"))}{" · #" + esc(p.get("jersey")) if p.get("jersey") else ""}</p>
 <div class="pm">{metric_html}<small>{esc(caption, "")}</small></div>
 {sparkline(p.get("log"), 220, 34, p.get("team"))}{heat_strip(p.get("log"))}
 <div class="cats">{chip_html}</div></div></article>'''
@@ -576,7 +578,7 @@ def goalie_card(season, team, g, kind):
         if not s:
             return '<div class="gc unknown"><span class="chip">No team goalie stats</span></div>'
         head = '<span class="chip leak">Team stats · leakiest by GAA</span><small>not necessarily tonight’s starter</small>'
-    return f'''<div class="gc {kind}" style="{team_vars(team)}">{mug(season, team, s.get("Player ID"), "gcm")}<div class="gcb">{head}<b>{esc(s.get("Goalie"))}</b>
+    return f'''<div class="gc {kind}" style="{team_vars(team)}">{mug(season, team, s.get("Player ID"), "gcm")}<div class="gcb">{head}<b>{esc(s.get("Goalie"))}{pb.goalie_badge(pb.position_of(s))}</b>
 <div class="gl"><span>{count(s.get("GA"), "", 0, "gnum")}<small>GA</small></span><span>{count(s.get("GAA"), "", 2, "gnum")}<small>GAA</small></span><span><em class="gnum">{_goalie_line(s)}</em><small>SV%</small></span><span>{count(s.get("GP"), "", 0, "gnum")}<small>GP</small></span></div></div></div>'''
 
 
@@ -587,8 +589,8 @@ def target_row(season, i, p):
     bar = p.get('form_pct') or 0
     badges = ''.join(chip(b, BADGE_TONES.get(b, 'odds' if str(b).startswith('Odds') else '')) for b in p.get('badges', []))
     matches = f" · {p['matches']} number matches" if p.get('matches') else ''
-    return f'''<li class="tr" style="{team_vars(p.get("team"))}"><span class="rk">{i}</span>{mug(season, p.get("team"), p.get("player_id"), "tm")}
-<div class="tn"><b>{esc(p.get("player"))}</b><small>#{esc(p.get("jersey"), "?")} · Stat rank #{esc(p.get("stat_rank"))}{esc(matches, "")}</small>
+    return f'''<li class="tr{pb.goalie_row_class(p.get("position"))}" style="{team_vars(p.get("team"))}"><span class="rk">{i}</span>{mug(season, p.get("team"), p.get("player_id"), "tm")}
+<div class="tn"><b>{esc(p.get("player"))}{pb.goalie_badge(p.get("position"))}</b><small>#{esc(p.get("jersey"), "?")} · Stat rank #{esc(p.get("stat_rank"))}{esc(matches, "")}</small>
 <div class="cats">{badges}</div></div>
 <div class="tf">{form_count(p.get("form_pct"), p.get("form_label"), "tnum")}<div class="fbar"><i style="--w:{min(bar, 100):.0f}%"></i></div></div>
 <div class="tt">{sparkline(p.get("log"), 120, 30, p.get("team"))}{heat_strip(p.get("log"))}</div></li>'''

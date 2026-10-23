@@ -26,3 +26,16 @@ At 320–430px the Storylines "Groups" multiselect's search box was 28px tall an
 
 ## Version
 README header now says V5.9 (the app itself shows no version string).
+
+## Home goalie marker (V5.9)
+Home only: goalies get a small outlined, muted **G** pill (`.v55 .npg`, 12px desktop / 13px mobile, `white-space:nowrap`), plus a faint row tint (`.is-g`) on leader cards, target rows, parlay legs and long-shot cards when the row is a goalie.
+
+- **Shared helper:** `position_badge_v59.py`. Call `goalie_badge(position)` to get the pill HTML, or `''` if the player isn't a goalie. `position_of(record)` reads `position` / `Position` / `positionCode` / `pos`, and `goalie_row_class(position)` returns the tint class. When `home-accuracy` is merged, its accuracy card should call `goalie_badge(position_of(row))`.
+- **Source of truth:** position data only, never names. Our feeds already sort players by role, so each source records it explicitly:
+  - NHL club-stats `goalies[]` → `Position` (uses `positionCode` when present, otherwise 'G')
+  - NHL boxscore `goalies` block → `position`
+  - ESPN `probableStartingGoalie` → `position` (uses athlete position abbreviation when present)
+  - Rankings / leaders / targets use the roster `Position` column.
+  If there's no position, no badge is shown.
+- **Where it appears:** Tonight's Board starter names, hero goalie duel, hero lead, Leaders cards, Targets rows, matchup goalie cards, parlay legs and long shot. Today the rankings pool has only skaters and the live pool excludes 'G', so in practice the leaders, long shot and parlay never show a goalie. The wiring is there in case that changes.
+- Tests: `test_v59_goalie_badge.py`.

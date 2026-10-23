@@ -108,6 +108,7 @@ def gem_threats(targets):
 
 
 def section_html(c, scored=False, record=None):
+    import position_badge_v59 as pb
     import scorers_tonight_v58 as sctn
     import v55_ui as v5
     import venue_v58 as vn
@@ -121,6 +122,6 @@ def section_html(c, scored=False, record=None):
     why = 'Why: ' + '; '.join(c['why']) + f' - on top of a {c["p"] * 100:.1f}% model chance.'
     state = '<span class="npp-st s-hit">✓ Scored</span>' if scored else ''
     return (f'<section class="sec nls">{head}<article class="nls-card" style="{v5.team_vars(c["team"])}">{v5.logo(c["team"], "nls-lg")}'
-            f'<div class="nls-id"><span class="kind">Long shot</span><b class="nls-name">{v5.esc(c["name"])}{sctn.badge_for(record, c.get("pid"), c.get("name"))}</b><small>{where}{" · " + v5.esc(when) if when else ""}</small>{vn.tag(c.get("venue"))}'
+            f'<div class="nls-id"><span class="kind">Long shot</span><b class="nls-name">{v5.esc(c["name"])}{pb.goalie_badge(pb.position_of(c))}{sctn.badge_for(record, c.get("pid"), c.get("name"))}</b><small>{where}{" · " + v5.esc(when) if when else ""}</small>{vn.tag(c.get("venue"))}'
             f'<p class="nls-why">{v5.esc(why)}</p><div class="cats">{v5.chips(c["signals"])}</div></div>'
             f'<div class="nls-p"><span class="lbl">Model chance</span><strong>{c["p"] * 100:.1f}%</strong>{state}</div></article></section>')

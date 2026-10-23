@@ -80,8 +80,16 @@ def parse_nhl_boxscore(payload, fetched_at=None):
         if team and len(starters) == 1:
             g = starters[0]
             out[team] = {'game_id': gid, 'team': team, 'goalie_id': _pid(g.get('playerId')), 'goalie': _txt(g.get('name')) or None,
-                         'status': 'confirmed', 'source': 'NHL boxscore (starter flag)', 'fetched_at': fetched_at}
+                         'status': 'confirmed', 'source': 'NHL boxscore (starter flag)', 'fetched_at': fetched_at,
+                         'position': str(g.get('position') or 'G').upper()}   # V5.9: playerByGameStats goalies block
     return out
+
+
+def _espn_position(pos):
+    """V5.9: ESPN athlete position may be a dict ({'abbreviation': 'G'}) or a plain string; the probableStartingGoalie slot implies 'G'."""
+    if isinstance(pos, dict):
+        pos = pos.get('abbreviation') or pos.get('code')
+    return str(pos or 'G').strip().upper()
 
 
 def parse_espn_scoreboard(payload, fetched_at=None):
@@ -106,7 +114,8 @@ def parse_espn_scoreboard(payload, fetched_at=None):
                 status = 'confirmed' if stype == 'confirmed' else ('probable' if stype in ('expected', 'probable', 'likely') else 'unknown')
                 if name and status != 'unknown':
                     starters[team] = {'game_id': '', 'team': team, 'goalie_id': None, 'espn_id': str(ath.get('id') or p.get('playerId') or ''),
-                                      'goalie': name, 'status': status, 'source': 'ESPN scoreboard (probables)', 'fetched_at': fetched_at}
+                                      'goalie': name, 'status': status, 'source': 'ESPN scoreboard (probables)', 'fetched_at': fetched_at,
+                                      'position': _espn_position(ath.get('position'))}   # V5.9: probableStartingGoalie
         if teams.get('away') and teams.get('home'):
             out[(teams['away'], teams['home'])] = starters
     return out

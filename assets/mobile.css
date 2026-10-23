@@ -26,7 +26,7 @@
   [data-testid="stHorizontalBlock"]{flex-wrap:wrap!important;gap:.6rem!important}
   [data-testid="stHorizontalBlock"] > [data-testid="stColumn"],[data-testid="stHorizontalBlock"] > [data-testid="column"]{flex:1 1 100%!important;width:100%!important;min-width:0!important}
   [data-testid="stMarkdownContainer"] p,[data-testid="stMarkdownContainer"] li,[data-testid="stCaptionContainer"],[data-testid="stCaptionContainer"] p,.v55 p,.v55 small,.v55 li{font-size:max(13px,1em)}
-  .v55 small,.v55 .lbl,.v55 .chip,.v55 .npk,.v55 .npsc,.v58-sl .sl-tag,.v58-num .mc{font-size:13px}
+  .v55 small,.v55 .lbl,.v55 .chip,.v55 .npk,.v55 .npsc,.v55 .npg,.v58-sl .sl-tag,.v58-num .mc{font-size:13px}
   .stButton button,.stDownloadButton button,[data-testid="stBaseButton-secondary"],[data-testid="stBaseButton-primary"],[data-baseweb="select"] > div,[data-baseweb="input"],.stDateInput input,.stTextInput input,.stNumberInput input,[data-testid="stExpander"] summary{min-height:44px}
   [data-testid="stCheckbox"] label,[data-testid="stRadio"] label,[data-testid="stToggle"] label{min-height:44px;display:flex;align-items:center}
   [data-testid="stExpander"] summary{padding-top:.6rem;padding-bottom:.6rem}
