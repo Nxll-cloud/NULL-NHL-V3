@@ -11,6 +11,9 @@ from nhl_data import fetch_json
 COLUMNS = ["Snapshot UTC", "Slate date", "Game ID", "Player ID", "Player",
            "Team", "Baseline Form Index", "V3.2 Adjusted Index",
            "Defense Adjustment", "Adjustment status"]
+# Audit P1.4: optional shots-share baseline column (older CSVs without it still validate and score).
+SHOTS_COL = "Shots/G L5"
+BASELINE_MODEL = "Shots/G baseline"
 
 def parse_utc(value):
     if not isinstance(value, str):
@@ -50,10 +53,11 @@ def make_snapshot(ranked, games, day, captured=None):
             "V3.2 Adjusted Index": r["V3.2 Adjusted Index"],
             "Defense Adjustment": r["Defense Adjustment"],
             "Adjustment status": r["Adjustment status"],
+            SHOTS_COL: r.get(SHOTS_COL),
         })
     if not result:
         raise ValueError("No ranked players with IDs")
-    return pd.DataFrame(result, columns=COLUMNS)
+    return pd.DataFrame(result, columns=COLUMNS + [SHOTS_COL])
 
 def validate_snapshot(frame):
     if not set(COLUMNS).issubset(frame.columns) or frame.empty:
@@ -128,8 +132,11 @@ def top_k_metrics(scored, k_values=(5, 10, 20)):
     out = []
     if scored.empty:
         return pd.DataFrame()
-    for key, model in (("Baseline Form Index", "V3"), ("V3.2 Adjusted Index", "V3.2")):
-        ordered = scored.sort_values([key, "Player ID"], ascending=[False, True])
+    models = [("Baseline Form Index", "V3"), ("V3.2 Adjusted Index", "V3.2")]
+    if SHOTS_COL in scored and pd.to_numeric(scored[SHOTS_COL], errors="coerce").notna().any():
+        models.append((SHOTS_COL, BASELINE_MODEL))   # naive comparison: top K by recent shots per game
+    for key, model in models:
+        ordered = scored.assign(_k=pd.to_numeric(scored[key], errors="coerce")).sort_values(["_k", "Player ID"], ascending=[False, True])
         for k in k_values:
             top = ordered.head(k)
             if len(top) < k or top["Scored"].isna().any():

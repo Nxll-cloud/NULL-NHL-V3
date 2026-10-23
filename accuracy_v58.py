@@ -56,6 +56,10 @@ MODEL_TAG_SITU = 'V5.9 next-goal prior + situational layer ({parts}): 1 - exp(-l
 UA = {'User-Agent': 'NULL-NHL-V5.9 accuracy'}
 FLAG_NA = 'flag n/a (no saved prices)'
 PARLAY_NOTE = 'parlay rebuilt from the saved pre-game slate'
+# Audit P1.4: every accuracy number sits next to a naive shots-share baseline. Same team goal totals as the model
+# (sum of -ln(1-p) over the team's priced skaters), split by each skater's smoothed season shots per game
+# ((SOG + 1) / (GP + 1), the backtest's SOG-share weight). The model passes when its log loss <= the baseline's.
+BASELINE_TAG = 'shots-share baseline: team model goals split by (SOG+1)/(GP+1)'
 
 
 # ------------------------------------------------------------------------------------------------ dates
@@ -147,6 +151,46 @@ def situ_for(day, games=(), getter=None, starters=False, environ=None, pit=True)
     return sit.layer(ctx, st, ff.model_pp_coherent(None, environ))
 
 
+def shots_share_baseline(players, rows):
+    """[[pid, name, team, p, ...]] + rankings rows -> {str(pid): baseline P(anytime goal)}. Pure."""
+    import live_nextgoal_v56 as ng
+    pri = ng.priors_from_rankings(rows)
+    lam, w = {}, {}
+    for pid, _n, team, p, *_ in players or []:
+        q = pri.get(int(pid)) or {}
+        lam[team] = lam.get(team, 0.0) - math.log(max(1e-9, 1.0 - min(float(p), 1 - 1e-9)))
+        w[pid] = ((q.get('sog') or 0.0) + 1.0) / ((q.get('gp') or 0.0) + 1.0)
+    tot = {}
+    for pid, _n, team, *_ in players or []:
+        tot[team] = tot.get(team, 0.0) + w[pid]
+    return {str(pid): round(1.0 - math.exp(-lam[team] * w[pid] / tot[team]), 4) for pid, _n, team, *_ in players or [] if tot[team] > 0}
+
+
+def attach_baseline(entry, snapshot):
+    """Older log entries (no 'baseline'): rebuild it from the same saved snapshot; rescore the baseline part if
+    the entry is already scored. Returns a new dict (or the entry unchanged when it cannot be rebuilt)."""
+    if not entry or entry.get('baseline') or not snapshot or entry.get('compacted'):
+        return entry
+    e = dict(entry)
+    e['baseline'] = {'method': BASELINE_TAG, 'p': shots_share_baseline(e.get('players'), snapshot.get('rankings') or [])}
+    if e.get('summary') and e.get('results'):
+        e['summary'] = dict(e['summary'], **_baseline_summary(e, {s[0] for s in e['results']['scorers']}))
+    return e
+
+
+def _baseline_summary(e, sids):
+    """{'baseline': {calibration, top_hits, top_n}, 'beats_baseline': model log loss <= baseline log loss}."""
+    bp = (e.get('baseline') or {}).get('p') or {}
+    if not bp or e.get('compacted'):
+        return {'baseline': None, 'beats_baseline': None}
+    pairs = [(bp[str(p[0])], p[0] in sids) for p in e.get('players') or [] if str(p[0]) in bp]
+    top = [int(k) for k, _ in sorted(bp.items(), key=lambda kv: (-kv[1], int(kv[0])))[:TOP_N]]
+    cal = calibration(pairs)
+    mod = calibration((p[3], p[0] in sids) for p in e.get('players') or [])
+    return {'baseline': {'calibration': cal, 'top_hits': sum(1 for p in top if p in sids), 'top_n': len(top)},
+            'beats_baseline': (mod['log_loss'] <= cal['log_loss']) if cal and mod else None}
+
+
 def predictions(snapshot, out_ids=(), source='snapshot', now=None, injuries_note=None, situ=None):
     """Saved pre-game slate snapshot -> frozen prediction entry (no network). Every skater the model prices is kept.
     ``situ``: the situational layer (situ_for), the same one the app's surfaces use; None = the V5.6 model."""
@@ -188,7 +232,8 @@ def predictions(snapshot, out_ids=(), source='snapshot', now=None, injuries_note
             'players': players,
             'parlay': {'legs': [l['pid'] for l in pdata.get('legs') or []], 'per': pdata.get('per'), 'short': bool(pdata.get('short')),
                        'derived': True, 'note': PARLAY_NOTE + (' · ' + injuries_note if injuries_note else '')},
-            'flags': flags, 'results': None, 'summary': None}
+            'flags': flags, 'baseline': {'method': BASELINE_TAG, 'p': shots_share_baseline(players, rows)},
+            'results': None, 'summary': None}
 
 
 def out_ids_now(snapshot, injuries):
@@ -334,6 +379,7 @@ def score(entry, results, now=None, compact=False):
                     'realized': round(len(modeled) / len(pred), 4) if pred else None}
     full = not e.get('compacted')
     e['summary']['calibration'] = calibration((p[3], p[0] in sids) for p in pred.values()) if full else None
+    e['summary'].update(_baseline_summary(e, sids))
     if compact:   # rolling compaction: keep only what the card can show
         keep = sids | set(top) | set(legs) | flagged
         e['players'] = [p for p in e.get('players') or [] if p[0] in keep]
@@ -366,14 +412,26 @@ def trend(entries, n=TREND_N):
     nights = [{'day': e['day'], 'top_hits': e['summary']['top_hits'], 'top_n': e['summary']['top_n'],
                'rate': e['summary']['top_hits'] / e['summary']['top_n'] if e['summary']['top_n'] else None,
                'avg_p_scorers': e['summary']['avg_p_scorers'], 'mean_p': e['summary']['mean_p'],
-               'realized': e['summary']['realized'], 'calibration': e['summary'].get('calibration')} for e in done]
+               'realized': e['summary']['realized'], 'calibration': e['summary'].get('calibration'),
+               'baseline': e['summary'].get('baseline')} for e in done]
     hits, tot = sum(x['top_hits'] for x in nights), sum(x['top_n'] for x in nights)
+    bn = [x for x in nights if x.get('baseline') and x.get('calibration')]   # nights where model AND baseline are scored
     def avg(k):
         v = [x[k] for x in nights if x[k] is not None]
         return sum(v) / len(v) if v else None
     return {'nights': nights, 'top_hits': hits, 'top_n': tot, 'top_rate': hits / tot if tot else None,
             'avg_p_scorers': avg('avg_p_scorers'), 'mean_p': avg('mean_p'), 'realized': avg('realized'),
-            'calibration': pooled_calibration(nights)}
+            'calibration': pooled_calibration(nights),
+            'baseline': {'top_hits': sum(x['baseline']['top_hits'] for x in bn), 'top_n': sum(x['baseline']['top_n'] for x in bn),
+                         'calibration': pooled_calibration([{'calibration': x['baseline']['calibration']} for x in bn]),
+                         'model_calibration': pooled_calibration(bn)} if bn else None}
+
+
+def baseline_check(model_cal, base_cal):
+    """Pass/fail rule: model log loss <= shots-share baseline log loss. None when either side is missing."""
+    if not model_cal or not base_cal:
+        return None
+    return model_cal['log_loss'] <= base_cal['log_loss']
 
 
 def pooled_calibration(nights):
@@ -467,6 +525,15 @@ def update(now=None, getter=None, snap_root=SNAP_DIR, root=LOG_DIR, injuries_fn=
             save_entry(predictions(snap, (), 'workflow catch-up', now, situ=situ_for(day, snap.get('games'), getter=getter)), root)
             done.append(f'caught up {day}')
     for e in load_all(root):
+        if not e.get('baseline') and not e.get('compacted'):   # audit P1.4: older entries gain the shots-share baseline
+            try:
+                b = attach_baseline(e, _load_snap(e['day'], snap_root))
+                if b is not e:
+                    save_entry(b, root)
+                    done.append(f'baseline {e["day"]}')
+                    e = b
+            except Exception as exc:
+                log(f'accuracy: baseline for {e["day"]} skipped ({type(exc).__name__})')
         if e.get('results') or e['day'] >= today:
             continue
         try:
@@ -578,6 +645,12 @@ def view(now=None, getter=None, root=LOG_DIR, snap_root=SNAP_DIR, lookback=7):
     now = now or datetime.now(timezone.utc)
     y = eastern_yesterday(now).isoformat()
     entries = {e['day']: e for e in load_all(root)}
+    for d in sorted(entries)[-(TREND_N + lookback):]:   # audit P1.4: baseline for entries logged before it existed
+        if not entries[d].get('baseline'):
+            try:
+                entries[d] = attach_baseline(entries[d], _load_snap(d, snap_root))
+            except Exception:
+                pass
     notes = []
 
     def resolve(day):
@@ -665,7 +738,7 @@ def snapshot_positions(day, snap_root=SNAP_DIR):
         return {}
 
 
-def calib_html(night, pooled):
+def calib_html(night, pooled, base=None):
     """Brier / log loss line + reliability table (every priced skater; lower Brier / log loss = better)."""
     import v55_ui as v5
     esc = v5.esc
@@ -679,12 +752,31 @@ def calib_html(night, pooled):
         parts.append(f'Last {pooled["nights"]} scored night{"s" if pooled["nights"] != 1 else ""}: Brier <b>{pooled["brier"]:.3f}</b> · '
                      f'log loss <b>{pooled["log_loss"]:.3f}</b> ({pooled["n"]} skaters)')
     rel = (pooled or night or {}).get('reliability') or []
+    if base is not None:
+        parts.append(_baseline_line(night, pooled, base))
     rows_ = ''.join(f'<tr><td>{esc(b["bucket"])}</td><td class="n">{b["n"]}</td><td class="n">{_pct(b["mean_pred"])}</td>'
                     f'<td class="n">{_pct(b["observed"])}</td></tr>' for b in rel)
     table = (f'<details><summary>Reliability table (predicted vs actually scored)</summary><div class="npacc-tw"><table class="npacc-t">'
              f'<thead><tr><th>Model chance</th><th class="n">Skaters</th><th class="n">Avg predicted</th><th class="n">Scored</th></tr></thead>'
              f'<tbody>{rows_}</tbody></table></div></details>') if rel else ''
     return f'<p class="npacc-cal">{" · ".join(parts)}. Lower is better.</p>{table}'
+
+
+def _baseline_line(night, pooled, base):
+    """'Shots-share baseline: log loss X (night) / Y (pooled) · model PASS|FAIL (model log loss <= baseline)'."""
+    nb, pb = (base.get('night') or {}).get('calibration'), (base.get('pooled') or {}).get('calibration')
+    if not nb and not pb:
+        return 'Shots-share baseline: n/a for this night (logged before the baseline was saved)'
+    bits = []
+    if nb:
+        bits.append(f'night log loss <b>{nb["log_loss"]:.3f}</b>')
+    if pb:
+        bits.append(f'last {pb["nights"]} log loss <b>{pb["log_loss"]:.3f}</b>')
+    chk = baseline_check(night, nb) if nb else None
+    pchk = baseline_check((base.get('pooled') or {}).get('model_calibration'), pb) if pb else None
+    verdict = pchk if pchk is not None else chk
+    tag = '' if verdict is None else (' · model <b class="ok">PASS</b>' if verdict else ' · model <b>FAIL</b>')
+    return f'Shots-share baseline: {" · ".join(bits)}{tag} (rule: model log loss ≤ baseline)'
 
 
 def card_html(v, max_rows=8, snap_root=SNAP_DIR):
@@ -702,7 +794,9 @@ def card_html(v, max_rows=8, snap_root=SNAP_DIR):
                 f'nothing to score. The running trend starts with the first scored night.</p>{pend_line}</section>')
     s = shown['summary']
     flags_on = s.get('flag_n') is not None
+    sb = s.get('baseline') or {}
     head = (f'{short_day(shown["day"])} · {s["n_scorers"]} scorers · model top-{s["top_n"]} hit {s["top_hits"]}/{s["top_n"]}'
+            + (f' (shots-share {sb["top_hits"]}/{sb["top_n"]})' if sb.get('top_n') else '')
             + (f' · parlay {s["parlay_hits"]}/{s["parlay_legs"]} legs' if s['parlay_legs'] else ''))
     rs = rows(shown, snapshot_positions(shown['day'], snap_root))
     top = {p[0] for p in sorted(shown.get('players') or [], key=lambda p: p[4])[:TOP_N]}
@@ -727,11 +821,14 @@ def card_html(v, max_rows=8, snap_root=SNAP_DIR):
                   f'<tbody>{more}</tbody></table></div></details>')
     n = tr.get('nights') or []
     trend_line = ''
+    tb = tr.get('baseline') or {}
     if n:
         trend_line = (f'<div class="npacc-tr"><span>Last {len(n)} night{"s" if len(n) != 1 else ""}: top-10 hit <b>{tr["top_hits"]}/{tr["top_n"]}</b>'
-                      f' ({_pct(tr["top_rate"])})</span>{spark(n)}<span>scorers averaged <b>{_pct(tr["avg_p_scorers"])}</b> model chance vs '
+                      f' ({_pct(tr["top_rate"])})'
+                      + (f' · shots-share baseline <b>{tb["top_hits"]}/{tb["top_n"]}</b>' if tb.get('top_n') else '')
+                      + f'</span>{spark(n)}<span>scorers averaged <b>{_pct(tr["avg_p_scorers"])}</b> model chance vs '
                       f'<b>{_pct(tr["mean_p"])}</b> slate average · <b>{_pct(tr["realized"])}</b> of priced skaters scored</span></div>')
-    trend_line += calib_html(s.get('calibration'), tr.get('calibration'))
+    trend_line += calib_html(s.get('calibration'), tr.get('calibration'), {'night': sb, 'pooled': tb})
     unpriced = s['n_scorers'] - s['n_modeled_scorers']
     foot = (f'<p class="npacc-f">Pre-game chances frozen from the saved slate ({esc(str(shown.get("snapshot_at", ""))[:16].replace("T", " "))} UTC); '
             f'real NHL goals matched by player ID; marked rows = model top {s["top_n"]}. '

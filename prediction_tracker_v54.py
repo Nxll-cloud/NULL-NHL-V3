@@ -58,6 +58,11 @@ PRIOR_STRENGTH = 10
 MIN_SAMPLE = 3
 ADJ_CAP = 0.05
 MIN_POOL = 20
+# Audit P1.4: a naive shots-share baseline (top N by recent shots per game) is saved with every slate and graded
+# next to the picks. It is a comparison line only: never a pick, never in hit rates, near-misses or learning.
+BASELINE_SOURCE = 'Shots baseline'
+BASELINE_N = 10
+BASELINE_COLS = ('Shots/G L10', 'Shots/G L5')
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS slates(
@@ -141,7 +146,7 @@ def team_game_map(games):
     return out
 
 
-def build_prediction_rows(ranked, leaders=None, games=None, gematria=None, cutoff=PICK_CUTOFF, band=WATCH_BAND):
+def build_prediction_rows(ranked, leaders=None, games=None, gematria=None, cutoff=PICK_CUTOFF, band=WATCH_BAND, baseline_n=BASELINE_N):
     """Collect the slate's predictions. Pure; returns a list of dicts."""
     tg = team_game_map(games)
     rows = []
@@ -163,6 +168,13 @@ def build_prediction_rows(ranked, leaders=None, games=None, gematria=None, cutof
         for _, p in r.head(cutoff + band).iterrows():
             add(p.get('Player ID'), p.get('Player'), p.get('Team'), 'Stats', p['_rank'], p.get('V3.2 Adjusted Index'),
                 is_pick=1 if p['_rank'] <= cutoff else 0)
+        col = next((c for c in BASELINE_COLS if c in ranked), None)
+        if col and baseline_n:
+            b = r.copy()   # the same ranked (eligible) skaters, re-ordered by shots per game alone
+            b['_sog'] = pd.to_numeric(b[col], errors='coerce')
+            b = b[b['_sog'].notna()].sort_values(['_sog', '_rank'], ascending=[False, True])
+            for i, (_, p) in enumerate(b.head(baseline_n).iterrows(), 1):
+                add(p.get('Player ID'), p.get('Player'), p.get('Team'), BASELINE_SOURCE, i, p['_sog'], is_pick=0)
     for i, p in enumerate((gematria or [])[:NUMBERS_PICKS], 1):
         add(p.get('player_id'), p.get('player'), p.get('team'), 'Numbers', i, p.get('matches'))
     source_of = {'statistical': 'Stats', 'gematria': 'Numbers', 'odds': 'Odds', 'overlap': 'Overlap'}
@@ -385,9 +397,12 @@ def evaluate_slate(conn, day):
     def in_scope(p):
         return p['game_id'] in finals if p['game_id'] else slate_final
 
-    picks, watch = {}, {}
+    picks, watch, base_rows = {}, {}, {}
     for p in preds:
         if not in_scope(p):
+            continue
+        if p['source'] == BASELINE_SOURCE:   # comparison line only (audit P1.4)
+            base_rows[p['player_key']] = p
             continue
         target = picks if p['is_pick'] else watch
         entry = target.setdefault(p['player_key'], {**p, 'sources': set()})
@@ -416,11 +431,13 @@ def evaluate_slate(conn, day):
         if a and a['goals'] > 0:
             near.append({'player': p['player'], 'player_key': k, 'team': p['team'], 'sources': ['Stats'],
                          'goals': a['goals'], 'assists': a['assists'], 'reason': f'Ranked #{p["rank"]}, just outside the top {PICK_CUTOFF}'})
+    bh = sum(1 for p in base_rows.values() if (lambda a: bool(a and a['goals'] > 0))(_match_actual(p, by_id, by_name)))
+    baseline = {'picks': len(base_rows), 'hits': bh, 'rate': (bh / len(base_rows)) if base_rows else None}
     unpredicted = [{'player': a['player'], 'player_key': a['player_key'], 'team': a['team'], 'goals': a['goals']}
                    for a in acts if a['goals'] > 0 and a['player_key'] not in matched_keys]
     n = len(hits) + len(misses)
     return {**base, 'status': 'evaluated' if n else 'no_picks', 'hits': hits, 'misses': misses, 'unpredicted': unpredicted,
-            'near_misses': near, 'picks': n, 'hit_rate': (len(hits) / n) if n else None,
+            'near_misses': near, 'picks': n, 'hit_rate': (len(hits) / n) if n else None, 'baseline': baseline,
             'by_source': {s: {**v, 'rate': (v['hits'] / v['picks']) if v['picks'] else None} for s, v in by_source.items()}}
 
 
@@ -440,6 +457,18 @@ def rolling(evals, last_n=None):
     hits = sum(len(e['hits']) for e in done)
     picks = sum(e['picks'] for e in done)
     return {'slates': len(done), 'hits': hits, 'picks': picks, 'rate': (hits / picks) if picks else None}
+
+
+def baseline_rollup(evals, last_n=None):
+    """Shots-share baseline graded over the same evaluated slates (slates saved before it existed are skipped)."""
+    done = sorted([e for e in evals if e['status'] == 'evaluated' and (e.get('baseline') or {}).get('picks')], key=lambda e: e['day'])
+    if last_n:
+        done = done[-last_n:]
+    h, p = sum(e['baseline']['hits'] for e in done), sum(e['baseline']['picks'] for e in done)
+    stats = [e for e in done if (e.get('by_source') or {}).get('Stats', {}).get('picks')]
+    sh, sp = sum(e['by_source']['Stats']['hits'] for e in stats), sum(e['by_source']['Stats']['picks'] for e in stats)
+    return {'slates': len(done), 'hits': h, 'picks': p, 'rate': (h / p) if p else None,
+            'stats_rate_same_slates': (sh / sp) if sp else None}
 
 
 def source_breakdown(evals, last_n=None):

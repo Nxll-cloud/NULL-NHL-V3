@@ -214,7 +214,11 @@ if _rx:
                     with st.expander('Boxscore errors'):
                         st.write(failures)
                 if not scored.empty:
-                    st.dataframe(top_k_metrics(scored), hide_index=True, use_container_width=True)
+                    _tk = top_k_metrics(scored)
+                    st.dataframe(_tk, hide_index=True, use_container_width=True)
+                    st.caption('Shots/G baseline = the top K by shots per game over the last 5 games (a naive comparison, '
+                               'shown next to every hit rate). A model row that does not beat it at the same K adds nothing over shot volume. '
+                               'Snapshots saved before this column existed have no baseline row.')
                     st.dataframe(ui.with_form_pct(scored), hide_index=True, use_container_width=True, column_config=ui.form_pct_config(st))
                     st.download_button('Download scored snapshot CSV', ui.with_form_pct(scored).to_csv(index=False),
                                        file_name='null-scored-snapshot.csv', mime='text/csv')

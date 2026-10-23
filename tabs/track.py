@@ -11,6 +11,15 @@ else:
     st.caption(f'Store: {trk.db_path()} · Streamlit Community Cloud storage is ephemeral (lost on reboot/redeploy); export JSON below to keep history.')
     # V5.8: the accuracy rings + per-slate bars moved here from Home (single home for every track-record element).
     v5.html_block(st, v5.track_section(v5state.track_summary(_tevals, trk.rolling), 'Accuracy summary'), extra_class='v58-track')
+    _tb = trk.baseline_rollup(_tevals)   # audit P1.4: the shots-share baseline next to every track-record rate
+    if _tb['picks']:
+        _ok = _tb['stats_rate_same_slates'] is not None and _tb['stats_rate_same_slates'] >= _tb['rate']
+        st.caption(f"Shots-share baseline (top {trk.BASELINE_N} by shots per game, a comparison line, never a pick): "
+                   f"{_tb['hits']}/{_tb['picks']} = {_tb['rate']*100:.1f}% over {_tb['slates']} slate(s) · Stats picks on the same slates "
+                   f"{'n/a' if _tb['stats_rate_same_slates'] is None else format(_tb['stats_rate_same_slates']*100, '.1f') + '%'} · "
+                   f"{'PASS' if _ok else 'FAIL'} (Stats hit rate ≥ baseline). Probability check (log loss ≤ baseline) is on the Home accuracy card.")
+    else:
+        st.caption('Shots-share baseline: no graded slate carries it yet (saved with every slate from this version on).')
     _status = st.session_state.get('v54_trk_status')
     _info = trk.slate_info(_tconn, np_day)
     _c1,_c2 = st.columns([3,2])
@@ -44,6 +53,8 @@ else:
             st.line_chart((_trend.set_index('Slate')*100).round(1))
         st.markdown(ui.section('By source','Stats · Numbers · Odds · Overlap picks','🧩','gem'),unsafe_allow_html=True)
         _src = trk.source_breakdown(_tevals)
+        _tb = trk.baseline_rollup(_tevals)
+        _src = pd.concat([_src, pd.DataFrame([{'Source': 'Shots baseline (comparison only)', 'Picks': _tb['picks'], 'Hits': _tb['hits'], 'Hit rate': _tb['rate']}])], ignore_index=True)
         _src['Hit rate'] = _src['Hit rate'].map(lambda v: None if v is None else round(v*100,1))
         st.dataframe(_src, hide_index=True, use_container_width=True, column_config={'Hit rate': st.column_config.NumberColumn('Hit rate', format='%.1f%%')})
         st.markdown(ui.section('Player leaderboard','Shrunk hit rate (prior strength 10) · badges need ≥3 graded picks','🏅','odds'),unsafe_allow_html=True)
