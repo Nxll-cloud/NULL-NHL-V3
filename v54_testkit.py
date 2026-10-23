@@ -38,7 +38,7 @@ class _Resp:
             raise requests.HTTPError(str(self.status_code))
 
 
-def run_app(monkeypatch, tmp_path, espn='fixture', session=None, timeout=180, pbp_files=None, extra_games=()):
+def run_app(monkeypatch, tmp_path, espn='fixture', session=None, timeout=180, pbp_files=None, extra_games=(), games=None):
     """AppTest of app.py on the trimmed real slate with every HTTP call faked (offline).
 
     V5.6: ``pbp_files`` {target name: fixture path} are copied to a temp folder served through PLAYBOOK_V56_PBP_DIR
@@ -51,6 +51,12 @@ def run_app(monkeypatch, tmp_path, espn='fixture', session=None, timeout=180, pb
     snap = slate()
     if extra_games:
         snap = {**snap, 'games': list(snap['games']) + list(extra_games)}
+    if games is not None:   # V5.8 slate tests: keep only these 'AWY@HOM' games (an empty list = a 0-game slate)
+        keep = set(games)
+        snap = {**snap, 'games': [g for g in snap['games'] if f"{g['Away']}@{g['Home']}" in keep]}
+        teams = {t for g in snap['games'] for t in (g['Away'], g['Home'])}
+        rows = sorted((r for r in snap['rankings'] if r.get('Team') in teams), key=lambda r: r.get('Statistical rank') or 0)
+        snap['rankings'] = [{**r, 'Statistical rank': i} for i, r in enumerate(rows, 1)]   # ranks span 1..n per slate
     club = load('nhl_club_stats_goalies_20261022.json')
     espn_payload = load('espn_scoreboard_20261022.json')
     if espn == 'empty':  # feed reachable but no probables listed -> unknown state

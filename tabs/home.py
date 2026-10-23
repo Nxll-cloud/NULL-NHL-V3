@@ -19,7 +19,7 @@ np_games=[g for g in (np_games or []) if isinstance(g,dict)]
 np_ranked=st.session_state.get('signals_ranked')
 np_ready=isinstance(np_ranked,pd.DataFrame) and not np_ranked.empty and st.session_state.get('signals_day')==np_day
 _trk_conn,_trk_evals,_trk_records,_trk_err=np_track_state()
-_trk_badges=trk.badge_lookup(_trk_records)
+_trk_badges=trk.badge_lookup(_trk_records) if np_show_track else None  # Matchup Center only, and only when the Track Record flag is on
 if not np_games:
     st.info('No NHL games are scheduled for this date. Pick another date above.')
 # V5.2: four genuinely distinct leaders, computed from the selected day's slate.
@@ -28,7 +28,7 @@ _home_leaders=home_choose_leaders(np_ranked if np_ready else None,_home_targets,
 # V5.4: Research's Player Intelligence picks, from the SAME shared function.
 _np_intel,_=intel_from_state(st.session_state,np_day)
 _np_picks=intel_four_picks(_np_intel)
-# V5.5: one designed fragment (hero, board, leaders + intelligence, track rings, featured matchup) bound to live data.
+# V5.5: one designed fragment (V5.8: board, hero, leaders + intelligence, featured matchup; no track rings) bound to live data.
 try:
     _v5_ranked=assign_statistical_ranks(np_ranked.copy()) if np_ready else None
 except (ValueError,KeyError,TypeError):
@@ -42,13 +42,41 @@ _v5_state=v5state.build_state(day=np_day,season=SEASON,games=np_games,ranked=np_
     leaders=_home_leaders,picks=_np_picks,ranked_with_stat=_v5_ranked,goalie_rows=_v5_gk,starters=_v5_st,starters_fetched_at=_v5_st_at,
     discrepancies=_np_shared_discrepancies,track=v5state.track_summary(_trk_evals,trk.rolling),
     snapshot_at=np_snapshot['updated_at'] if np_snapshot is not None else None,
-    rosters_fn=v55_rosters_cached,logs_fn=v55_logs_cached,price_label=price_label,track_badges=_trk_badges)
+    rosters_fn=v55_rosters_cached,logs_fn=v55_logs_cached,price_label=price_label,track_badges=None)  # V5.8: no track badges on Home
 # V5.6: board tiles carry live/final scores and the official game state (score endpoint, else play-by-play).
 _v5_state['scores']=lstate.tile_scores(_v56_results)
 for _g in (_v5_state.get('games') or [])+([_v5_state['featured']] if _v5_state.get('featured') else []):
     _sc=_v56_scores.get(str(_g.get('game_id') or ''))
     if _sc and _sc.get('state'):
         _g['status']=_sc['state']
+# V5.8: Top four-leg parlay (price-free): best combined model chance, one leg per game, below the Featured matchup hero.
+try:
+    _pl_inj=slx.espn_fetch('injuries')
+except Exception:
+    _pl_inj=None
+_pl_outn=slx.out_players(_pl_inj)
+_pl_out={r['pid'] for _r in _v56_results for r in _r['result'].get('players') or [] if (slx.norm(r.get('name')),r.get('team')) in _pl_outn}
+_pl_rec=sctn.active(st.session_state,np_day)
+_pl_scored=dict((_pl_rec or {}).get('players') or {})
+_pl_sig=(np_day,len(_v56_rows),tuple(sorted(r['slate'].get('key','') for r in _v56_results)),tuple(sorted(_pl_out)))
+_pl_data=parlay.lock(st.session_state.setdefault('v58_parlay',{}),np_day,_pl_sig,
+    lambda:parlay.build(_v56_results,_v56_rows,_pl_out,_pl_scored),_v56_results)
+_pl_phase={r['slate'].get('key'):r['result'].get('phase') for r in _v56_results}
+_pl_status={l['pid']:parlay.leg_status(l,_pl_rec,_pl_phase) for l in _pl_data.get('legs') or []}
+_pl_picks={}
+for _k,_lbl in INTEL_LABELS:
+    try: _pl_picks.setdefault(int(float(((_np_picks or {}).get(_k) or {}).get('Player ID'))),[]).append(_lbl.title())
+    except (TypeError,ValueError): pass
+_pl_gem=parlay.gem_index(_home_targets)
+_pl_story=slx.stories_for_day(np_day)
+_v5_state['parlay_html']=parlay.section_html(_pl_data,_pl_status,{l['pid']:parlay.support(l,_pl_picks,_pl_gem,_pl_story) for l in _pl_data.get('legs') or []},
+    '' if _v56_rows else 'Build this slate’s rankings first (the leg chances come from the season model priors).')
+# V5.8: Top long shot candidate (price-free): band-limited model chance x upside signals, never a parlay leg.
+_ls_open=(st.session_state.get('v56_openers') or {}).get(np_day) or {}   # REAL opening lines only (never DEMO)
+_ls_edge={x['pid'] for _r in _v56_results for x in (eflags.edges_for_game(_r['result'],_ls_open) if _ls_open else []) if x['flag']}
+_ls_pick=longshot.pick(parlay.candidates(_v56_results,_v56_rows,_pl_out,_pl_scored),[l['pid'] for l in _pl_data.get('legs') or []],
+    longshot.gem_threats(_home_targets),_pl_story,longshot.game_jumps(_v56_results),_ls_edge) if _v56_rows else None
+_v5_state['longshot_html']=longshot.section_html(_ls_pick,bool(_ls_pick and _ls_pick['pid'] in _pl_scored))
 v5.html_block(st,v5.render_home(_v5_state,datetime.now(timezone.utc)))
 if _v56_results:  # V5.6: Home live strip (score + current next-goal leader per game)
     v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results)))
@@ -106,17 +134,14 @@ else:
                             f'<div class="np-feature-score">{ui.format_form_pct(r.get("V3.2 Adjusted Index"))}<span> FORM %</span></div></div>')
         st.markdown('<div class="np-feature-scroll">'+''.join(np_cards)+'</div>',unsafe_allow_html=True)
         st.markdown(ui.section('Statistical leaderboard','Top ten · Form % = share of the 100-point form benchmark (clipped at 100%)','📊','stat'),unsafe_allow_html=True)
-        _adjust=st.toggle('Use track record to adjust rankings',value=False,key='v54_track_adjust',
-                          help='OFF (default): rankings are unchanged and track record only adds badges. ON: this leaderboard is re-sorted by a bounded (±5%) track-record adjustment.') if hasattr(st,'toggle') else st.checkbox('Use track record to adjust rankings',value=False,key='v54_track_adjust')
-        _board_src=trk.apply_track_record(np_view.sort_values('Statistical rank'),_trk_records,enabled=_adjust)
-        np_cols=[c for c in ['Statistical rank','Player','Team','V3.2 Adjusted Index','Shots/G L5','Track adj'] if c in _board_src]
+        # V5.8: track record (badges, ±5% adjustment toggle, rings) lives only in the Track Record tab.
+        _board_src=np_view.sort_values('Statistical rank')
+        np_cols=[c for c in ['Statistical rank','Player','Team','V3.2 Adjusted Index','Shots/G L5'] if c in _board_src]
         _board=ui.with_form_pct(_board_src[np_cols].head(10)).drop(columns=['V3.2 Adjusted Index'])
         _cfg={'Statistical rank':st.column_config.NumberColumn('Rank',format='#%d',width='small'),
-            'Shots/G L5':st.column_config.NumberColumn('Shots/G · L5',format='%.1f'),
-            'Track adj':st.column_config.NumberColumn('Track adj',format='%+.3f')}
+            'Shots/G L5':st.column_config.NumberColumn('Shots/G · L5',format='%.1f')}
         _cfg.update(ui.form_pct_config(st,progress=True))
         st.dataframe(_board,hide_index=True,use_container_width=True,column_config=_cfg)
-        if _adjust: st.caption('Track-record adjustment ON: order uses the raw V3.2 index × (1 + adj), adj capped at ±5% with ≥3 graded picks. The four leaders above are unchanged.')
         # V5.3.1: historical coverage is shown in Research only, never on Home.
 st.markdown(ui.section('Sportsbook price intelligence','Best available anytime-goal prices across books','📈','odds'),unsafe_allow_html=True)
 if not _np_shared_discrepancies.empty:

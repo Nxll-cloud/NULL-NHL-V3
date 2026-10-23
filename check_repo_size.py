@@ -10,6 +10,12 @@ lists the largest files, and exits non-zero when any file is over the fail limit
     python check_repo_size.py --max-file-kb 100   # this repo's rule: every file < 100 KB (default)
     python check_repo_size.py --max-file-kb 0     # disable the per-file KB rule
 
+V5.8 slate fix: the per-file KB rule is for the code/data you upload by hand. The precompute workflow's own
+slate snapshots (snapshots/YYYY-MM-DD.json, force-added by the bot) are exempt from it, because a normal
+slate snapshot is 100-700 KB and, once committed, it made every later precompute run fail this check
+(V5.6 on main: snapshots/2026-10-23.json = 108,020 bytes, runs failing from 2026-10-23 05:55 UTC on).
+Snapshots still have their own cap (--max-snapshot-kb, default 5 MB) and GitHub's 50/100 MB limits.
+
 Exit codes: 0 ok (warnings allowed), 1 a file is over the fail limit or the per-file KB limit.
 """
 from __future__ import annotations
@@ -25,6 +31,13 @@ MB = 1024 * 1024
 WARN_MB, FAIL_MB, TOP = 50, 95, 15
 MAX_FILE_KB = 100   # V5.6: this repo keeps every file under 100 KB (configurable; 0 disables)
 ALWAYS_SKIP = {'.git'}
+MAX_SNAPSHOT_KB = 5 * 1024   # V5.8: cap for the bot-written slate snapshots (exempt from MAX_FILE_KB)
+SNAPSHOT_EXEMPT = ('snapshots/????-??-??.json',)
+
+
+def is_snapshot(rel: str) -> bool:
+    """V5.8: True for the precompute workflow's slate snapshot files (snapshots/YYYY-MM-DD.json)."""
+    return any(fnmatch.fnmatchcase(rel, pat) for pat in SNAPSHOT_EXEMPT)
 
 
 def _patterns(root: Path):
@@ -103,14 +116,19 @@ def human(n):
     return f'{n / MB:.2f} MB' if n >= MB else f'{n / 1024:.1f} KB'
 
 
-def check(root='.', warn_mb=WARN_MB, fail_mb=FAIL_MB, top=TOP, use_gitignore=True, max_file_kb=None):
-    """max_file_kb: per-file limit in KB (files must be strictly smaller); None/0 disables it."""
+def check(root='.', warn_mb=WARN_MB, fail_mb=FAIL_MB, top=TOP, use_gitignore=True, max_file_kb=None,
+          max_snapshot_kb=MAX_SNAPSHOT_KB):
+    """max_file_kb: per-file limit in KB (files must be strictly smaller); None/0 disables it.
+    V5.8: slate snapshots (snapshots/YYYY-MM-DD.json) are checked against max_snapshot_kb instead."""
     files = walk(root, use_gitignore)
     warn = [(p, s) for p, s in files if s > warn_mb * MB]
     fail = [(p, s) for p, s in files if s > fail_mb * MB]
-    over_kb = [(p, s) for p, s in files if max_file_kb and s >= max_file_kb * 1024]
+    over_kb = [(p, s) for p, s in files if max_file_kb and not is_snapshot(p) and s >= max_file_kb * 1024]
+    over_snap = [(p, s) for p, s in files if max_snapshot_kb and is_snapshot(p) and s >= max_snapshot_kb * 1024]
     return {'files': files, 'total': sum(s for _, s in files), 'top': files[:top], 'warn': warn, 'fail': fail,
-            'over_kb': over_kb, 'max_file_kb': max_file_kb or 0, 'ok': not fail and not over_kb}
+            'over_kb': over_kb, 'over_snapshot_kb': over_snap, 'max_file_kb': max_file_kb or 0,
+            'max_snapshot_kb': max_snapshot_kb or 0, 'snapshots': [(p, s) for p, s in files if is_snapshot(p)],
+            'ok': not fail and not over_kb and not over_snap}
 
 
 def report(res, warn_mb=WARN_MB, fail_mb=FAIL_MB):
@@ -125,8 +143,13 @@ def report(res, warn_mb=WARN_MB, fail_mb=FAIL_MB):
         lines.append(f'FAIL: {p} is {human(s)} (> {fail_mb} MB; GitHub rejects files over 100 MB)')
     for p, s in res.get('over_kb', []):
         lines.append(f"FAIL: {p} is {human(s)} (per-file limit: every file must be < {res['max_file_kb']:g} KB)")
+    for p, s in res.get('over_snapshot_kb', []):
+        lines.append(f"FAIL: {p} is {human(s)} (slate snapshot limit: < {res['max_snapshot_kb']:g} KB)")
     if res.get('max_file_kb') and not res.get('over_kb'):
-        lines.append(f"OK: every file is < {res['max_file_kb']:g} KB.")
+        snaps = res.get('snapshots') or []
+        lines.append(f"OK: every file is < {res['max_file_kb']:g} KB"
+                     + (f" ({len(snaps)} slate snapshot(s) checked against {res['max_snapshot_kb']:g} KB instead)."
+                        if snaps else '.'))
     lines.append('OK: no file over the fail limit.' if res['ok'] else 'FAILED: remove or shrink the files above (see GITHUB_UPLOAD.md).')
     return '\n'.join(lines)
 
@@ -138,9 +161,11 @@ def main(argv=None):
     ap.add_argument('--fail-mb', type=float, default=FAIL_MB)
     ap.add_argument('--top', type=int, default=TOP)
     ap.add_argument('--max-file-kb', type=float, default=MAX_FILE_KB, help='per-file limit in KB (0 disables; default %(default)s)')
+    ap.add_argument('--max-snapshot-kb', type=float, default=MAX_SNAPSHOT_KB,
+                    help='limit for snapshots/YYYY-MM-DD.json in KB (0 disables; default %(default)s)')
     ap.add_argument('--no-gitignore', action='store_true', help='count ignored files too')
     a = ap.parse_args(argv)
-    res = check(a.root, a.warn_mb, a.fail_mb, a.top, not a.no_gitignore, a.max_file_kb)
+    res = check(a.root, a.warn_mb, a.fail_mb, a.top, not a.no_gitignore, a.max_file_kb, a.max_snapshot_kb)
     print(report(res, a.warn_mb, a.fail_mb))
     return 0 if res['ok'] else 1
 

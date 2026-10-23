@@ -43,7 +43,8 @@
 .v55 .th-beam{position:absolute;inset:-40% -10% auto auto;width:60%;height:180%;background:linear-gradient(100deg,transparent 40%,rgba(255,255,255,.07) 50%,transparent 60%);animation:v55beam 7s ease-in-out infinite;pointer-events:none}
 @keyframes v55beam{0%,100%{transform:translateX(-30%)}50%{transform:translateX(30%)}}
 .v55 .th-top{display:flex;align-items:center;gap:10px}
-.v55 .v55-mark{width:30px;height:30px;filter:drop-shadow(0 0 10px rgba(56,225,255,.5))}
+.v55 .hero-brand{display:flex;align-items:center;gap:10px}
+.v55 .v55-mark{border-radius:22%;width:30px;height:30px;filter:drop-shadow(0 0 10px rgba(56,225,255,.5))}
 .v55 .th-title{margin:8px 0 4px;font:800 clamp(2.1rem,4.4vw,3.4rem)/.95 var(--fd);text-transform:uppercase;letter-spacing:.01em;color:#f4f7ff;padding:0}
 .v55 .th-sub{margin:0 0 10px;color:#c6cee3;max-width:860px}
 .v55 .th .cats{margin-top:6px}

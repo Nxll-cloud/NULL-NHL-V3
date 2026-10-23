@@ -86,7 +86,7 @@ def fonts_css():
     return ''.join(out)
 
 
-@functools.lru_cache(maxsize=4)
+@functools.lru_cache(maxsize=16)   # V5.8: more stylesheets (v58.css, mobile.css)
 def _asset_text(name):
     try:
         return (ASSETS / name).read_text(encoding='utf-8')
@@ -105,6 +105,7 @@ def design_css(theme_name=None):
     t = theme_name or theme()
     css = fonts_css() + _asset_text('v55.css') + _asset_text('v55_app.css') + _asset_text('v56.css')
     css += _asset_text(f'v55_app_{t}.css') if t != 'dark' else ''
+    css += _asset_text('v58.css') + _asset_text('mobile.css')   # V5.8: components + mobile layer (media queries only)
     return check_sanitizer_safe('css', css)
 
 
@@ -349,7 +350,7 @@ _chips_html = chips  # alias: tab_head's `chips` parameter shadows the function
 def logo_mark():
     import ui_theme_v53 as ui
     uri = ui.logo_data_uri('mark')
-    return f'<img class="v55-mark" src="{uri}" alt=""/>' if uri else ''
+    return f'<img class="v55-mark" src="{uri}" alt="{esc(ui.BRAND_NAME)}"/>' if uri else ''
 
 
 # ============================================================== generic tab pieces (st.markdown)
@@ -411,7 +412,7 @@ def _goalie_line(s):
 def hero(data, now):
     fg = data.get('featured')
     if not fg:
-        return f'''<section class="hero empty"><div class="hero-top"><span class="kicker">Featured matchup · {esc(data.get("day"))}</span></div>
+        return f'''<section class="hero empty"><div class="hero-top"><span class="hero-brand">{logo_mark()}<span class="kicker">Featured matchup · {esc(data.get("day"))}</span></span></div>
 <div class="ebody"><h2>No NHL games on this slate</h2><p>Pick another date above. Nothing is invented when the schedule is empty.</p></div></section>'''
     a, h = fg['away'], fg['home']; season = data.get('season')
     lead = (data.get('leaders') or {}).get('statistical')
@@ -452,7 +453,7 @@ def hero(data, now):
     src = ((data.get('goalies') or {}).get(a) or {}).get('starter') or {}
     return f'''<section class="hero" style="--pa:{colors(a)[0]};--pa2:{colors(a)[1]};--ph:{colors(h)[0]};--ph2:{colors(h)[1]}">
 <div class="hero-bg"><i class="beam b1"></i><i class="beam b2"></i><i class="ice"></i>{logo(a, "wm wm-a")}{logo(h, "wm wm-h")}</div>
-<div class="hero-top"><span class="kicker">Featured matchup · {esc(data.get("day"))}</span>{when}</div>
+<div class="hero-top"><span class="hero-brand">{logo_mark()}<span class="kicker">Featured matchup · {esc(data.get("day"))}</span></span>{when}</div>
 <div class="versus"><div class="side" style="{team_vars(a)}">{logo(a, "hlogo")}<div><small>Away</small><h2>{esc(TEAM_NAMES.get(a, a))}</h2></div></div>
 <div class="vs"><b>VS</b><span>{et_time(fg.get("start"))}</span><em>{esc(fg.get("venue"), "")}</em></div>
 <div class="side home" style="{team_vars(h)}"><div><small>Home</small><h2>{esc(TEAM_NAMES.get(h, h))}</h2></div>{logo(h, "hlogo")}</div></div>
@@ -546,9 +547,10 @@ def track_section(track, title='Track record'):
     demo = '<span class="chip demo">DEMO DATA in store</span>' if track.get('demo') else ''
     graded = ra.get('slates') or 0
     if not graded:
-        lede = f'No graded slates yet — rings fill in after results are entered or imported in Track Record. {track.get("pending", 0)} slate(s) pending.'
+        lede = f'No graded slates yet — rings fill in after results are entered or imported below. {track.get("pending", 0)} slate(s) pending.'
     else:
-        lede = f'{graded} graded slate(s) · {ra.get("hits", 0)}/{ra.get("picks", 0)} picks hit · pending slates excluded. Form % is a relative index, not a probability.'
+        lede = (f'{graded} graded slate(s) · {ra.get("hits", 0)}/{ra.get("picks", 0)} picks hit · {track.get("pending", 0)} pending slate(s) excluded. '
+                'Form % is a relative index, not a probability.')
     trend = track.get('trend') or []
     bars = ''.join(f'<i style="--v:{(e.get("rate") or 0):.2f}" title="{esc(e.get("day"))}: {e.get("hits", 0)}/{e.get("picks", 0)}"></i>' for e in trend)
     bars_html = f'<div class="bars">{bars}</div>' if bars else '<div class="bars none"><span>No graded slates yet</span></div>'
@@ -634,7 +636,11 @@ def footer(data):
 
 
 def render_home(data, now=None):
-    """Home fragment: hero + scoreboard + leaders + track rings + featured matchup + footer."""
+    """Home fragment: scoreboard + hero + leaders + featured matchup + footer (V5.8: board above hero; no track record)."""
     now = now or datetime.now(timezone.utc)
-    return (hero(data, now) + scoreboard(data, now) + leaders_row(data) + track_section(data.get('track'))
+    # V5.8: the track-record rings live only in the Track Record tab (track_section is rendered there).
+    # V5.8: Tonight's board sits directly above the Featured matchup hero (single swap; everything else in V5.7 order).
+    # V5.8: the Top four-leg parlay (data['parlay_html'], price-free) sits directly below the Featured matchup hero.
+    return (scoreboard(data, now) + hero(data, now) + (data.get('parlay_html') or '') + leaders_row(data)
+            + (data.get('longshot_html') or '')  # V5.8: Top long shot candidate, directly under Leaders & intelligence
             + matchup_section(data) + footer(data))

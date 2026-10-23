@@ -263,7 +263,7 @@ def test_ci_and_hook_enforce_per_file_limit():
 
 def test_tabs_split_and_registered():
     import tabs
-    assert tabs.TABS[-2:] == ('nextgoal', 'edgeflags') and tabs.TABS[0] == 'live'
+    assert tabs.TABS[-3:] == ('nextgoal', 'edgeflags', 'storylines') and tabs.TABS[0] == 'live'
     for name in tabs.TABS:
         assert (HERE / 'tabs' / f'{name}.py').exists()
     assert 'np-gk-grid' in (HERE / 'tabs' / 'matchup.py').read_text() and 'np-gk-grid' not in (HERE / 'tabs' / 'research.py').read_text()

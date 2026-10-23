@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 
 TAB_DIR = Path(__file__).resolve().parent
-TABS = ('live', 'home', 'odds', 'research', 'numbers', 'matchup', 'edgelab', 'track', 'nextgoal', 'edgeflags')
+TABS = ('live', 'home', 'odds', 'research', 'numbers', 'matchup', 'edgelab', 'track', 'nextgoal', 'edgeflags', 'storylines')
 
 
 @lru_cache(maxsize=None)

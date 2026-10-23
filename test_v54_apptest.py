@@ -20,6 +20,7 @@ def mp():
 
 @pytest.fixture(scope='module')
 def overview(mp, tmp_path_factory):
+    mp.setenv('FEATURE_TRACK_RECORD', '1')   # V5.8: Track Record is hidden by default; these V5.4 checks run with the flag ON
     return run_app(mp, tmp_path_factory.mktemp('ov'))
 
 

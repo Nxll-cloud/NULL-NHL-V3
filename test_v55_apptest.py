@@ -1,4 +1,4 @@
-"""V5.5 full-app AppTests (offline fixtures): designed Home fragment, themes, EdgeLab tab stamp flow."""
+"""V5.5 full-app AppTests (offline fixtures): designed Home fragment, themes, EdgeLab tab (read-only since V5.8)."""
 import pytest
 
 from v54_testkit import run_app
@@ -13,6 +13,7 @@ def mp():
 
 @pytest.fixture(scope='module')
 def app(mp, tmp_path_factory):
+    mp.setenv('FEATURE_TRACK_RECORD', '1')   # V5.8: Track Record hidden by default; V5.5 tab-order checks run with the flag ON
     return run_app(mp, tmp_path_factory.mktemp('v55'))
 
 
@@ -51,13 +52,9 @@ def test_theme_switch(app, label, flag):
     assert flag in _html(app)[0].value
 
 
-def test_edgelab_tab_stamp_in_full_app(app):
-    app.slider(key='edgelab_min_edge').set_value(1.0).run()
-    keys = [b.key for b in app.button if b.key and b.key.startswith('edgelab_stamp_')]
-    assert len(keys) >= 4
-    app.button(key=keys[0]).click().run()
+def test_edgelab_tab_is_read_only_in_full_app(app):
+    # V5.8: EdgeLab is a read-only view (no bankroll / Min Edge / Stamp / Scorecard); see test_v58_edgelab.py
     assert not app.exception
-    assert len(app.session_state['edgelab_stamped']) == 1
-    assert any(b.key == 'edgelab_rm_' + app.session_state['edgelab_stamped'][0]['key'] for b in app.button)
-    app.button(key='edgelab_clear').click().run()
-    assert app.session_state['edgelab_stamped'] == []
+    keys = {getattr(w, 'key', None) for w in list(app.button) + list(app.slider) + list(app.number_input)}
+    assert not any(k and k.startswith('edgelab_') for k in keys)
+    assert not any(t.label.startswith('Scorecard') or t.label in ('Games', 'Props') for t in app.tabs)

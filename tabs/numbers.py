@@ -1,37 +1,44 @@
-"""Null's Playbook V5.6 · numbers tab. Executed by tabs.run_tab() inside the app's namespace (split from app.py, unchanged logic)."""
+"""Null's Playbook V5.8 · numbers tab (V5.8 layout: numbers_v58_ui; values/logic unchanged). Executed by tabs.run_tab() inside the app's namespace (split from app.py, unchanged logic)."""
 import html as _num_html
 _day_num=num_universal_day(np_day)
 st.markdown(v5.tab_head('NULL’S PLAYBOOK · NUMBERS','Numerology & Gematria','Daily numbers · team names · game arenas · player name roots',
     chips=[(f'Universal day {_day_num}','gem'),('D = day','day'),('T = team','team'),('A = arena','arena'),('Entertainment only','warn')],tone='gem'),unsafe_allow_html=True)
-st.markdown(ui.day_banner(np_day,_day_num,'Full date digit sum, reduced to one digit'),unsafe_allow_html=True)
+# V5.8: one hero (tab head), then "Tonight's numbers" (day number + ciphers, each with its plain meaning), then grouped controls.
 st.caption('Symbolic patterns for entertainment only. These values do not predict scoring or betting outcomes.')
-with st.expander('ⓘ How numbers are calculated'):
-    st.write('Universal day: sum every digit of YYYY-MM-DD and reduce to one digit. English ordinal: A=1 through Z=26. Full reduction: reduce each letter to a single digit, sum, and reduce again. Reverse ordinal: A=26 through Z=1. Punctuation and spaces are ignored. Arena names come from the game schedule.')
 try:
     _games_num=np_snapshot['games'] if np_snapshot is not None else schedule_cached(np_day)
 except (requests.RequestException,ValueError,KeyError):
     _games_num=[]
     st.warning('Unable to retrieve the schedule for this date.')
 _analyses=[num_analyze_game(g,np_day,_TEAM_NAMES) for g in _games_num]
+_nb_ranked=st.session_state.get('signals_ranked')
+_nb_ok=isinstance(_nb_ranked,pd.DataFrame) and st.session_state.get('signals_day')==np_day
+_nb_all=numboard.slate_boards(num_slate_targets(_analyses,_nb_ranked,np_day)) if (_nb_ok and _analyses) else None
+v5.html_block(st,numv58.tonight_strip(np_day,_day_num,_analyses,_nb_all),extra_class='v58-num')
+with st.expander('ⓘ How numbers are calculated'):
+    st.write('Universal day: sum every digit of YYYY-MM-DD and reduce to one digit. English ordinal: A=1 through Z=26. Full reduction: reduce each letter to a single digit, sum, and reduce again. Reverse ordinal: A=26 through Z=1. Punctuation and spaces are ignored. Arena names come from the game schedule.')
 if not _analyses:
     st.info('No scheduled NHL games found for the selected date.')
 else:
     st.markdown(ui.stat_strip([('Games',len(_analyses),'odds'),('Teams',len({t for r in _analyses for t in (r['away'],r['home'])}),'team'),
         ('Arenas',f'{sum(bool(r["arena"]) for r in _analyses)}/{len(_analyses)}','arena'),('Day alignments',sum(len(r['matches']) for r in _analyses),'gem')]),unsafe_allow_html=True)
     # V5.6: 'By Game' (default) groups every ranked player under his game with a documented threat score (numboard_v56).
-    _num_view=st.radio('Explore',['By Game','Games','Player Targets','Team Numbers','Arena Numbers','Player Matches','Insights'],horizontal=True,key='v48_view')
-    if _num_view=='By Game':
-        _nb_ranked=st.session_state.get('signals_ranked')
-        if not (isinstance(_nb_ranked,pd.DataFrame) and st.session_state.get('signals_day')==np_day):
-            st.info('Load the slate snapshot to see players grouped by game.')
-        else:
+    _num_ctl=st.container(border=True)
+    with _num_ctl:
+        _num_view=st.radio('Explore',['By Game','Games','Player Targets','Team Numbers','Arena Numbers','Player Matches','Insights'],horizontal=True,key='v48_view')
+        if _num_view=='By Game' and _nb_ok:
             _nb_c1,_nb_c2=st.columns(2)
             with _nb_c1: _nb_limit=st.selectbox('Players per game',[8,15,'All'],key='v56_nb_limit')
             with _nb_c2: _nb_sort=st.toggle('Sort games by threat count',value=False,key='v56_nb_sort')
+    if _num_view=='By Game':
+        if not _nb_ok:
+            st.info('Load the slate snapshot to see players grouped by game.')
+        else:
             _nb_boards=numboard.slate_boards(num_slate_targets(_analyses,_nb_ranked,np_day),None if _nb_limit=='All' else int(_nb_limit))
             if _nb_sort:
                 _nb_boards=sorted(_nb_boards,key=lambda b:-b['badge'])
-            v5.html_block(st,v56.num_legend()+'<div class="nbgrid">'+''.join(v56.num_game_board(b,_day_num) for b in _nb_boards)+'</div>')
+            _nb_mp={str(_r.get('pid')):ng.p_anytime(_r.get('lam_game',0)) for _r in (_v56_rows or [])}  # model P for the TOP PICK tie-break
+            v5.html_block(st,numv58.boards_html(_nb_boards,_day_num,_nb_mp),extra_class='v58-num')
             st.caption('Threat score = round(100 × (3·D + 2·A + 1·T) / 18): D = day-number matches, A = arena matches, T = team matches, each 0–3 methods (English, reduction, reverse). '
                        'Tiers by raw points: ≥6 blaze · 4–5 hot · 2–3 warm · 1 mild · 0 cool. Arena glows when any player in the game matches it. Badge = players with a score above 0. '
                        'Same matches as Player Targets (unchanged); entertainment only, not a scoring probability.')

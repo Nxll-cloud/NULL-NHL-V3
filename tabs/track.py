@@ -9,10 +9,8 @@ else:
     if any(e.get('demo') for e in _tevals):
         st.warning('DEMO DATA: this store contains seeded demonstration slates, not real results.')
     st.caption(f'Store: {trk.db_path()} · Streamlit Community Cloud storage is ephemeral (lost on reboot/redeploy); export JSON below to keep history.')
-    _r7,_r30,_rall = trk.rolling(_tevals,7), trk.rolling(_tevals,30), trk.rolling(_tevals)
-    _pct = lambda r: '—' if r['rate'] is None else f"{r['rate']*100:.0f}%"
-    st.markdown(ui.stat_strip([('Last 7 slates',_pct(_r7),'overlap'),('Last 30 slates',_pct(_r30),'stat'),
-        ('All graded picks',f"{_rall['hits']}/{_rall['picks']}",'odds'),('Pending slates',sum(1 for e in _tevals if e['status']=='pending'),'gem')]),unsafe_allow_html=True)
+    # V5.8: the accuracy rings + per-slate bars moved here from Home (single home for every track-record element).
+    v5.html_block(st, v5.track_section(v5state.track_summary(_tevals, trk.rolling), 'Accuracy summary'), extra_class='v58-track')
     _status = st.session_state.get('v54_trk_status')
     _info = trk.slate_info(_tconn, np_day)
     _c1,_c2 = st.columns([3,2])
@@ -60,6 +58,27 @@ else:
                 'Hit rate': st.column_config.NumberColumn('Hit rate', format='%.1f%%'),
                 'Shrunk rate': st.column_config.NumberColumn('Shrunk rate', format='%.1f%%'),
                 'Adjustment': st.column_config.NumberColumn('Adj (toggle ON)', format='%+.1f%%')})
+        # V5.8: moved from Home - the opt-in ±5% track-record adjustment of the statistical leaderboard (logic unchanged).
+        st.markdown(ui.section('Track-adjusted leaderboard','Statistical top ten · optional bounded (±5%) adjustment from graded picks','⚖️','stat'),unsafe_allow_html=True)
+        if not np_ready:
+            st.info('Rankings for this slate are not loaded yet.')
+        else:
+            _adjust=st.toggle('Use track record to adjust rankings',value=False,key='v54_track_adjust',
+                              help='OFF (default): rankings are unchanged and track record only adds badges. ON: this leaderboard is re-sorted by a bounded (±5%) track-record adjustment.')
+            try:
+                _tr_view=assign_statistical_ranks(np_ranked.copy())
+            except (ValueError,KeyError,TypeError):
+                _tr_view=None
+            if _tr_view is not None:
+                _tr_src=trk.apply_track_record(_tr_view.sort_values('Statistical rank'),_trecs,enabled=_adjust)
+                _tr_cols=[c for c in ['Statistical rank','Player','Team','V3.2 Adjusted Index','Shots/G L5','Track adj'] if c in _tr_src]
+                _tr_board=ui.with_form_pct(_tr_src[_tr_cols].head(10)).drop(columns=['V3.2 Adjusted Index'])
+                _tr_cfg={'Statistical rank':st.column_config.NumberColumn('Rank',format='#%d',width='small'),
+                    'Shots/G L5':st.column_config.NumberColumn('Shots/G · L5',format='%.1f'),
+                    'Track adj':st.column_config.NumberColumn('Track adj',format='%+.3f')}
+                _tr_cfg.update(ui.form_pct_config(st,progress=True))
+                st.dataframe(_tr_board,hide_index=True,use_container_width=True,column_config=_tr_cfg)
+                if _adjust: st.caption('Track-record adjustment ON: order uses the raw V3.2 index × (1 + adj), adj capped at ±5% with ≥3 graded picks. Home leaders and rankings are unchanged.')
     else:
         st.info('No history yet. Predictions are saved automatically when a slate’s rankings load; enter results after games are final.')
     st.markdown(ui.section('Enter results','Manual entry per game · or import final NHL results','✍️','team'),unsafe_allow_html=True)

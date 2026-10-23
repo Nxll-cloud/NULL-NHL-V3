@@ -1,4 +1,10 @@
-# Null’s Playbook V5.6
+<p align="center"><img src="assets/logo_full.webp" alt="Null’s Playbook" width="280"/></p>
+
+# Null’s Playbook V5.7
+
+V5.7 swaps in the owner’s logo (crowned N) for the old shield/Ø mark — favicon, `st.logo`, sidebar, Home hero, tab headers and footers. Nothing else changed. See `V57_NOTES.md`.
+
+## V5.6
 
 V5.6 adds the **⏱ Live Next Goal** model and tab (official NHL play-by-play, competing-risk next-goal %), Matchup Center goalie threats with real shooter-vs-goalie history, per-game numerology boards, **🚩 Edge Flags** against the opening anytime line, and a next-goal **backtest** with a write-once baseline (`python backtest_next_goal.py`, see `BACKTEST_V56.md`). See `V56_NOTES.md`.
 

@@ -58,13 +58,22 @@ from numerology_v48 import universal_day as num_universal_day, gematria as num_g
 from player_targets_v49 import slate_targets as num_slate_targets
 from home_leaders_v52 import all_targets as home_all_targets, choose_leaders as home_choose_leaders, gematria_shortlist as home_gematria_shortlist
 from streamlit_autorefresh import st_autorefresh
+import scorers_tonight_v58 as sctn
+import parlay_v58 as parlay
+import longshot_v58 as longshot
+import numbers_v58_ui as numv58
+import feature_flags_v58 as np_flags
+import edgelab_v58 as elv58
+import storylines_v58 as slx
+# V5.8: display-only 'Scored tonight' badges in every model view (markdown/html/dataframe pass-through proxy).
+st = sctn.MarkingStreamlit(st)
 
 # V5.3: one design system (ui_theme_v53.py) replaces the eight ad-hoc style blocks.
 st.markdown(ui.stylesheet(),unsafe_allow_html=True)
 # V5.3.1: native app logo where supported (st.logo arrived after Streamlit 1.35).
-if hasattr(st,'logo') and ui.logo_path('full'):
+if hasattr(st,'logo') and ui.logo_path('mark',fallback=True):  # V5.7: crowned-N mark (PNG for widest support)
     try:
-        st.logo(ui.logo_path('full'),icon_image=ui.logo_path('mark'))
+        st.logo(ui.logo_path('mark',fallback=True),icon_image=ui.logo_path('mark',fallback=True))
     except Exception:  # unsupported signature/SVG: the inline brand still renders
         pass
 
@@ -291,9 +300,40 @@ if not _np_shared_quotes.empty:
     except (ValueError,KeyError,TypeError) as _exc:
         _np_shared_error=str(_exc)
 
-np_home_tab,np_mc_tab,np_odds_tab,np_research_tab,np_numbers_tab,np_track_tab,np_edgelab_tab,np_nextgoal_tab,np_edgeflags_tab=st.tabs(
-    ['🏠 Home','🎯 Matchup Center','⚡ Odds','📊 Research','🔮 Numbers','📈 Track Record','🧪 EdgeLab','⏱ Live Next Goal','🚩 Edge Flags'])
+_np_scorer_slot=st.container()  # V5.8: 'Scored tonight' header chip (filled after the live state below)
+# V5.8: Track Record is hidden behind one feature flag (feature_flags_v58); its tracker/DB/auto-save keep running.
+np_show_track=np_flags.show_track_record(st.secrets)
+_np_tab_labels=['🏠 Home','🎯 Matchup Center','⚡ Odds','📊 Research','🔮 Numbers']+(['📈 Track Record'] if np_show_track else [])+['🧪 EdgeLab','⏱ Live Next Goal','🚩 Edge Flags','📰 Storylines']
+_np_tab_map=dict(zip(_np_tab_labels,st.tabs(_np_tab_labels)))
+np_home_tab,np_mc_tab,np_odds_tab,np_research_tab,np_numbers_tab=(_np_tab_map[k] for k in _np_tab_labels[:5])
+np_track_tab=_np_tab_map.get('📈 Track Record')
+np_edgelab_tab,np_nextgoal_tab,np_edgeflags_tab,np_storylines_tab=(_np_tab_map[k] for k in _np_tab_labels[-4:])
 run_tab('live', globals())  # V5.6: shared live state (scores, PBP, next-goal model) for Home, Matchup Center and the new tabs
+# V5.8: one scorer record per slate date from the same polled play-by-play (a new date starts empty).
+sctn.for_slate(st.session_state, np_day, sctn.from_pbp(_v56_pbp, np_day, demo=bool(_V56_DIR)))
+
+def np_scorer_signature(rec):
+    return tuple(sorted((p, r['goals']) for p, r in ((rec or {}).get('players') or {}).items()))
+
+@st.fragment(run_every=('45s' if _v56_live_n else None))
+def np_scorer_watch():
+    """Header chip; while a game is live it re-polls PBP (cached ~25 s) and reruns the app only when a new goal lands."""
+    rec = st.session_state.get(sctn.STATE_KEY)
+    if _v56_live_n:
+        try:
+            _pbp, _ = v56_collect(False)
+            fresh = sctn.from_pbp(_pbp, np_day, demo=bool(_V56_DIR))
+        except Exception:
+            fresh = rec
+        if fresh is not None and np_scorer_signature(fresh) != np_scorer_signature(rec):
+            sctn.for_slate(st.session_state, np_day, fresh)
+            st.rerun()
+    chip = sctn.ticker(rec)
+    if chip:
+        st._st.markdown(v5.inline(chip, 'v58-sc'), unsafe_allow_html=True)
+
+with _np_scorer_slot:
+    np_scorer_watch()
 
 def np_tracker():
     """V5.4: open the prediction tracker store; None (with the reason) if the filesystem refuses."""
@@ -330,12 +370,16 @@ with np_mc_tab:
 with np_edgelab_tab:
     run_tab('edgelab', globals())
 
-with np_track_tab:
-    run_tab('track', globals())
+if np_track_tab is not None:  # V5.8: hidden unless FEATURE_TRACK_RECORD is on
+    with np_track_tab:
+        run_tab('track', globals())
 
 with np_nextgoal_tab:
     run_tab('nextgoal', globals())
 
 with np_edgeflags_tab:
     run_tab('edgeflags', globals())
+
+with np_storylines_tab:
+    run_tab('storylines', globals())
 

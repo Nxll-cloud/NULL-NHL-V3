@@ -103,7 +103,11 @@ def section(title, subtitle='', icon='', tone='muted'):
 # ---------------------------------------------------------------- V5.3.1 brand
 ASSET_DIR = _Path(__file__).resolve().parent / 'assets'
 BRAND_NAME = 'Null’s Playbook'
-LOGO_FILES = {'full': 'logo.svg', 'mark': 'logo_mark.svg'}
+# V5.7: the owner's raster logo (resized/cropped/compressed only). Inline data URIs use the small webp files;
+# LOGO_HIRES / LOGO_FALLBACKS serve st.logo, README and high-DPI use.
+LOGO_FILES = {'full': 'logo_full_360.webp', 'mark': 'logo_mark_128.webp'}
+LOGO_HIRES = {'full': 'logo_full.webp', 'mark': 'logo_mark.webp'}
+LOGO_FALLBACKS = {'full': 'logo_full.jpg', 'mark': 'logo_mark.png'}
 FAVICON_FILE = 'favicon.png'
 BRAND_SIZES = ('xs', 'sm', 'md', 'lg', 'xl')
 
@@ -118,18 +122,36 @@ def _asset_bytes(name, base=None):
     return data or None
 
 
-def logo_data_uri(kind='full', base=None):
-    """Base64 data URI for a brand SVG, or None when the asset is missing."""
-    name = LOGO_FILES.get(kind)
-    data = _asset_bytes(name, base) if name else None
-    if not data or b'<svg' not in data[:4096]:
+def _image_mime(data):
+    """MIME type from magic bytes; None for anything that is not a known image."""
+    if not data:
         return None
-    return 'data:image/svg+xml;base64,' + _b64.b64encode(data).decode('ascii')
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return 'image/webp'
+    if data[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'image/png'
+    if data[:3] == b'\xff\xd8\xff':
+        return 'image/jpeg'
+    if b'<svg' in data[:4096]:
+        return 'image/svg+xml'
+    return None
 
 
-def logo_path(kind='full', base=None):
-    """Filesystem path of a brand asset as a string, or None when missing."""
-    name = LOGO_FILES.get(kind, kind)
+def logo_data_uri(kind='full', base=None, hires=False):
+    """Base64 data URI for a brand image (webp, then png/jpg fallback), or None when missing/corrupt."""
+    for table in ((LOGO_HIRES, LOGO_FILES, LOGO_FALLBACKS) if hires else (LOGO_FILES, LOGO_FALLBACKS)):
+        name = table.get(kind)
+        data = _asset_bytes(name, base) if name else None
+        mime = _image_mime(data)
+        if mime:
+            return f'data:{mime};base64,' + _b64.b64encode(data).decode('ascii')
+    return None
+
+
+def logo_path(kind='full', base=None, fallback=False):
+    """Filesystem path of a brand asset as a string, or None when missing.
+    kind is 'full'/'mark' (hi-res webp) or a file name; fallback=True picks the png/jpg."""
+    name = (LOGO_FALLBACKS if fallback else LOGO_HIRES).get(kind, kind)
     path = _Path(base) / name if base else ASSET_DIR / name
     return str(path) if path.is_file() else None
 
@@ -153,10 +175,10 @@ def brand(kind='full', size='md', base=None, extra_class=''):
     kind = kind if kind in LOGO_FILES else 'full'
     size = size if size in BRAND_SIZES else 'md'
     cls = f'np-brand np-brand-{kind} np-brand-{size}' + (f' {esc(extra_class)}' if extra_class else '')
-    uri = logo_data_uri(kind, base)
+    uri = logo_data_uri(kind, base, hires=(size == 'xl'))
     if uri:
         return f'<img class="{cls}" src="{uri}" alt="{esc(BRAND_NAME)}" title="{esc(BRAND_NAME)}"/>'
-    text = 'Ø' if kind == 'mark' else 'NULL’S <em>PLAYBOOK</em>'
+    text = 'N' if kind == 'mark' else 'NULL’S <em>PLAYBOOK</em>'
     return f'<span class="{cls} np-brand-text" role="img" aria-label="{esc(BRAND_NAME)}">{text}</span>'
 
 
@@ -448,6 +470,7 @@ CSS += r"""
 .np-brand{display:inline-block;vertical-align:middle;height:auto;max-width:100%;filter:drop-shadow(0 6px 18px rgba(56,189,248,.18))}
 .np-brand-mark.np-brand-xs{width:22px;height:22px}.np-brand-mark.np-brand-sm{width:30px;height:30px}
 .np-brand-mark.np-brand-md{width:44px;height:44px}.np-brand-mark.np-brand-lg{width:72px;height:72px}.np-brand-mark.np-brand-xl{width:120px;height:120px}
+.np-brand-mark:not(.np-brand-text){border-radius:22%}.np-brand-full:not(.np-brand-text){border-radius:14px}  /* V5.7: logo art sits on a black square */
 .np-brand-full.np-brand-sm{width:150px}.np-brand-full.np-brand-md{width:220px}.np-brand-full.np-brand-lg{width:clamp(200px,32vw,330px)}.np-brand-full.np-brand-xl{width:clamp(260px,46vw,520px)}
 .np-brand-text{font-weight:900;letter-spacing:.04em;color:#fff;font-family:var(--font);white-space:nowrap}
 .np-brand-text em{font-style:normal;font-family:var(--mono);color:var(--odds);letter-spacing:.3em;margin-left:.35em;font-size:.7em}

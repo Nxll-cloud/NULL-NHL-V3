@@ -115,4 +115,5 @@ def test_app_runs_without_snapshot_or_data(monkeypatch, tmp_path):
     at = AppTest.from_file(str(HERE / 'app.py'), default_timeout=120)
     at.run()
     assert not at.exception
-    assert [t.label for t in at.tabs][:7][-1] == '🧪 EdgeLab'
+    labels = [t.label for t in at.tabs]
+    assert labels[:6][-1] == '🧪 EdgeLab' and '📈 Track Record' not in labels   # V5.8: Track Record hidden by default
