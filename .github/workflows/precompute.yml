@@ -31,6 +31,8 @@ jobs:
           SLATE_DATE: ${{ inputs.slate_date }}
         run: |
           if [ -n "$SLATE_DATE" ]; then python precompute_slate.py "$SLATE_DATE"; else python precompute_slate.py; fi
+      - name: Accuracy log (V5.8; freeze today's pre-game predictions, score finished slates; never blocks the commit)
+        run: python accuracy_v58.py update || echo "accuracy log update skipped"
       - name: Prune old snapshots (V5.5, keeps the last 60 days)
         run: python snapshot_store.py prune --keep-days 60
       - name: Repo size check (V5.5; fails on any file GitHub would reject)

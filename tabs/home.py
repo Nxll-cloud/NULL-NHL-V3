@@ -78,6 +78,7 @@ _ls_edge={x['pid'] for _r in _v56_results for x in (eflags.edges_for_game(_r['re
 _ls_pick=longshot.pick(parlay.candidates(_v56_results,_v56_rows,_pl_out,_pl_scored),[l['pid'] for l in _pl_data.get('legs') or []],
     longshot.gem_threats(_home_targets),_pl_story,longshot.game_jumps(_v56_results),_ls_edge) if _v56_rows else None
 _v5_state['longshot_html']=longshot.section_html(_ls_pick,bool(_ls_pick and _ls_pick['pid'] in _pl_scored))
+_v5_state['longshot_html']+=__import__('accuracy_v58').home_html()   # V5.8: daily accuracy card (yesterday's real scorers vs frozen pre-game predictions), under the long shot
 v5.html_block(st,v5.render_home(_v5_state,datetime.now(timezone.utc)))
 if _v56_results:  # V5.6: Home live strip (score + current next-goal leader per game)
     v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results)))
