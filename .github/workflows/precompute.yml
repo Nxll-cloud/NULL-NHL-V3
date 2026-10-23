@@ -23,9 +23,10 @@ jobs:
           persist-credentials: true
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version-file: '.python-version'   # audit P1.7c: 3.11 everywhere
           cache: pip
-      - run: pip install -r requirements.txt
+          cache-dependency-path: requirements.lock
+      - run: pip install -r requirements.lock
       - name: Calculate current slate
         env:
           SLATE_DATE: ${{ inputs.slate_date }}

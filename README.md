@@ -4,6 +4,9 @@
 
 **[Model card](MODEL_CARD.md)** · **[Changelog](CHANGELOG.md)** · release notes in [`docs/notes/`](docs/notes/). Not betting advice · 21+ · 1-800-GAMBLER · not affiliated with or endorsed by the NHL.
 
+**Python 3.11 everywhere** (`.python-version`, CI, precompute, devcontainer). Exact versions: `requirements.lock` (`uv pip compile requirements.txt --python-version 3.11 --python-platform linux -o requirements.lock`); `requirements.txt` keeps the ranges (streamlit >= 1.50) and is what Streamlit Community Cloud installs. Community Cloud ignores `runtime.txt` / `.python-version`: pick **3.11** under *Advanced settings* when deploying (changing it later needs delete + redeploy). Do not add a `uv.lock`: Cloud would prefer it over `requirements.txt`.
+
+
 V5.9 merges the Research hide (everything below Top 10 Statistical Sleepers behind a flag) and the situational next-goal model (goalie SV%, PP TOI, line context), and adds 🚨 scored-tonight badges to Storylines, Live Next Goal, Edge Flags, the Home parlay / long shot and Research Top 10 lists. See `docs/notes/V59_NOTES.md`.
 
 ## V5.8

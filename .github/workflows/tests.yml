@@ -9,9 +9,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - name: Install
-        run: pip install -r requirements.txt pytest
+          python-version-file: '.python-version'   # audit P1.7c: 3.11 everywhere
+      - name: Install (exact versions from the uv lockfile)
+        run: pip install -r requirements.lock pytest
       - name: Repo size (every file < 100 KB, none near GitHub's 100 MB cap)
         run: python check_repo_size.py --top 15 --max-file-kb 100
       - name: Tests (offline; conftest blocks sockets)
