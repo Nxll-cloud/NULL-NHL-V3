@@ -1,7 +1,7 @@
 """V5.8 EdgeLab: a read-only view of the next-goal model against CURRENT live anytime-goal prices.
 
 * Model p is the same computation the Edge Flags tab uses: ``edgeflags_v56.player_lambda`` (pregame per-game lambda;
-  live = the player's rate x remaining minutes) then ``live_nextgoal_v56.p_anytime`` (1 - e^-lambda), on the shared
+  live = the player's rate x remaining minutes; both include the V5.8 situational layer when it is on) then ``live_nextgoal_v56.p_anytime`` (1 - e^-lambda), on the shared
   ``_v56_results``. Form % is never used as a probability.
 * Implied = ``edgelab_v55.american_to_implied`` of the LIVE price. That differs from Edge Flags, which uses the opener
   (earliest quote seen). Live price = each book's latest anytime-goal quote for the player, averaged over the books;
@@ -19,6 +19,7 @@ import pandas as pd
 import edgelab_v55 as el
 import edgeflags_v56 as eflags
 import live_nextgoal_v56 as lm
+import situational_v58 as sit
 
 LIVE_LABEL = 'Live price'
 NO_PRICE = 'No live price'
@@ -86,7 +87,8 @@ def model_rows(results, prices, scored_ids=()):
             line = prices.get(eflags._norm(rec['name']))
             row = {'pid': rec.get('pid'), 'name': rec['name'], 'team': rec['team'], 'game': game, 'phase': ph,
                    'start': slate.get('start'), 'rank': rec.get('rank'), 'lambda': lam, 'model_p': p,
-                   'implied': None, 'american': None, 'books': 0, 'at': None, 'edge': None}
+                   'implied': None, 'american': None, 'books': 0, 'at': None, 'edge': None,
+                   'why': sit.why(rec.get('situ')) if rec.get('situ') else ''}
             if line:
                 row.update(implied=line['implied'], american=line['american'], books=line['books'], at=line['at'],
                            edge=p - line['implied'])
@@ -125,8 +127,9 @@ def table_html(priced, unpriced, logo=None, limit_unpriced=None):
         price = (f'<td class="el-n">{el.fmt_odds(r["american"])}<small>{fmt_pct(r["implied"])} · {r["books"]} book{"s" if r["books"] != 1 else ""}'
                  f' · {fmt_time(r["at"])}</small></td>') if priced_row else '<td class="el-n na">—</td>'
         live = ' <i class="el-live">LIVE</i>' if r['phase'] == 'live' else ''
+        why = f' title="{h.escape(r["why"])}"' if r.get('why') else ''  # V5.8: situational breakdown on hover
         return (f'<tr class="{tone}"><td class="el-p">{lg(r["team"])}<span><b>{h.escape(r["name"])}</b><small>{h.escape(r["team"])} · {h.escape(r["game"])}{live}</small></span></td>'
-                f'<td class="el-n">{fmt_pct(r["model_p"])}<small>λ {r["lambda"]:.2f}</small></td>{price}{edge}</tr>')
+                f'<td class="el-n"{why}>{fmt_pct(r["model_p"])}<small>λ {r["lambda"]:.2f}</small></td>{price}{edge}</tr>')
 
     up = unpriced if limit_unpriced is None else unpriced[:limit_unpriced]
     body = ''.join(tr(r, True) for r in priced)
