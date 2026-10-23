@@ -58,25 +58,54 @@ else:
         st.caption('Auto-refresh is off: use ↻ Refresh for a new poll.')
 
 # ---------------------------------------------------------------- DEMO replay (real past PBP, stepped)
-st.markdown(ui.section('DEMO replay','Real NHL play-by-play of a finished game, replayed shot by shot · arrows compare with the previous step','🎬','gem'),unsafe_allow_html=True)
-try:
-    _ng_demo=ng.parse_pbp(lf.load_demo())
-except (OSError, ValueError) as _exc:
-    _ng_demo=None
-    st.warning(f'DEMO fixture unavailable: {type(_exc).__name__}')
-if _ng_demo is not None:
-    _ng_n=len(_ng_demo['events'])
-    st.session_state.setdefault('v56_demo_step',min(40,_ng_n))
+# V5.9: the replay is a fallback. It shows only when no real game on the slate matches the Show filter, it pulses only
+# while autoplay is stepping (paused / scrubbed = static REPLAY tag with the score at that step; last step = Final a–h),
+# clocks are time LEFT in the period (same as the P-label), and strength comes from each replayed event's situationCode.
+_ng_want={'All': None, 'Live': 'live', 'Pregame': 'pregame', 'Final': 'final'}.get(_ng_filter or 'All')
+_ng_match=sum(1 for r in (_v56_results or []) if _ng_want is None or r['result']['phase']==_ng_want)
+
+
+def _ng_clock_left(ev):
+    left=max(0,(ng.OT_MINUTES*60 if ev['ptype']=='OT' else 1200)-int(ev['secs']))
+    return f'{"P"+str(ev["period"]) if ev["ptype"]=="REG" else ev["ptype"]} {left//60:02d}:{left%60:02d} left'
+
+
+def _ng_demo_body():
+    """Controls + panel. Runs inside a fragment (autoplay ticks) when st.fragment exists, else inline."""
+    _n=len(_ng_demo['events'])
+    _ss=st.session_state
+    if bool(_ss.get('v59_demo_play')) != _ng_play_reg:
+        st.rerun()                      # play/pause flipped inside the fragment: re-register the timer from a full run
+    if _ss.get('v59_demo_play'):
+        if _ss.get('v59_demo_tick'):
+            _ss['v56_demo_step']=min(_n,_ss.get('v56_demo_step',0)+1)
+        _ss['v59_demo_tick']=True
+        if _ss['v56_demo_step']>=_n:
+            _ss['v59_demo_play']=False; _ss['v59_demo_tick']=False
+    def _pause():
+        _ss['v59_demo_play']=False; _ss['v59_demo_tick']=False
     def _ng_step(d):
-        st.session_state['v56_demo_step']=max(0,min(_ng_n,st.session_state.get('v56_demo_step',0)+d))
-    _b=st.columns([1,1,1,1,6])
-    _b[0].button('⏮',key='v56_demo_first',on_click=lambda: st.session_state.__setitem__('v56_demo_step',0),help='Start (pregame prior)')
-    _b[1].button('◀',key='v56_demo_prev',on_click=_ng_step,args=(-1,),help='Previous shot event')
-    _b[2].button('▶',key='v56_demo_next',on_click=_ng_step,args=(1,),help='Next shot event')
-    _b[3].button('⏭',key='v56_demo_last',on_click=lambda: st.session_state.__setitem__('v56_demo_step',_ng_n),help='Final')
-    with _b[4]:
-        st.slider('Replay event',0,_ng_n,key='v56_demo_step')
-    _k=st.session_state['v56_demo_step']
+        _pause(); _ss['v56_demo_step']=max(0,min(_n,_ss.get('v56_demo_step',0)+d))
+    def _ng_set(v):
+        _pause(); _ss['v56_demo_step']=v
+    def _ng_play():
+        if _ss.get('v59_demo_play'):
+            _pause()
+        else:
+            if _ss.get('v56_demo_step',0)>=_n:
+                _ss['v56_demo_step']=0
+            _ss['v59_demo_play']=True; _ss['v59_demo_tick']=False
+    _playing=bool(_ss.get('v59_demo_play'))
+    with st.container(key='v59_demo_ctrl'):
+        _b=st.columns([1,1,1,1,1,7],vertical_alignment='bottom')
+        _b[0].button('⏮',key='v56_demo_first',on_click=_ng_set,args=(0,),help='Start (pregame prior)')
+        _b[1].button('◀',key='v56_demo_prev',on_click=_ng_step,args=(-1,),help='Previous shot event')
+        _b[2].button('⏸' if _playing else '⏯',key='v59_demo_play_btn',on_click=_ng_play,help='Pause autoplay' if _playing else 'Autoplay: step one shot event about every 1.5 s',disabled=not _ng_can_play)
+        _b[3].button('▶',key='v56_demo_next',on_click=_ng_step,args=(1,),help='Next shot event')
+        _b[4].button('⏭',key='v56_demo_last',on_click=_ng_set,args=(_n,),help='Final')
+        with _b[5]:
+            st.slider('Replay event',0,_n,key='v56_demo_step',on_change=_pause)
+    _k=_ss['v56_demo_step']
     _g_now=ng.truncate(_ng_demo,_k) if _k>0 else ng.pregame_game(_ng_demo['game_id'],_ng_demo['away'],_ng_demo['home'],_ng_demo.get('start'))
     _g_prev=ng.truncate(_ng_demo,_k-1) if _k>1 else ng.pregame_game(_ng_demo['game_id'],_ng_demo['away'],_ng_demo['home'])
     _r_prev=v56_model(_g_prev,use_form=_ng_form)   # V5.9: same situational layer as the live panels
@@ -84,10 +113,36 @@ if _ng_demo is not None:
     ng.rerank(_r_now['players'],ng.rerank(_r_prev['players'],None) if _k>0 else None)
     _r_now['rank_basis']='vs previous replay step' if _k>0 else 'pregame prior'
     _ev=_ng_demo['events'][_k-1] if _k>0 else None
-    _ev_txt=(f'Event {_k}/{_ng_n}: {"P"+str(_ev["period"]) if _ev["ptype"]=="REG" else _ev["ptype"]} {_ev["secs"]//60:02d}:{_ev["secs"]%60:02d} · {_ev["kind"].upper()} · '
+    _ev_txt=(f'Event {_k}/{_n} · {_ng_clock_left(_ev)} · {_ev["kind"].upper()} · '
              f'{(_ng_demo["roster"].get(_ev["shooter"]) or {}).get("name",_ev["shooter"])} ({_ev["team"]}) · {_ev["strength"]} · xG {_ev["xg"]:.2f}') if _ev else 'Before puck drop: pregame prior.'
-    v5.html_block(st,v56.nextgoal_panel(_r_now,SEASON,lstate.game_label(_g_now),None,demo=True,top=_ng_top,
-                  title=f'DEMO · {_ng_demo["away"]} @ {_ng_demo["home"]}',note=lf.DEMO_LABEL+'. '+_ev_txt+'. Arrows: '+_r_now['rank_basis']+'.'))
+    _ttl=f'DEMO · {_ng_demo["away"]} @ {_ng_demo["home"]}'+(' · fallback replay' if _ng_want else '')
+    v5.html_block(st,v56.nextgoal_panel(_r_now,SEASON,lstate.game_label(_g_now),None,demo=True,top=_ng_top,title=_ttl,
+                  replay='playing' if _ss.get('v59_demo_play') else 'paused',
+                  note=lf.DEMO_LABEL+'. '+_ev_txt+'. Arrows: '+_r_now['rank_basis']+'.'))
+
+
+if _ng_match:
+    st.caption(f'DEMO replay hidden: {_ng_match} real game(s) match “{_ng_filter or "All"}” on this slate. '
+               'It appears as a fallback when no real game matches the Show filter.')
+else:
+    _ng_sub=('Real NHL play-by-play of a finished game, replayed shot by shot · arrows compare with the previous step'
+             + (f' · fallback: no real {(_ng_filter or "").lower()} game on this slate, this is a replay, not a {(_ng_filter or "").lower()} game' if _ng_want else ''))
+    st.markdown(ui.section('DEMO replay',_ng_sub,'🎬','gem'),unsafe_allow_html=True)
+    try:
+        _ng_demo=ng.parse_pbp(lf.load_demo())
+    except (OSError, ValueError) as _exc:
+        _ng_demo=None
+        st.warning(f'DEMO fixture unavailable: {type(_exc).__name__}')
+    if _ng_demo is not None:
+        st.session_state.setdefault('v56_demo_step',min(40,len(_ng_demo['events'])))
+        _ng_can_play=hasattr(st,'fragment')
+        _ng_play_reg=bool(st.session_state.get('v59_demo_play')) and _ng_can_play
+        if not _ng_can_play:
+            st.session_state['v59_demo_play']=False
+        if _ng_can_play:
+            st.fragment(run_every='1.5s' if _ng_play_reg else None)(_ng_demo_body)()
+        else:
+            _ng_demo_body()
 with st.expander('ⓘ How the next-goal model works'):
     st.markdown(ng.__doc__)
 st.caption('Next-goal % is a model estimate from shot counts, shot quality and season priors; it is not calibrated and not betting advice.')

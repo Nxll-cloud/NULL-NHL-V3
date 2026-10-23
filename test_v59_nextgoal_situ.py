@@ -62,7 +62,7 @@ ROW = re.compile(r'<div class="ngn"><b>(.*?)(?:<span[^>]*>.*?</span>)?</b><small
 def panel(at, key, title):
     """{(player, team): next-goal % text} from the panel titled ``title`` (e.g. 'UTA @ SEA') on tab ``key``."""
     src = _html(at, key)
-    for sec in re.findall(r'<section class="sec ngp-wrap">.*?</section>', src, re.S):
+    for sec in re.findall(r'<section class="sec ngp-wrap(?: ngp-demo)?">.*?</section>', src, re.S):
         h3 = re.search(r'<h3>(.*?)</h3>', sec, re.S).group(1)
         if html.unescape(h3).strip() == title:
             return {(html.unescape(n), t): p for n, t, p in ROW.findall(sec)}
@@ -96,9 +96,23 @@ def test_layer_actually_changes_the_numbers(on, off):
     assert {k: b[k] for k in mco} == mco
 
 
-def test_demo_replay_uses_the_layer(on, off):
-    a, b = panel(on, 'nextgoal', 'DEMO · MIN @ CGY'), panel(off, 'nextgoal', 'DEMO · MIN @ CGY')
-    assert a and b and a != b
+def _run_empty(tmp_path_factory, name, on):
+    m = pytest.MonkeyPatch()
+    m.setattr(sit, 'fetch_context', _fake_context)
+    m.setenv('MODEL_SITUATIONAL', '1' if on else '0')
+    m.setenv('MODEL_XG', '0')
+    return run_app(m, tmp_path_factory.mktemp(name), games=['NSH@BOS'], session={'v56_ng_filter': 'Live'}), m
+
+
+def test_demo_replay_uses_the_layer(tmp_path_factory):
+    # V5.9: the DEMO replay is a fallback shown only when no real game matches the Show filter -> Live on a pregame slate
+    (a_at, m1), (b_at, m2) = _run_empty(tmp_path_factory, 'demo_on', True), _run_empty(tmp_path_factory, 'demo_off', False)
+    try:
+        t = 'DEMO · MIN @ CGY · fallback replay'
+        a, b = panel(a_at, 'nextgoal', t), panel(b_at, 'nextgoal', t)
+        assert a and b and a != b
+    finally:
+        m2.undo(); m1.undo()
 
 
 def test_tab_has_no_private_model_path():

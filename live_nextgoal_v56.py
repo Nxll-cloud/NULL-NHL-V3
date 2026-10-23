@@ -163,7 +163,7 @@ def parse_pbp(payload):
                        'secs': (_secs(p.get('timeInPeriod')) or 0), 'shooter': shooter, 'team': team,
                        'goalie': d.get('goalieInNetId'), 'strength': strength, 'shot_type': d.get('shotType'),
                        'x': x, 'y': y, 'xg': shot_xg(x, y, nx, d.get('shotType'), strength),
-                       'order': p.get('sortOrder', 0)}
+                       'order': p.get('sortOrder', 0), 'sit': str(p.get('situationCode') or '')}
     clock = payload.get('clock') or {}
     pdesc = payload.get('periodDescriptor') or {}
     return {'game_id': payload.get('id'), 'date': payload.get('gameDate'), 'start': payload.get('startTimeUTC'),
@@ -195,7 +195,8 @@ def merge_events(known, new_events):
 
 
 def truncate(game, upto):
-    """Replay helper: the game as it stood after its first ``upto`` shot events (clock inferred from the last one)."""
+    """Replay helper: the game as it stood after its first ``upto`` shot events (clock inferred from the last one).
+    Strength comes from the last replayed event's own situationCode (V5.9); unknown -> '' (neutral, no PP/SH/EN multiplier)."""
     evs = game['events'][:max(0, upto)]
     g = dict(game, events=evs)
     if upto >= len(game['events']):
@@ -206,7 +207,7 @@ def truncate(game, upto):
              secs_remaining=max(0, (OT_MINUTES * 60 if last['ptype'] == 'OT' else 1200) - last['secs']),
              away_score=sum(e['team'] == game['away'] for e in goals), home_score=sum(e['team'] == game['home'] for e in goals),
              away_sog=sum(e['team'] == game['away'] and e['kind'] in ('sog', 'goal') for e in evs),
-             home_sog=sum(e['team'] == game['home'] and e['kind'] in ('sog', 'goal') for e in evs), situation='1551')
+             home_sog=sum(e['team'] == game['home'] and e['kind'] in ('sog', 'goal') for e in evs), situation=last.get('sit') or '')
     return g
 
 

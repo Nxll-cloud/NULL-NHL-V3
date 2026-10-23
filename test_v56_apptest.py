@@ -46,6 +46,9 @@ def test_pregame_prior(pregame):
 
 
 def test_demo_replay_labelled_and_steps(pregame):
+    # V5.9: the replay is a fallback; with every real game pregame it shows under the (empty) Live filter
+    pregame.session_state['v56_ng_filter'] = 'Live'
+    pregame.run()
     ng = _md(_tab(pregame, 'nextgoal'))
     assert 'DEMO replay' in ng and 'MIN @ CGY' in ng and '2026020162' in ng
     step = pregame.session_state['v56_demo_step']
@@ -55,6 +58,8 @@ def test_demo_replay_labelled_and_steps(pregame):
     assert 'vs previous replay step' in _md(_tab(pregame, 'nextgoal'))
     pregame.button(key='v56_demo_first').click().run()
     assert pregame.session_state['v56_demo_step'] == 0
+    pregame.session_state['v56_ng_filter'] = 'All'
+    pregame.run()
 
 
 def test_live_game_from_real_pbp(live):

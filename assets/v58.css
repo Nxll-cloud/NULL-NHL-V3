@@ -195,3 +195,22 @@
 .v55 .tile .wpf{display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:1px 8px;max-width:100%;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--neon) 55%,transparent);border-radius:999px;background:linear-gradient(90deg,color-mix(in srgb,var(--neon) 10%,transparent),color-mix(in srgb,var(--neon2) 12%,transparent));font:700 .72rem/1.5 var(--fb);white-space:nowrap;overflow:hidden;cursor:help}
 .v55 .tile .wpf i{font-style:normal;font-weight:800;letter-spacing:.08em;color:var(--neon);font-size:.9em}.v55 .tile .wpf b{font:800 .78rem/1.5 var(--fb);letter-spacing:.02em;color:var(--ink)}
 .v55 .wpf-l{color:var(--mut)}.v55 .wpf-l b{color:var(--neon);font-weight:800;letter-spacing:.06em}
+/* V5.9 Live Next Goal DEMO replay: scoped spacing (.ngp-demo is only set when nextgoal_panel(demo=True)); replay state tag never pulses unless autoplay runs */
+.v55 .live.rp{color:var(--warn);letter-spacing:.1em}
+.v55 .live.rp.on{color:var(--hot)}
+.v55 .live.fin.rp{color:var(--mut);text-transform:none;letter-spacing:.06em}
+.st-key-v59_demo_ctrl{margin:8px 0 6px}
+.st-key-v59_demo_ctrl [data-testid="stHorizontalBlock"]{gap:10px}
+.st-key-v59_demo_ctrl [data-testid="stButton"] button{width:100%;min-height:40px}
+.v55 .ngp-demo{padding:18px 20px;margin:14px 0 20px}
+.v55 .ngp-demo .ngh{gap:14px}
+.v55 .ngp-demo .ngt h3{line-height:1.2}
+.v55 .ngp-demo .ngst{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px}
+.v55 .ngp-demo .ngbar{margin:16px 0 6px}
+.v55 .ngp-demo .ngleg{gap:10px}
+.v55 .ngp-demo .ngl{gap:10px;margin-top:14px}
+.v55 .ngp-demo .ngr{padding:10px 12px;column-gap:10px}
+.v55 .ngp-demo .ngn small{display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v55 .ngp-demo .ngp small{white-space:nowrap}
+.v55 .ngp-demo .ngp i{bottom:-6px}
+.v55 .ngp-demo .ngnote{margin:16px 0 0;padding-top:12px;border-top:1px solid var(--line);line-height:1.55}

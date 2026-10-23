@@ -30,9 +30,24 @@ def _headshot(p, season):
     return v5.mug(season, p.get('team'), p.get('pid'), 'ngm')
 
 
-def state_badge(phase, label='', updated=None, demo=False):
+def replay_badge(phase, label='', score='', playing=False):
+    """V5.9 DEMO replay state: pulses only while autoplay is stepping; paused/scrubbed is a static REPLAY tag; end = 'Final a–h'."""
+    sc = f' · {score}' if score else ''
+    if phase == 'final':
+        txt = (str(label or 'Final') + (f' {score}' if score else '')).strip()
+        return f'<span class="live fin rp">{esc(txt)}</span>'
+    if phase == 'pregame':
+        return '<span class="live pre rp">REPLAY · PREGAME PRIOR</span>'
+    if playing:
+        return f'<span class="live rp on"><i class="pulse"></i>REPLAYING · {esc(label, "")}{esc(sc)}</span>'
+    return f'<span class="live rp">REPLAY · {esc(label, "")}{esc(sc)}</span>'
+
+
+def state_badge(phase, label='', updated=None, demo=False, replay=None, score=''):
     up = f'<small class="upd">updated {esc(updated)}</small>' if updated else ''
     d = '<span class="chip warn">DEMO</span>' if demo else ''
+    if replay:
+        return f'{replay_badge(phase, label, score, replay == "playing")}{d}{up}'
     if phase == 'live':
         return f'<span class="live"><i class="pulse"></i>LIVE {esc(label, "")}</span>{d}{up}'
     if phase == 'final':
@@ -53,7 +68,11 @@ def team_bar(result):
             f'<div class="ngleg"><span>{esc(a)} {pct(pa)}</span><span>No further goal {pct(pn)}</span><span>{esc(h)} {pct(ph)}</span></div>')
 
 
-def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, title=None, note='', venue=None, scored=None):
+def _st(badge, demo):
+    return f'<div class="ngst">{badge}</div>' if demo else badge
+
+
+def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, title=None, note='', venue=None, scored=None, replay=None):
     """'Live Next Goal' panel: score line, team split, top shooters with headshot, SOG, xG, conv %, next-goal %, rank change."""
     g = result['game']
     a, h = g['away'], g['home']
@@ -70,7 +89,10 @@ def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, ti
     if not rows:
         rows.append('<div class="ngempty">No skaters available for this game yet.</div>')
     head = title or f'{esc(a)} @ {esc(h)}'
-    return (f'<section class="sec ngp-wrap"><div class="ngh">{v5.logo(a, "tl")}<div class="ngt"><h3>{head}</h3>{vn.tag(venue)}{state_badge(result["phase"], label, updated, demo)}</div>'
+    rsc = f'{sa if sa is not None else 0}–{sh if sh is not None else 0}' if replay else ''
+    wrap = 'sec ngp-wrap ngp-demo' if demo else 'sec ngp-wrap'   # V5.9: demo-scoped spacing (assets/v58.css)
+    return (f'<section class="{wrap}"><div class="ngh">{v5.logo(a, "tl")}<div class="ngt"><h3>{head}</h3>{vn.tag(venue)}'
+            f'{_st(state_badge(result["phase"], label, updated, demo, replay, rsc), demo)}</div>'
             f'<div class="ngsc">{score}</div>{v5.logo(h, "tl")}</div>{team_bar(result)}'
             f'<div class="ngl">{"".join(rows)}</div>'
             f'<p class="ngnote">{esc(note, "")} Horizon {result["remaining"]:.1f} min · pace weight {result["pace_weight"]:.2f} · model estimate, uncalibrated, not betting advice.</p></section>')

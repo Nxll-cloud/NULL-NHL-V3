@@ -80,6 +80,16 @@
   .v58-num .npr{grid-template-columns:32px minmax(0,1fr) 44px;padding:8px}
   .v58-num .npr-ring{width:32px;height:32px}.v58-num .npr-ring span{width:25px;height:25px}
 }
+@media (max-width:640px){
+  /* V5.9 DEMO replay: transport buttons stay on one row, slider below; roomier, non-wrapping rows */
+  .st-key-v59_demo_ctrl [data-testid="stHorizontalBlock"]{flex-wrap:wrap!important;gap:8px!important}
+  .st-key-v59_demo_ctrl [data-testid="stColumn"]{flex:1 1 0!important;min-width:0!important;width:auto!important}
+  .st-key-v59_demo_ctrl [data-testid="stColumn"]:last-child{flex:1 1 100%!important;margin-top:4px}
+  .v55 .ngp-demo{padding:14px 12px;margin:12px 0 18px}
+  .v55 .ngp-demo .ngh{gap:10px}
+  .v55 .ngp-demo .ngr{grid-template-columns:18px 28px 34px minmax(0,1fr) 74px;column-gap:8px;padding:10px}
+  .v55 .ngp-demo .ngleg{font-size:.7rem}
+}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
