@@ -60,6 +60,63 @@ PARLAY_NOTE = 'parlay rebuilt from the saved pre-game slate'
 # (sum of -ln(1-p) over the team's priced skaters), split by each skater's smoothed season shots per game
 # ((SOG + 1) / (GP + 1), the backtest's SOG-share weight). The model passes when its log loss <= the baseline's.
 BASELINE_TAG = 'shots-share baseline: team model goals split by (SOG+1)/(GP+1)'
+# Audit P1.7b: provenance on every frozen entry. content_hash = SHA-256 of the canonical JSON of the frozen prediction
+# fields (HASHED_KEYS; results / summary / baseline are added later and are not part of it). model_version names the
+# code release; model_source_hash = SHA-256 over the model source files (MODEL_SOURCES). An entry is marked
+# final (final=True, final_at=first puck drop) once the slate's first game starts; a final entry is never re-frozen.
+MODEL_VERSION = 'V5.9 + audit Phase 1'
+MODEL_SOURCES = ('live_nextgoal_v56.py', 'live_state_v56.py', 'situational_v58.py', 'xg_v59.py', 'parlay_v58.py',
+                 'feature_flags_v58.py', 'accuracy_v58.py')
+HASHED_KEYS = ('schema', 'day', 'source', 'model', 'model_version', 'model_source_hash', 'frozen_at', 'snapshot_at',
+               'first_start', 'games', 'n_players', 'mean_p', 'players', 'parlay', 'flags')
+
+
+# ------------------------------------------------------------------------------------------------ provenance
+def model_source_hash(root=HERE, files=MODEL_SOURCES):
+    """SHA-256 (hex) over the model source files, in order (name + bytes; a missing file hashes as empty)."""
+    import hashlib
+    h = hashlib.sha256()
+    for f in files:
+        p = Path(root) / f
+        h.update(f.encode() + b'\0' + (p.read_bytes() if p.is_file() else b'') + b'\0')
+    return h.hexdigest()
+
+
+def content_hash(entry):
+    """SHA-256 (hex) of the frozen prediction fields, canonical JSON (sorted keys, no whitespace)."""
+    import hashlib
+    body = {k: entry.get(k) for k in HASHED_KEYS}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(',', ':'), ensure_ascii=False,
+                                     allow_nan=False).encode('utf-8')).hexdigest()
+
+
+def verify(entry):
+    """True / False when the entry carries a content hash, None for older entries (no hash) or compacted ones."""
+    if not entry.get('content_hash') or entry.get('compacted'):
+        return None
+    return content_hash(entry) == entry['content_hash']
+
+
+def provenance_line(entry):
+    """' Model V… · hash abc123… (verified) · final' for the card footer; '' for entries frozen before P1.7b."""
+    h = entry.get('content_hash')
+    if not h:
+        return ''
+    ok = verify(entry)
+    state = 'verified' if ok else ('unverifiable' if ok is None else 'HASH MISMATCH')
+    return (f' {entry.get("model_version", "")} · prediction hash {h[:12]} ({state}) · model source {str(entry.get("model_source_hash", ""))[:12]}'
+            f'{" · final at first puck drop" if entry.get("final") else ""}.')
+
+
+def finalize(entry, now=None):
+    """Mark an entry final once its slate's first puck drop has passed (pure; returns the same dict if nothing changes)."""
+    if entry.get('final'):
+        return entry
+    fs = _iso(entry.get('first_start')) if entry.get('first_start') else None
+    now = now or datetime.now(timezone.utc)
+    if fs is None or now < fs:
+        return entry
+    return dict(entry, final=True, final_at=fs.isoformat())
 
 
 # ------------------------------------------------------------------------------------------------ dates
@@ -224,8 +281,10 @@ def predictions(snapshot, out_ids=(), source='snapshot', now=None, injuries_note
         flags = {'available': True, 'note': 'real opening lines saved with the snapshot', 'flagged': fl}
     fs = first_start(snapshot)
     tag = MODEL_TAG_SITU.format(parts=', '.join(situ.ctx.get('parts') or ()) or 'none') if situ is not None else MODEL_TAG
-    return {'schema': SCHEMA, 'day': snapshot.get('day'), 'source': source, 'model': tag,
-            'frozen_at': (now or datetime.now(timezone.utc)).isoformat(timespec='seconds'),
+    now = now or datetime.now(timezone.utc)
+    ent = {'schema': SCHEMA, 'day': snapshot.get('day'), 'source': source, 'model': tag,
+            'model_version': MODEL_VERSION, 'model_source_hash': model_source_hash(),
+            'frozen_at': now.isoformat(timespec='seconds'),
             'snapshot_at': snapshot.get('updated_at'), 'first_start': fs.isoformat() if fs else None,
             'games': [g['game_id'] for g in games], 'n_players': len(players),
             'mean_p': round(sum(p[3] for p in players) / len(players), 4) if players else None,
@@ -233,7 +292,9 @@ def predictions(snapshot, out_ids=(), source='snapshot', now=None, injuries_note
             'parlay': {'legs': [l['pid'] for l in pdata.get('legs') or []], 'per': pdata.get('per'), 'short': bool(pdata.get('short')),
                        'derived': True, 'note': PARLAY_NOTE + (' · ' + injuries_note if injuries_note else '')},
             'flags': flags, 'baseline': {'method': BASELINE_TAG, 'p': shots_share_baseline(players, rows)},
-            'results': None, 'summary': None}
+            'results': None, 'summary': None, 'final': False}
+    ent['content_hash'] = content_hash(ent)
+    return finalize(ent, now)   # catch-up / backfill entries are frozen after puck drop: final at once
 
 
 def out_ids_now(snapshot, injuries):
@@ -503,7 +564,8 @@ def update(now=None, getter=None, snap_root=SNAP_DIR, root=LOG_DIR, injuries_fn=
         snap = _load_snap(today, snap_root)
         cur = load_entry(today, root)
         fs = first_start(snap) if snap else None
-        if snap and snap.get('rankings') and fs and now < fs and is_pregame(snap) and not (cur and cur.get('results')):
+        if (snap and snap.get('rankings') and fs and now < fs and is_pregame(snap) and not (cur and cur.get('results'))
+                and not (cur and cur.get('final'))):
             out, note = set(), None
             try:
                 inj = injuries_fn() if injuries_fn else __import__('storylines_v58').espn_fetch('injuries')
@@ -525,6 +587,11 @@ def update(now=None, getter=None, snap_root=SNAP_DIR, root=LOG_DIR, injuries_fn=
             save_entry(predictions(snap, (), 'workflow catch-up', now, situ=situ_for(day, snap.get('games'), getter=getter)), root)
             done.append(f'caught up {day}')
     for e in load_all(root):
+        f = finalize(e, now)            # audit P1.7b: final at first puck drop
+        if f is not e:
+            save_entry(f, root)
+            done.append(f'final {e["day"]}')
+            e = f
         if not e.get('baseline') and not e.get('compacted'):   # audit P1.4: older entries gain the shots-share baseline
             try:
                 b = attach_baseline(e, _load_snap(e['day'], snap_root))
@@ -834,7 +901,8 @@ def card_html(v, max_rows=8, snap_root=SNAP_DIR):
             f'real NHL goals matched by player ID; marked rows = model top {s["top_n"]}. '
             f'{"Parlay ✓ = " + esc(PARLAY_NOTE) + ". " if s["parlay_legs"] else ""}'
             f'{"" if flags_on else esc(FLAG_NA.capitalize()) + ". "}'
-            f'{f"{unpriced} unpriced (under 3 GP / not on slate)." if unpriced else ""}</p>')
+            f'{f"{unpriced} unpriced (under 3 GP / not on slate)." if unpriced else ""}'
+            f'{provenance_line(shown)}</p>')
     return (f'{CSS}<section class="npacc" aria-label="Daily accuracy snapshot"><div class="npacc-h"><b>Model accuracy</b><span>{esc(head)}</span></div>'
             f'{f"<p>{notes}</p>" if notes else ""}{table}{trend_line}{foot}{pend_line}</section>')
 
