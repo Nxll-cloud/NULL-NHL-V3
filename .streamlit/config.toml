@@ -1,0 +1,14 @@
+# V5.3 Null's Playbook theme. Custom CSS in ui_theme_v53.py builds on these tokens.
+[theme]
+base = "dark"
+primaryColor = "#38bdf8"
+backgroundColor = "#0a0f1c"
+secondaryBackgroundColor = "#121a2c"
+textColor = "#e6edf7"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+
+[server]
+headless = true

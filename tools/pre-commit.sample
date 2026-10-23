@@ -1,0 +1,5 @@
+#!/bin/sh
+# Optional V5.5 pre-commit hook: refuse commits that contain a file GitHub would reject.
+# Install:  cp tools/pre-commit.sample .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+python3 check_repo_size.py --top 5 --max-file-kb 100 || {
+  echo "pre-commit: a file is over the size limit (see GITHUB_UPLOAD.md)."; exit 1; }

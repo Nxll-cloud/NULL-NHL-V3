@@ -1,0 +1,63 @@
+{
+ "_note": "Trimmed real NHL api-web boxscore, game 2026020152 (final)",
+ "id": 2026020152,
+ "gameState": "OFF",
+ "awayTeam": {
+  "abbrev": "PHI"
+ },
+ "homeTeam": {
+  "abbrev": "BUF"
+ },
+ "playerByGameStats": {
+  "awayTeam": {
+   "goalies": [
+    {
+     "playerId": 8479361,
+     "name": {
+      "default": "J. Woll"
+     },
+     "goalsAgainst": 0,
+     "toi": "00:00",
+     "starter": false,
+     "savePctg": null
+    },
+    {
+     "playerId": 8478435,
+     "name": {
+      "default": "D. Vladar",
+      "cs": "D. Vlada\u0159",
+      "sk": "D. Vlada\u0159"
+     },
+     "goalsAgainst": 1,
+     "toi": "60:00",
+     "starter": true,
+     "savePctg": 0.964286
+    }
+   ]
+  },
+  "homeTeam": {
+   "goalies": [
+    {
+     "playerId": 8480045,
+     "name": {
+      "default": "U. Luukkonen"
+     },
+     "goalsAgainst": 3,
+     "toi": "57:26",
+     "starter": true,
+     "savePctg": 0.888889
+    },
+    {
+     "playerId": 8481551,
+     "name": {
+      "default": "C. Ellis"
+     },
+     "goalsAgainst": 0,
+     "toi": "00:00",
+     "starter": false,
+     "savePctg": null
+    }
+   ]
+  }
+ }
+}

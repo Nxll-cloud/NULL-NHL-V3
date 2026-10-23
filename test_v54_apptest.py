@@ -7,7 +7,8 @@ from v54_testkit import run_app, state_dict
 
 
 def _md(block):
-    return ' '.join(m.value for m in block.markdown)
+    # V5.5: Home/Matchup Center designed fragments render through st.html; include them.
+    return ' '.join([m.value for m in block.markdown] + [h.value for h in block.get('html')])
 
 
 @pytest.fixture(scope='module')
@@ -46,10 +47,13 @@ def test_home_featured_row_equals_research_picks(overview):
         assert name in home and name in research
 
 
-def test_research_goalie_section(overview):
-    research = _md(overview.tabs[3])
-    assert 'Goalies: Goals Allowed' in research and 'np-gk-grid' in research and 'np-gk-legend' in research
-    assert 'Swayman' in research or 'Saros' in research
+def test_goalie_section_moved_to_matchup_center(overview):
+    # V5.6: the section moved from Research to Matchup Center (same helpers, classes and widget keys).
+    mcx, research = _md(overview.tabs[1]), _md(overview.tabs[3])
+    assert 'Goalies: Goals Allowed' in mcx and 'np-gk-grid' in mcx and 'np-gk-legend' in mcx
+    assert 'Swayman' in mcx or 'Saros' in mcx
+    assert 'np-gk-grid' not in research
+    assert overview.checkbox(key='v54_gk_all') is not None and overview.radio(key='v54_gk_sort') is not None
 
 
 def test_track_record_tab_and_lock_button(overview):

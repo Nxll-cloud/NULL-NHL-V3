@@ -1,0 +1,287 @@
+{
+"BOS": {
+"goalies": [
+{
+"playerId": 8480022,
+"firstName": {
+"default": "Michael"
+},
+"lastName": {
+"default": "DiPietro",
+"cs": "Dipietro",
+"de": "Dipietro",
+"es": "Dipietro",
+"fi": "Dipietro",
+"sk": "Dipietro",
+"sv": "Dipietro"
+},
+"gamesPlayed": 2,
+"gamesStarted": 2,
+"goalsAgainst": 5,
+"goalsAgainstAverage": 2.544889,
+"savePercentage": 0.912281,
+"shotsAgainst": 57,
+"saves": 52,
+"timeOnIce": 7073,
+"wins": 1,
+"losses": 1
+},
+{
+"playerId": 8480280,
+"firstName": {
+"default": "Jeremy"
+},
+"lastName": {
+"default": "Swayman"
+},
+"gamesPlayed": 8,
+"gamesStarted": 8,
+"goalsAgainst": 16,
+"goalsAgainstAverage": 1.97619,
+"savePercentage": 0.927928,
+"shotsAgainst": 222,
+"saves": 206,
+"timeOnIce": 29147,
+"wins": 6,
+"losses": 1
+}
+]
+},
+"NSH": {
+"goalies": [
+{
+"playerId": 8477424,
+"firstName": {
+"default": "Juuse"
+},
+"lastName": {
+"default": "Saros"
+},
+"gamesPlayed": 7,
+"gamesStarted": 7,
+"goalsAgainst": 20,
+"goalsAgainstAverage": 2.819218,
+"savePercentage": 0.906103,
+"shotsAgainst": 213,
+"saves": 193,
+"timeOnIce": 25539,
+"wins": 3,
+"losses": 2
+},
+{
+"playerId": 8483575,
+"firstName": {
+"default": "Matt"
+},
+"lastName": {
+"default": "Murray"
+},
+"gamesPlayed": 1,
+"gamesStarted": 1,
+"goalsAgainst": 2,
+"goalsAgainstAverage": 1.847575,
+"savePercentage": 0.9,
+"shotsAgainst": 20,
+"saves": 18,
+"timeOnIce": 3897,
+"wins": 0,
+"losses": 0
+}
+]
+},
+"NYR": {
+"goalies": [
+{
+"playerId": 8477484,
+"firstName": {
+"default": "Spencer"
+},
+"lastName": {
+"default": "Martin"
+},
+"gamesPlayed": 1,
+"gamesStarted": 0,
+"goalsAgainst": 3,
+"goalsAgainstAverage": 5.091938,
+"savePercentage": 0.833333,
+"shotsAgainst": 18,
+"saves": 15,
+"timeOnIce": 2121,
+"wins": 0,
+"losses": 0
+},
+{
+"playerId": 8478048,
+"firstName": {
+"default": "Igor"
+},
+"lastName": {
+"default": "Shesterkin",
+"cs": "\u0160es\u0165orkin",
+"fi": "Shestjorkin",
+"sk": "\u0160es\u0165orkin"
+},
+"gamesPlayed": 5,
+"gamesStarted": 5,
+"goalsAgainst": 8,
+"goalsAgainstAverage": 1.793164,
+"savePercentage": 0.926606,
+"shotsAgainst": 109,
+"saves": 101,
+"timeOnIce": 16061,
+"wins": 3,
+"losses": 1
+},
+{
+"playerId": 8482193,
+"firstName": {
+"default": "Dylan"
+},
+"lastName": {
+"default": "Garand"
+},
+"gamesPlayed": 7,
+"gamesStarted": 6,
+"goalsAgainst": 11,
+"goalsAgainstAverage": 1.846929,
+"savePercentage": 0.928571,
+"shotsAgainst": 154,
+"saves": 143,
+"timeOnIce": 21441,
+"wins": 4,
+"losses": 2
+}
+]
+},
+"OTT": {
+"goalies": [
+{
+"playerId": 8476999,
+"firstName": {
+"default": "Linus"
+},
+"lastName": {
+"default": "Ullmark"
+},
+"gamesPlayed": 8,
+"gamesStarted": 8,
+"goalsAgainst": 10,
+"goalsAgainstAverage": 1.333136,
+"savePercentage": 0.945055,
+"shotsAgainst": 182,
+"saves": 172,
+"timeOnIce": 27004,
+"wins": 7,
+"losses": 1
+},
+{
+"playerId": 8481035,
+"firstName": {
+"default": "Samuel"
+},
+"lastName": {
+"default": "Ersson"
+},
+"gamesPlayed": 4,
+"gamesStarted": 2,
+"goalsAgainst": 12,
+"goalsAgainstAverage": 4.698717,
+"savePercentage": 0.830986,
+"shotsAgainst": 71,
+"saves": 59,
+"timeOnIce": 9194,
+"wins": 0,
+"losses": 2
+}
+]
+},
+"SJS": {
+"goalies": [
+{
+"playerId": 8477968,
+"firstName": {
+"default": "Alex"
+},
+"lastName": {
+"default": "Nedeljkovic"
+},
+"gamesPlayed": 4,
+"gamesStarted": 4,
+"goalsAgainst": 10,
+"goalsAgainstAverage": 2.372479,
+"savePercentage": 0.917355,
+"shotsAgainst": 121,
+"saves": 111,
+"timeOnIce": 15174,
+"wins": 3,
+"losses": 0
+},
+{
+"playerId": 8482137,
+"firstName": {
+"default": "Yaroslav"
+},
+"lastName": {
+"default": "Askarov"
+},
+"gamesPlayed": 6,
+"gamesStarted": 6,
+"goalsAgainst": 22,
+"goalsAgainstAverage": 3.671937,
+"savePercentage": 0.865031,
+"shotsAgainst": 163,
+"saves": 141,
+"timeOnIce": 21569,
+"wins": 2,
+"losses": 4
+}
+]
+},
+"TOR": {
+"goalies": [
+{
+"playerId": 8475683,
+"firstName": {
+"default": "Sergei",
+"cs": "Sergej",
+"sk": "Sergej"
+},
+"lastName": {
+"default": "Bobrovsky",
+"cs": "Bobrovskij",
+"fi": "Bobrovski",
+"sk": "Bobrovskij"
+},
+"gamesPlayed": 7,
+"gamesStarted": 7,
+"goalsAgainst": 21,
+"goalsAgainstAverage": 2.964473,
+"savePercentage": 0.901869,
+"shotsAgainst": 214,
+"saves": 193,
+"timeOnIce": 25502,
+"wins": 2,
+"losses": 3
+},
+{
+"playerId": 8476932,
+"firstName": {
+"default": "Anthony"
+},
+"lastName": {
+"default": "Stolarz"
+},
+"gamesPlayed": 4,
+"gamesStarted": 4,
+"goalsAgainst": 12,
+"goalsAgainstAverage": 2.992933,
+"savePercentage": 0.898305,
+"shotsAgainst": 118,
+"saves": 106,
+"timeOnIce": 14434,
+"wins": 3,
+"losses": 1
+}
+]
+}
+}

@@ -1,0 +1,10 @@
+/* ---- High contrast: pure black, white text, 2px white borders, no glass or glow ---- */
+.stApp{--v5-ink:#fff;--v5-mut:#e6e6e6;--v5-line:#fff;--v5-glass:#000;--v5-glass2:#000;--v5-neon:#00f0ff;--v5-neon2:#ff4dff;--v5-bg:#000;
+ --tx:#fff;--tx2:#fff;--mut:#e6e6e6;--line:#fff;--line2:#fff;background:#000!important}
+.stApp p,.stApp li,.stApp label,.stApp span,.stApp [data-testid="stCaptionContainer"] p{color:#fff!important}
+.stApp .stTabs [data-baseweb="tab-list"],.stApp [data-testid="stExpander"] details,.stApp .stButton button,.stApp [data-testid="stVerticalBlockBorderWrapper"]{border:2px solid #fff!important;background:#000!important;backdrop-filter:none;box-shadow:none}
+.stApp .stTabs [aria-selected="true"]{background:#fff!important;color:#000!important}.stApp .stTabs [aria-selected="true"] p{color:#000!important}
+.stApp .np-hero2,.stApp .np-kpi,.stApp .np-card,.stApp .np-feature,.stApp .np-lead,.stApp .np-intel,.stApp .np-gk{background:#000!important;border:2px solid #fff!important;box-shadow:none!important}
+.stApp [data-testid="stSidebar"]{background:#000!important;border-right:2px solid #fff}
+.v55[data-theme=contrast] .th{background:#000;border:2px solid #fff}.v55[data-theme=contrast] .th-beam{display:none}
+.v55[data-theme=contrast] .kp,.v55[data-theme=contrast] .empty-st{background:#000;border:2px solid #fff}

@@ -38,13 +38,19 @@ class _Resp:
             raise requests.HTTPError(str(self.status_code))
 
 
-def run_app(monkeypatch, tmp_path, espn='fixture', session=None, timeout=180):
-    """AppTest of app.py on the trimmed real slate with every HTTP call faked (offline)."""
+def run_app(monkeypatch, tmp_path, espn='fixture', session=None, timeout=180, pbp_files=None, extra_games=()):
+    """AppTest of app.py on the trimmed real slate with every HTTP call faked (offline).
+
+    V5.6: ``pbp_files`` {target name: fixture path} are copied to a temp folder served through PLAYBOOK_V56_PBP_DIR
+    (score.json + {game_id}.json, real captured NHL payloads); ``extra_games`` are appended to the snapshot's games.
+    Without pbp_files the live feeds are unreachable (ConnectionError), i.e. the pregame-prior path."""
     import requests
     import streamlit as st
     import snapshot_store
     from streamlit.testing.v1 import AppTest
     snap = slate()
+    if extra_games:
+        snap = {**snap, 'games': list(snap['games']) + list(extra_games)}
     club = load('nhl_club_stats_goalies_20261022.json')
     espn_payload = load('espn_scoreboard_20261022.json')
     if espn == 'empty':  # feed reachable but no probables listed -> unknown state
@@ -60,9 +66,21 @@ def run_app(monkeypatch, tmp_path, espn='fixture', session=None, timeout=180):
         raise requests.ConnectionError('offline test')
 
     monkeypatch.setenv('PLAYBOOK_TRACKER_DB', str(tmp_path / 'tracker.sqlite'))
+    import shutil
+    import h2h_v56
+    monkeypatch.setattr(h2h_v56, 'CACHE_DIR', tmp_path / 'h2h_cache')
+    if pbp_files:
+        d = tmp_path / 'pbp'
+        d.mkdir(exist_ok=True)
+        for name, src in pbp_files.items():
+            shutil.copy(src, d / name)
+        monkeypatch.setenv('PLAYBOOK_V56_PBP_DIR', str(d))
+    else:
+        monkeypatch.delenv('PLAYBOOK_V56_PBP_DIR', raising=False)
     monkeypatch.setattr(requests, 'get', fake_get)
     monkeypatch.setattr(snapshot_store, 'load_snapshot', lambda day, root=None: {**snap, 'day': day})
     st.cache_data.clear()
+    st.cache_resource.clear()
     at = AppTest.from_file(APP, default_timeout=timeout)
     for k, v in (session or {}).items():
         at.session_state[k] = v
@@ -71,7 +89,8 @@ def run_app(monkeypatch, tmp_path, espn='fixture', session=None, timeout=180):
 
 
 def markdown(at):
-    return ' '.join(m.value for m in at.markdown)
+    # V5.5: include st.html fragments (Home / Matchup Center design).
+    return ' '.join([m.value for m in at.markdown] + [h.value for h in at.get('html')])
 
 
 def state_dict(at):

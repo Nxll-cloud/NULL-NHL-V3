@@ -1,0 +1,48 @@
+name: Precompute NHL slate
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      slate_date:
+        description: "Optional slate date YYYY-MM-DD (defaults to current Eastern date)"
+        required: false
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: nhl-precompute
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Calculate current slate
+        env:
+          SLATE_DATE: ${{ inputs.slate_date }}
+        run: |
+          if [ -n "$SLATE_DATE" ]; then python precompute_slate.py "$SLATE_DATE"; else python precompute_slate.py; fi
+      - name: Prune old snapshots (V5.5, keeps the last 60 days)
+        run: python snapshot_store.py prune --keep-days 60
+      - name: Repo size check (V5.5; fails on any file GitHub would reject)
+        run: python check_repo_size.py --top 15 --max-file-kb 100
+      - name: Commit updated snapshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshots/*.json is in .gitignore (keeps manual uploads small), so the bot force-adds them;
+          # -A stages pruned (deleted) snapshots too.
+          git add -f -A snapshots/
+          if ! git diff --cached --quiet; then
+            git commit -m "Update NHL slate snapshots"
+            git push
+          fi

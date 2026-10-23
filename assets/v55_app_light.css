@@ -1,0 +1,26 @@
+/* ---- Light theme: override the V5.3/V5.4 dark hard-codes + native widgets. Hero headers stay dark (by design). ---- */
+.stApp{--v5-ink:#0b1226;--v5-mut:#4a5675;--v5-line:rgba(20,40,90,.14);--v5-glass:rgba(255,255,255,.78);--v5-glass2:#ffffff;--v5-neon:#0077c8;--v5-neon2:#6a3df0;--v5-bg:#eef2fa;
+ --bg:#eef2fa;--s1:#ffffff;--s2:#f4f7fc;--s3:#e8eef8;--line:#d3dcec;--line2:#c2cee3;--tx:#0b1226;--tx2:#2c3a59;--mut:#4a5675;
+ color:#0b1226;color-scheme:light;
+ background:radial-gradient(1000px 500px at 10% -10%,rgba(0,119,200,.10),transparent 60%),radial-gradient(900px 500px at 100% 0%,rgba(106,61,240,.10),transparent 60%),#eef2fa!important}
+.stApp,.stApp p,.stApp li,.stApp label,.stApp span,.stApp [data-testid="stMarkdownContainer"],.stApp [data-testid="stCaptionContainer"]{color:#0b1226}
+.stApp [data-testid="stCaptionContainer"],.stApp [data-testid="stCaptionContainer"] p{color:#4a5675!important}
+.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp [data-testid="stMetricValue"],.stApp [data-testid="stMetricValue"] div{color:#0b1226!important}
+.stApp [data-testid="stSidebar"]{background:#ffffff!important}
+.stApp [data-testid="stHeader"]{background:transparent}
+.stApp [data-testid="stExpander"] details{background:rgba(255,255,255,.85)!important}
+.stApp .stTabs [data-baseweb="tab-list"]{background:rgba(255,255,255,.85)!important}
+.stApp .stTabs [aria-selected="true"]{color:#0b1226!important;background:linear-gradient(180deg,rgba(0,119,200,.12),rgba(106,61,240,.08))!important}
+.stApp .stButton button,.stApp .stDownloadButton button,.stApp .stFormSubmitButton button{background:#fff;color:#0b1226}
+.stApp .stButton button:hover:not(:disabled){color:#0b1226!important}
+.stApp [data-baseweb="select"]>div,.stApp [data-baseweb="input"],.stApp [data-baseweb="base-input"],.stApp input,.stApp textarea,.stApp [data-baseweb="popover"] ul{background:#fff!important;color:#0b1226!important}
+.stApp [data-testid="stVerticalBlockBorderWrapper"]{background:rgba(255,255,255,.7)}
+.stApp .np-kpi strong,.stApp .np-day b,.stApp .np-lead-person b,.stApp .np-lead-metric strong,.stApp .np-gem-info b,.stApp .np-match2 b,.stApp .np-mbar-teams b,
+.stApp .np-thead b,.stApp .np-trow-info b,.stApp .np-oc-player b,.stApp .np-orow b,.stApp .np-nrow b,.stApp .np-nv strong,.stApp .np-num-versus b,
+.stApp .np-feature b,.stApp .np-feature-score,.stApp .np-research-name,.stApp .np-research-form,.stApp .np-research-stats b,.stApp .np-brand-text,
+.stApp .np-intel-person b,.stApp .np-intel-metric strong,.stApp .np-gk-head b,.stApp .np-gk-total strong,.stApp .np-gs b{color:#0b1226!important}
+.stApp .np-kpi,.stApp .np-card,.stApp .np-feature,.stApp .np-lead,.stApp .np-intel,.stApp .np-gk,.stApp .np-trow,.stApp .np-orow,.stApp .np-nrow,.stApp .np-day,.stApp .np-research,.stApp .np-match2,.stApp .np-gem{background:#ffffff!important;border-color:#d3dcec!important}
+.stApp .np-hero2,.stApp .np-hero2 *{color:#f4f7ff}
+.stApp .np-hero2{background:linear-gradient(125deg,#0d3a5c,#0a0f1f 45%,#2a1660)!important}
+.v55[data-theme=light] .th .th-title{color:#f4f7ff}.v55[data-theme=light] .th .th-sub{color:#c6cee3}.v55[data-theme=light] .th .kicker{color:#38e1ff}
+.v55[data-theme=light] .th{background:linear-gradient(125deg,color-mix(in srgb,var(--pa) 40%,#0a0f1f),#0a0f1f 46%,color-mix(in srgb,var(--pb) 38%,#0a0f1f))}

@@ -1,0 +1,2 @@
+date,game_id,player,player_id,team,book,side,american_odds,timestamp
+# rows starting with # are ignored. One row per book per side (side = yes or no). Earliest timestamp per key = opener. Fill with REAL opening prices only.

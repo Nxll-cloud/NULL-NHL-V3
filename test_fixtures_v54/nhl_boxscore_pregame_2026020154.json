@@ -1,0 +1,11 @@
+{
+ "_note": "Real NHL api-web boxscore pregame (FUT): no playerByGameStats / starter info",
+ "id": 2026020154,
+ "gameState": "FUT",
+ "awayTeam": {
+  "abbrev": "NSH"
+ },
+ "homeTeam": {
+  "abbrev": "BOS"
+ }
+}

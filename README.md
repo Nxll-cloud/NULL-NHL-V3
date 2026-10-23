@@ -1,6 +1,12 @@
-# Null’s Playbook V5.4
+# Null’s Playbook V5.6
 
-V5.4 adds the **Matchup Center** tab, a **Track Record** tab (prediction tracker), a **Goalies: Goals Allowed** section in Research, **probable starting goalies**, a Home **featured intel row** (the same four picks as Research), the brand logo, and **Form %** (0–100 %) everywhere scores are shown. See `V54_NOTES.md` (and `V53_NOTES.md` for the redesign).
+V5.6 adds the **⏱ Live Next Goal** model and tab (official NHL play-by-play, competing-risk next-goal %), Matchup Center goalie threats with real shooter-vs-goalie history, per-game numerology boards, **🚩 Edge Flags** against the opening anytime line, and a next-goal **backtest** with a write-once baseline (`python backtest_next_goal.py`, see `BACKTEST_V56.md`). See `V56_NOTES.md`.
+
+## V5.5
+
+V5.5 adds the **🧪 EdgeLab** tab (¼-Kelly edge scanner on demo rows or your own prices + your own probability), **GitHub-upload safety** (`check_repo_size.py`, `.gitignore`, snapshot pruning, per-month Track export, `GITHUB_UPLOAD.md`) and the approved **neon-arena redesign** (designed live Home, Night / Light / High-contrast themes, local fonts). See `V55_NOTES.md`. V5.4 features (Matchup Center, Track Record, goalies, Form %) are unchanged — see `V54_NOTES.md`.
+
+Before pushing to GitHub: `python check_repo_size.py` (see `GITHUB_UPLOAD.md`).
 
 Run: `pip install -r requirements.txt && streamlit run app.py`. Tests: `python -m pytest -q` (offline: `conftest.py` blocks all outbound sockets; fixtures in `test_fixtures_v54/`).
 

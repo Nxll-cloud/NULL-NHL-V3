@@ -1,0 +1,326 @@
+{
+ "_note": "Trimmed real ESPN NHL scoreboard response, 2026-10-22 (fetched pregame)",
+ "events": [
+  {
+   "id": "401892552",
+   "date": "2026-10-22T23:00Z",
+   "name": "Nashville Predators at Boston Bruins",
+   "competitions": [
+    {
+     "id": "401892552",
+     "status": {
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Thu, October 22nd at 7:00 PM EDT",
+       "shortDetail": "10/22 - 7:00 PM EDT"
+      }
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "abbreviation": "BOS",
+        "displayName": "Boston Bruins"
+       },
+       "probables": [
+        {
+         "name": "probableStartingGoalie",
+         "displayName": "Probable Starting Goalie",
+         "playerId": 4392765,
+         "athlete": {
+          "id": "4392765",
+          "fullName": "Michael DiPietro",
+          "displayName": "Michael DiPietro",
+          "shortName": "M. DiPietro",
+          "links": [
+           {
+            "rel": [
+             "playercard",
+             "desktop",
+             "athlete"
+            ],
+            "href": "https://www.espn.com/nhl/player/_/id/4392765"
+           }
+          ],
+          "headshot": "https://a.espncdn.com/i/headshots/nhl/players/full/4392765.png",
+          "jersey": "30",
+          "position": "G",
+          "team": {
+           "id": "1"
+          }
+         },
+         "status": {
+          "id": "102",
+          "name": "Confirmed",
+          "type": "confirmed",
+          "abbreviation": "Confirmed"
+         }
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "abbreviation": "NSH",
+        "displayName": "Nashville Predators"
+       },
+       "probables": [
+        {
+         "name": "probableStartingGoalie",
+         "displayName": "Probable Starting Goalie",
+         "playerId": 3042109,
+         "athlete": {
+          "id": "3042109",
+          "fullName": "Juuse Saros",
+          "displayName": "Juuse Saros",
+          "shortName": "J. Saros",
+          "links": [
+           {
+            "rel": [
+             "playercard",
+             "desktop",
+             "athlete"
+            ],
+            "href": "https://www.espn.com/nhl/player/_/id/3042109"
+           }
+          ],
+          "headshot": "https://a.espncdn.com/i/headshots/nhl/players/full/3042109.png",
+          "jersey": "74",
+          "position": "G",
+          "team": {
+           "id": "27"
+          }
+         },
+         "status": {
+          "id": "101",
+          "name": "Expected",
+          "type": "expected",
+          "abbreviation": "Expected"
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401892553",
+   "date": "2026-10-22T23:00Z",
+   "name": "New York Rangers at Toronto Maple Leafs",
+   "competitions": [
+    {
+     "id": "401892553",
+     "status": {
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Thu, October 22nd at 7:00 PM EDT",
+       "shortDetail": "10/22 - 7:00 PM EDT"
+      }
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "abbreviation": "TOR",
+        "displayName": "Toronto Maple Leafs"
+       },
+       "probables": [
+        {
+         "name": "probableStartingGoalie",
+         "displayName": "Probable Starting Goalie",
+         "playerId": 5571,
+         "athlete": {
+          "id": "5571",
+          "fullName": "Sergei Bobrovsky",
+          "displayName": "Sergei Bobrovsky",
+          "shortName": "S. Bobrovsky",
+          "links": [
+           {
+            "rel": [
+             "playercard",
+             "desktop",
+             "athlete"
+            ],
+            "href": "https://www.espn.com/nhl/player/_/id/5571"
+           }
+          ],
+          "headshot": "https://a.espncdn.com/i/headshots/nhl/players/full/5571.png",
+          "jersey": "72",
+          "position": "G",
+          "team": {
+           "id": "21"
+          }
+         },
+         "status": {
+          "id": "102",
+          "name": "Confirmed",
+          "type": "confirmed",
+          "abbreviation": "Confirmed"
+         }
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "abbreviation": "NYR",
+        "displayName": "New York Rangers"
+       },
+       "probables": [
+        {
+         "name": "probableStartingGoalie",
+         "displayName": "Probable Starting Goalie",
+         "playerId": 4697705,
+         "athlete": {
+          "id": "4697705",
+          "fullName": "Dylan Garand",
+          "displayName": "Dylan Garand",
+          "shortName": "D. Garand",
+          "links": [
+           {
+            "rel": [
+             "playercard",
+             "desktop",
+             "athlete"
+            ],
+            "href": "https://www.espn.com/nhl/player/_/id/4697705"
+           }
+          ],
+          "headshot": "https://a.espncdn.com/i/headshots/nhl/players/full/4697705.png",
+          "jersey": "33",
+          "position": "G",
+          "team": {
+           "id": "13"
+          }
+         },
+         "status": {
+          "id": "102",
+          "name": "Confirmed",
+          "type": "confirmed",
+          "abbreviation": "Confirmed"
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401892554",
+   "date": "2026-10-22T23:00Z",
+   "name": "San Jose Sharks at Ottawa Senators",
+   "competitions": [
+    {
+     "id": "401892554",
+     "status": {
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Thu, October 22nd at 7:00 PM EDT",
+       "shortDetail": "10/22 - 7:00 PM EDT"
+      }
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "abbreviation": "OTT",
+        "displayName": "Ottawa Senators"
+       },
+       "probables": [
+        {
+         "name": "probableStartingGoalie",
+         "displayName": "Probable Starting Goalie",
+         "playerId": 4587815,
+         "athlete": {
+          "id": "4587815",
+          "fullName": "Samuel Ersson",
+          "displayName": "Samuel Ersson",
+          "shortName": "S. Ersson",
+          "links": [
+           {
+            "rel": [
+             "playercard",
+             "desktop",
+             "athlete"
+            ],
+            "href": "https://www.espn.com/nhl/player/_/id/4587815"
+           }
+          ],
+          "headshot": "https://a.espncdn.com/i/headshots/nhl/players/full/4587815.png",
+          "jersey": "30",
+          "position": "G",
+          "team": {
+           "id": "14"
+          }
+         },
+         "status": {
+          "id": "102",
+          "name": "Confirmed",
+          "type": "confirmed",
+          "abbreviation": "Confirmed"
+         }
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "abbreviation": "SJ",
+        "displayName": "San Jose Sharks"
+       },
+       "probables": [
+        {
+         "name": "probableStartingGoalie",
+         "displayName": "Probable Starting Goalie",
+         "playerId": 4697394,
+         "athlete": {
+          "id": "4697394",
+          "fullName": "Yaroslav Askarov",
+          "displayName": "Yaroslav Askarov",
+          "shortName": "Y. Askarov",
+          "links": [
+           {
+            "rel": [
+             "playercard",
+             "desktop",
+             "athlete"
+            ],
+            "href": "https://www.espn.com/nhl/player/_/id/4697394"
+           }
+          ],
+          "headshot": "https://a.espncdn.com/i/headshots/nhl/players/full/4697394.png",
+          "jersey": "30",
+          "position": "G",
+          "team": {
+           "id": "18"
+          }
+         },
+         "status": {
+          "id": "102",
+          "name": "Confirmed",
+          "type": "confirmed",
+          "abbreviation": "Confirmed"
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

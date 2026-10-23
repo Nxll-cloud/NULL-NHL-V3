@@ -1,0 +1,80 @@
+/* ---- V5.5 app layer: wrapper fixes, new components, native Streamlit widget reskin (Night = default) ---- */
+.v55.v55-app{background:none!important;min-height:0!important;overflow:visible;line-height:1.45}
+.v55.v55-app .sec:first-child{margin-top:0}
+[data-testid="stElementContainer"]:has(.v55-theme-flag){display:none}
+.stApp{--v5-ink:#f4f7ff;--v5-mut:#97a3c2;--v5-line:rgba(148,170,255,.16);--v5-glass:rgba(16,22,44,.62);--v5-glass2:rgba(22,30,60,.8);
+ --v5-neon:#38e1ff;--v5-neon2:#b26bff;--v5-hot:#ff3d7f;--v5-bg:#05070f;
+ --font:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif!important;--mono:'Barlow Condensed','Arial Narrow',ui-monospace,sans-serif;
+ background:radial-gradient(1200px 600px at 15% -10%,rgba(56,225,255,.12),transparent 60%),radial-gradient(900px 600px at 95% 0%,rgba(178,107,255,.15),transparent 60%),radial-gradient(1000px 800px at 50% 120%,rgba(255,61,127,.07),transparent 60%),var(--v5-bg)!important}
+.stApp h1,.stApp h2,.stApp h3,.stApp h4{font-family:'Barlow Condensed','Arial Narrow',sans-serif!important;letter-spacing:.02em}
+.stApp [data-testid="stHeading"] h3,.stApp [data-testid="stMarkdownContainer"] h3{font-weight:800;text-transform:uppercase;font-size:1.55rem}
+/* native tabs: condensed caps + neon ink */
+.stApp .stTabs [data-baseweb="tab-list"]{gap:2px;border-radius:16px;padding:5px;background:var(--v5-glass)!important;border:1px solid var(--v5-line);backdrop-filter:blur(14px)}
+.stApp .stTabs [data-baseweb="tab"]{font-family:'Barlow Condensed','Arial Narrow',sans-serif!important;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:1.02rem;border-radius:11px;padding:8px 14px;color:var(--v5-mut);transition:color .2s,background .2s}
+.stApp .stTabs [data-baseweb="tab"] p{font:inherit!important}
+.stApp .stTabs [data-baseweb="tab"]:hover{color:var(--v5-ink);background:rgba(148,170,255,.08)}
+.stApp .stTabs [aria-selected="true"]{color:var(--v5-ink)!important;background:linear-gradient(180deg,rgba(56,225,255,.16),rgba(178,107,255,.10))!important;box-shadow:inset 0 0 0 1px rgba(56,225,255,.35)}
+.stApp .stTabs [data-baseweb="tab-highlight"]{background:linear-gradient(90deg,var(--v5-neon),var(--v5-neon2))!important;height:3px;border-radius:3px;box-shadow:0 0 14px var(--v5-neon)}
+.stApp .stTabs [data-baseweb="tab-border"]{display:none}
+/* buttons */
+.stApp .stButton button,.stApp .stDownloadButton button,.stApp .stFormSubmitButton button{border-radius:12px;font-weight:600;border:1px solid var(--v5-line);background:var(--v5-glass2);color:var(--v5-ink);transition:transform .15s,box-shadow .2s,border-color .2s}
+.stApp .stButton button:hover:not(:disabled),.stApp .stDownloadButton button:hover,.stApp .stFormSubmitButton button:hover{border-color:var(--v5-neon);color:var(--v5-ink)!important;box-shadow:0 0 0 1px var(--v5-neon),0 0 22px -4px var(--v5-neon);transform:translateY(-1px)}
+.stApp .stButton button[kind="primary"],.stApp [data-testid="stBaseButton-primary"]{background:linear-gradient(90deg,#1ac8f0,#9b5cff)!important;border:0;color:#fff!important}
+/* metrics, containers, expanders, inputs */
+.stApp [data-testid="stMetricValue"]{font-family:'Barlow Condensed','Arial Narrow',sans-serif!important;font-weight:800;font-size:2.1rem;letter-spacing:.01em}
+.stApp [data-testid="stMetricLabel"] p{font-family:'Barlow Condensed',sans-serif!important;font-weight:700;letter-spacing:.18em;text-transform:uppercase;font-size:.78rem;color:var(--v5-mut)}
+.stApp [data-testid="stVerticalBlockBorderWrapper"],.stApp [data-testid="stVerticalBlock"][class*="border"]{border-radius:18px}
+.stApp [data-testid="stExpander"] details{border-radius:16px!important;border:1px solid var(--v5-line)!important;background:var(--v5-glass)!important}
+.stApp [data-testid="stExpander"] summary:hover{color:var(--v5-neon)}
+.stApp [data-baseweb="select"]>div,.stApp [data-baseweb="input"],.stApp [data-baseweb="base-input"],.stApp [data-testid="stDateInput"] input{border-radius:12px!important}
+.stApp [data-baseweb="select"]>div:focus-within,.stApp [data-baseweb="input"]:focus-within{box-shadow:0 0 0 1px var(--v5-neon),0 0 18px -6px var(--v5-neon)}
+.stApp [data-testid="stSlider"] [role="slider"]{background:var(--v5-neon);box-shadow:0 0 0 4px rgba(56,225,255,.2),0 0 16px var(--v5-neon)}
+.stApp [data-testid="stAlert"]{border-radius:14px}
+.stApp [data-testid="stDataFrame"],.stApp [data-testid="stTable"]{border-radius:14px;overflow:hidden;border:1px solid var(--v5-line)}
+/* the V5.3 tab hero gets the neon treatment too */
+.stApp .np-hero2{background:linear-gradient(125deg,rgba(56,225,255,.16),rgba(10,15,31,.9) 45%,rgba(178,107,255,.18))!important;border-color:rgba(148,170,255,.22)!important}
+.stApp .np-hero-title{font-family:'Barlow Condensed',sans-serif!important;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:clamp(2rem,4vw,3rem)}
+.stApp .np-kpi strong,.stApp .np-feature-score,.stApp .np-lead-metric strong,.stApp .np-intel-metric strong{font-family:'Barlow Condensed',sans-serif!important;font-weight:800}
+
+/* ---- new V5.5 components ---- */
+.v55 .crow{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}
+.v55 .th{position:relative;overflow:hidden;border-radius:26px;padding:24px 26px 20px;margin:2px 0 14px;border:1px solid var(--line);
+ background:linear-gradient(125deg,color-mix(in srgb,var(--pa) 28%,transparent),rgba(7,10,22,.92) 46%,color-mix(in srgb,var(--pb) 26%,transparent));box-shadow:var(--shadow)}
+.v55 .th-beam{position:absolute;inset:-40% -10% auto auto;width:60%;height:180%;background:linear-gradient(100deg,transparent 40%,rgba(255,255,255,.07) 50%,transparent 60%);animation:v55beam 7s ease-in-out infinite;pointer-events:none}
+@keyframes v55beam{0%,100%{transform:translateX(-30%)}50%{transform:translateX(30%)}}
+.v55 .th-top{display:flex;align-items:center;gap:10px}
+.v55 .v55-mark{width:30px;height:30px;filter:drop-shadow(0 0 10px rgba(56,225,255,.5))}
+.v55 .th-title{margin:8px 0 4px;font:800 clamp(2.1rem,4.4vw,3.4rem)/.95 var(--fd);text-transform:uppercase;letter-spacing:.01em;color:#f4f7ff;padding:0}
+.v55 .th-sub{margin:0 0 10px;color:#c6cee3;max-width:860px}
+.v55 .th .cats{margin-top:6px}
+.v55 .th .kicker{color:var(--neon)}
+.v55 .sh.mini{margin:18px 0 8px}.v55 .sh.mini h3{font-size:1.5rem}
+.v55 .empty-st{display:flex;gap:16px;align-items:center;padding:18px 20px;border-radius:18px;border-style:dashed}
+.v55 .empty-st .ghost{position:static;font:800 3rem/1 var(--fd);opacity:.35;color:var(--neon)}
+.v55 .empty-st b{font:800 1.25rem var(--fd);text-transform:uppercase;letter-spacing:.04em}.v55 .empty-st p{margin:2px 0 0;color:var(--mut)}
+.v55 .kps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:6px 0 12px}
+.v55 .kp{border-radius:16px;padding:12px 14px;background:var(--glass);border:1px solid var(--line)}
+.v55 .kp strong{display:block;font:800 2rem/1.05 var(--fd);color:var(--ink);margin-top:4px}
+.v55 .kp.neon strong{color:var(--neon)}.v55 .kp.ok strong{color:var(--ok)}.v55 .kp.warn strong{color:var(--warn)}
+.v55 .bh{display:flex;align-items:center;gap:8px;padding:2px 0 6px;position:relative}
+.v55 .bh .bl{width:34px;height:34px;filter:drop-shadow(0 0 8px rgba(0,0,0,.4))}
+.v55 .bht{flex:1;min-width:0}.v55 .bht b{display:block;font:800 1.28rem/1.05 var(--fd);text-transform:uppercase;letter-spacing:.02em;color:var(--ink)}
+.v55 .bh .edge{font-size:1rem}.v55 .bh .edge.pos{color:var(--ok);text-shadow:0 0 12px var(--ok)}.v55 .bh .edge.neg{color:var(--hot)}
+.v55 .sr{padding:4px 0}.v55 .sr b{font:800 1.2rem var(--fd);text-transform:uppercase;color:var(--ink)}.v55 .sr small{color:var(--mut)}
+.v55 .chip.demo{background:rgba(255,197,61,.14);color:var(--warn);border-color:rgba(255,197,61,.4)}
+.v55 .foot{display:flex;gap:10px;align-items:center}.v55 .foot .v55-mark{width:22px;height:22px}
+.v55 .lg-ph,.v55 .mug-ph{display:inline-grid;place-items:center;border-radius:50%;background:var(--glass2);opacity:.6}
+.v55 .ring.none .rg{background:conic-gradient(var(--line) 0 360deg)!important}
+.v55 .bars.none{display:grid;place-items:center;min-height:90px;color:var(--mut);font:700 .85rem var(--fd);letter-spacing:.18em;text-transform:uppercase;border:1px dashed var(--line);border-radius:14px}
+.v55 .when.done{color:var(--mut);font:700 .8rem var(--fd);letter-spacing:.16em;text-transform:uppercase}
+.v55 .spark-empty{font-size:.75rem;color:var(--dim);padding:6px 0}
+.v55 .hero.empty,.v55 .feature.empty{padding:28px}.v55 .hero.empty h2{font:800 2rem var(--fd);text-transform:uppercase}
+.v55 .tr.none{display:block;color:var(--mut);padding:14px}
+.v55 .gc.unknown{padding:12px}
+.v55 .hero.vbar{padding-bottom:6px}.v55 .hero.vbar .versus{margin-bottom:10px}
+@media(max-width:760px){.v55 .kps{grid-template-columns:1fr 1fr}.v55 .th{padding:18px 16px 14px;border-radius:20px}}
+.v55 .tile{cursor:default}
+.v55 .chip.odds{color:#7fd8ff;border-color:rgba(56,225,255,.45);background:rgba(56,225,255,.1)}
+
+/* V5.5: keep the native logo / sidebar control clear of the date input on phones */
+@media (max-width:640px){.block-container{padding-top:3.6rem!important}}

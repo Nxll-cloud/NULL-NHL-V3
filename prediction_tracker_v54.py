@@ -36,6 +36,7 @@ Rankings change only when the user enables the toggle (default OFF).
 from __future__ import annotations
 
 import json
+import re
 import math
 import os
 import sqlite3
@@ -541,6 +542,23 @@ def apply_track_record(ranked, records, enabled=False, score_col='V3.2 Adjusted 
 def export_json(conn):
     data = {t: [dict(r) for r in conn.execute(f'SELECT * FROM {t}')] for t in ('slates', 'predictions', 'actuals', 'game_results')}
     return json.dumps({'schema': 'prediction_tracker_v54', 'exported_at': _now(), **data}, indent=1)
+
+
+def months(conn):
+    """'YYYY-MM' months that have slates or predictions (newest first)."""
+    rows = conn.execute("SELECT DISTINCT substr(day,1,7) m FROM slates UNION SELECT DISTINCT substr(day,1,7) FROM predictions ORDER BY 1 DESC")
+    return [r[0] for r in rows if r[0]]
+
+
+def export_month_json(conn, month):
+    """V5.5: one month's slice of the store (same schema as export_json, so import_json accepts it).
+    Small per-month files keep exports far under GitHub's limits; nothing is deleted."""
+    if not re.fullmatch(r'\d{4}-\d{2}', str(month or '')):
+        raise TrackerError('month must be YYYY-MM')
+    like = f'{month}-%'
+    data = {t: [dict(r) for r in conn.execute(f'SELECT * FROM {t} WHERE day LIKE ?', (like,))]
+            for t in ('slates', 'predictions', 'actuals', 'game_results')}
+    return json.dumps({'schema': 'prediction_tracker_v54', 'exported_at': _now(), 'month': month, **data}, indent=1)
 
 
 def import_json(conn, text):

@@ -287,7 +287,6 @@ def brand_title(title, caption=''):
 
 
 CSS = r"""
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
 :root{color-scheme:dark;
  --bg:#0a0f1c;--s1:#111a2c;--s2:#162238;--s3:#1c2b45;--line:#24344f;--line2:#2f4566;
  --tx:#e6edf7;--tx2:#b4c3d9;--mut:#8ea2bf;
