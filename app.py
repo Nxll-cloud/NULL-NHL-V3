@@ -90,6 +90,7 @@ import mc_goalies_v56 as mcg
 import v56_ui as v56
 import os, threading
 from tabs import run_tab
+import app_footer  # audit P1.7d: shared footer (21+, sources, not affiliated, not advice, model card)
 
 # V5.3.1: brand favicon from assets/ (emoji fallback if the file is missing).
 st.set_page_config(page_title="Null's Playbook | NHL", page_icon=ui.page_icon(), layout='wide', initial_sidebar_state='collapsed')
@@ -457,32 +458,42 @@ def np_track_state():
 
 with np_home_tab:
     run_tab('home', globals())
+    app_footer.render(st)  # audit P1.7d: shared footer on every tab
 
 with np_odds_tab:
     run_tab('odds', globals())
+    app_footer.render(st)  # audit P1.7d: shared footer on every tab
 
 with np_research_tab:
     run_tab('research', globals())
+    app_footer.render(st)  # audit P1.7d: shared footer on every tab
 
 with np_numbers_tab:
     run_tab('numbers', globals())
+    app_footer.render(st)  # audit P1.7d: shared footer on every tab
 
 with np_mc_tab:
     run_tab('matchup', globals())
+    app_footer.render(st)  # audit P1.7d: shared footer on every tab
 
 with np_edgelab_tab:
     run_tab('edgelab', globals())
+    app_footer.render(st)  # audit P1.7d: shared footer on every tab
 
 if np_track_tab is not None:  # V5.8: hidden unless FEATURE_TRACK_RECORD is on
     with np_track_tab:
         run_tab('track', globals())
+        app_footer.render(st)  # audit P1.7d
 
 with np_nextgoal_tab:
     run_tab('nextgoal', globals())
+    app_footer.render(st)  # audit P1.7d: shared footer on every tab
 
 with np_edgeflags_tab:
     run_tab('edgeflags', globals())
+    app_footer.render(st)  # audit P1.7d: shared footer on every tab
 
 with np_storylines_tab:
     run_tab('storylines', globals())
+    app_footer.render(st)  # audit P1.7d: shared footer on every tab
 
