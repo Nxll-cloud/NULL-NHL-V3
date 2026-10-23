@@ -59,6 +59,11 @@ if np_flags.show_threat_badges(st.secrets):
         _v5_state['threat_html']=threat.section_html(threat.top_threats(_v56_results,_th_jersey))
     except Exception:   # the badge row must never break Home
         _v5_state['threat_html']=''
+# V5.9: favorite + model win estimate per board tile (from the same _v56_results; games without inputs show nothing).
+try:
+    _v5_state['winprob']=winprob.by_key(_v56_results) if np_flags.show_win_prob(st.secrets) else {}
+except Exception:   # never break Home
+    _v5_state['winprob']={}
 # V5.6: board tiles carry live/final scores and the official game state (score endpoint, else play-by-play).
 _v5_state['scores']=lstate.tile_scores(_v56_results)
 for _g in (_v5_state.get('games') or [])+([_v5_state['featured']] if _v5_state.get('featured') else []):

@@ -192,3 +192,6 @@
 .v55 .thc .tha{font:800 .8rem/1 var(--fb);letter-spacing:.06em;text-shadow:0 1px 2px #0009}
 .v55 .thl{max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 .72rem/1.2 var(--fb)}.v55 .thg{color:var(--mut);font:600 .62rem/1.1 var(--fb);letter-spacing:.04em}
 .v55 .ngr.ng-hit{box-shadow:0 0 0 2px var(--neon),0 0 26px -6px var(--neon);background:color-mix(in srgb,var(--neon) 12%,transparent)}
+.v55 .tile .wpf{display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:1px 8px;max-width:100%;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--neon) 55%,transparent);border-radius:999px;background:linear-gradient(90deg,color-mix(in srgb,var(--neon) 10%,transparent),color-mix(in srgb,var(--neon2) 12%,transparent));font:700 .72rem/1.5 var(--fb);white-space:nowrap;overflow:hidden;cursor:help}
+.v55 .tile .wpf i{font-style:normal;font-weight:800;letter-spacing:.08em;color:var(--neon);font-size:.9em}.v55 .tile .wpf b{font:800 .78rem/1.5 var(--fb);letter-spacing:.02em;color:var(--ink)}
+.v55 .wpf-l{color:var(--mut)}.v55 .wpf-l b{color:var(--neon);font-weight:800;letter-spacing:.06em}

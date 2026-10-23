@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 
 import position_badge_v59 as pb   # V5.9: Home goalie pill
 import goalie_weak_v59 as gw   # V5.9: goalie weak-spot pill (display only)
+import winprob_v59 as wp   # V5.9: board favorite pill (model estimate)
 import venue_v58 as vn
 
 HERE = Path(__file__).resolve().parent
@@ -495,10 +496,10 @@ def scoreboard(data, now):
         sa = f'<span class="scr">{esc(sc.get("away"), "")}</span>' if sc else ''
         sh = f'<span class="scr">{esc(sc.get("home"), "")}</span>' if sc else ''
         tiles.append(f'''<div class="tile{" feat" if g["key"] == fk else ""}" style="--pa:{colors(a)[0]};--ph:{colors(h)[0]}">
-{badge}<div class="row">{logo(a, "tl")}<b>{esc(a)}</b>{gl(a)}{sa}</div><div class="row">{logo(h, "tl")}<b>{esc(h)}</b>{gl(h)}{sh}</div>{vn.tag(g.get("venue"), "vn tvn")}</div>''')
+{badge}<div class="row">{logo(a, "tl")}<b>{esc(a)}</b>{gl(a)}{sa}</div><div class="row">{logo(h, "tl")}<b>{esc(h)}</b>{gl(h)}{sh}</div>{wp.pill((data.get("winprob") or {}).get(g["key"]))}{vn.tag(g.get("venue"), "vn tvn")}</div>''')
     live = sum(1 for g in games if game_state(g, now) == 'live')
     status = f'<span class="live"><i class="pulse"></i>{live} live</span>' if live else ''
-    return f'''<section class="sec"><div class="sh"><h3>Tonight’s board {status}</h3><p>{len(games)} games · goalie dots: <i class="dot ok"></i>confirmed <i class="dot warn"></i>expected <i class="dot"></i>not announced · open any game in Matchup Center</p></div>
+    return f'''<section class="sec"><div class="sh"><h3>Tonight’s board {status}</h3><p>{len(games)} games · goalie dots: <i class="dot ok"></i>confirmed <i class="dot warn"></i>expected <i class="dot"></i>not announced · open any game in Matchup Center{wp.legend(data.get('winprob'))}</p></div>
 <div class="board">{"".join(tiles)}</div></section>'''
 
 

@@ -94,3 +94,10 @@ SHOW_THREAT_BADGES = True
 
 def show_threat_badges(secrets=None, environ=None):
     return _flag('FEATURE_THREAT_BADGES', SHOW_THREAT_BADGES, secrets, environ)
+
+# V5.9: 'Fav MTL 52%' model win estimate on Tonight's Board tiles. FEATURE_WIN_PROB = "false" / =0 hides it.
+SHOW_WIN_PROB = True
+
+
+def show_win_prob(secrets=None, environ=None):
+    return _flag('FEATURE_WIN_PROB', SHOW_WIN_PROB, secrets, environ)
