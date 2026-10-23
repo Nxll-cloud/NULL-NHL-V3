@@ -29,21 +29,17 @@ def _name_with(field, value, avoid=None):
 
 
 def test_matching_date_and_arena_rows():
-    an = gmx.arena_number('United Center')   # English/Reduction root 3, Reverse root 6
+    day = 6   # United Center: English/Reduction root 3, Reverse root 6
+    an = gmx.arena_number('United Center')
     target = an['ordinal_root']
-    day = target   # a name whose English digit equals both the day and the arena gets one row of each
-    both = _name_with('ordinal_root', target)
+    both = _name_with('ordinal_root', target, lambda v: day in (v['reduction_root'], v['reverse_root']) and target != day)
     rows = gmx.player_rows(both, day, an)
-    assert ('date', day) in rows and ('arena', target) in rows
+    assert ('date', 6) in rows and ('arena', target) in rows
     neither = _name_with('ordinal_root', 1, lambda v: all(v[f] not in (day, an[f]) for f, _ in METHODS))
     assert gmx.player_rows(neither, day, an) == []
     table, missing = gmx.match_table(_slate('United Center', [both, neither]), day)
     assert missing == [] and [(r['Player'], r['Match type']) for r in table] == [(both, 'date'), (both, 'arena')]
-    assert all(r['Number'] == day for r in table if r['Match type'] == 'date')
-    # day 6: the same name's Reverse digit is 6, but the date counts English only -> arena row, no date row
-    assert gematria(both)['reverse_root'] == 6 and gmx.player_rows(both, 6, an) == [('arena', target)]
-    eng6 = _name_with('ordinal_root', 6)
-    assert gmx.player_rows(eng6, 6, an) == [('date', 6)]
+    assert all(r['Number'] == 6 for r in table if r['Match type'] == 'date')
 
 
 def test_only_date_and_arena_ever_appear():
@@ -152,25 +148,34 @@ def html_escape(s):
     return html.escape(s)
 
 
-def test_reverse_digit_never_makes_a_date_row():
-    """Date hits follow the boards (DAY_METHODS = English only): a Reverse digit equal to the day is a different English
-    digit (9 - d), so it is not a date match, and no row is ever a Reverse-only match (the old REV tag is gone)."""
+def test_rev_tag_only_on_reverse_only_rows():
     import itertools
     from numerology_v48 import gematria as gm
     assert [gm('Cale Makar')[f] for f, _ in METHODS] == [2, 2, 7]
-    names = ['Cale Makar', 'Frank Nazar', 'Alex Newhook', 'jJ pEtErKa', 'Léon Draisaitl', 'Tim Stützle'] + [''.join(t) for t in itertools.product('ABCDEFG', repeat=3)]
+    names = ['Cale Makar', 'jJ pEtErKa', 'Léon Draisaitl', 'Tim Stützle'] + [''.join(t) for t in itertools.product('ABCDEFG', repeat=3)]
     day = 7
     rows, _ = gmx.match_table(_slate('United Center', names), day)
-    dated = {r['Player'] for r in rows if r['Match type'] == 'date'}
-    assert 'Cale Makar' not in dated and 'Frank Nazar' not in dated and 'Alex Newhook' in dated
+    makar = [r for r in rows if r['Player'] == 'Cale Makar' and r['Match type'] == 'date']
+    assert makar and gmx.rev_only(makar[0])
+    h = gmx.table_html(rows, [], day)
+    kinds = set()
     for r in rows:
         assert r['Match type'] in ('date', 'arena')
-        hits = {c['field'] for c in r['calc'] if c['hit']}
-        assert 'ordinal_root' in hits and 'reduction_root' in hits   # English (== Reduction) decides every row
-        if r['Match type'] == 'date':
-            assert 'reverse_root' not in hits
-    assert {r['Match type'] for r in rows} == {'date', 'arena'}
-    h = gmx.table_html(rows, [], day)
-    assert 'gm-rev' not in h and not hasattr(gmx, 'rev_only') and h.count('<th>') == 3
-    assert '>date<' in h and '>arena<' in h
-
+        eng_red_hit = any(c['hit'] for c in r['calc'] if c['field'] in ('ordinal_root', 'reduction_root'))
+        rev_hit = next(c['hit'] for c in r['calc'] if c['field'] == 'reverse_root')
+        assert gmx.rev_only(r) == (rev_hit and not eng_red_hit)
+        kinds.add((r['Match type'], gmx.rev_only(r)))
+    # Eng + Rev totals = 27 x letters (a multiple of 9), so equal Reverse roots force equal English roots:
+    # an arena row can never be Reverse-only. Date rows can (day 7: Rev 7 means Eng 2).
+    assert kinds == {('date', True), ('date', False), ('arena', False)}
+    for a in ('United Center', 'Bell Centre', 'Scotiabank Arena', 'Rogers Place'):
+        ar, _ = gmx.match_table(_slate(a, names), day)
+        assert not any(gmx.rev_only(r) for r in ar if r['Match type'] == 'arena')
+    # the tag itself is generic: a constructed arena row with only a Reverse hit is tagged
+    fake = {'Player': 'X', 'Match type': 'arena', 'Number': 6, 'arena': 'Test', 'calc': [
+        {'field': f, 'short': 'x', 'raw': 1, 'digit': 1, 'target': 1, 'hit': f == 'reverse_root'} for f, _ in METHODS]}
+    assert gmx.rev_only(fake) and 'gm-rev' in gmx.table_html([fake], [], day)
+    assert h.count('class="gm-rev"') == sum(gmx.rev_only(r) for r in rows)
+    assert 'title="Matched through Reverse cipher only"' in h and h.count('<th>') == 3
+    # the tag sits in the Player cell, never in the match-type value
+    assert '>date<' in h and '>arena<' in h and 'date REV' not in h and 'arena REV' not in h

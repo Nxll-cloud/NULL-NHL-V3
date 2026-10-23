@@ -1,7 +1,7 @@
 """V5.6 Numbers by game: per-game player boards with a documented numerology 'threat score'.
 
 Built only from the existing V4.9 signals (``player_targets_v49.target_rows``), whose outputs are unchanged:
-  D = day matches   (player's English root, == Reduction, equals the universal day number; Reverse does not count)
+  D = day matches   (player's English / Reduction / Reverse root equals the universal day number)
   A = arena matches (player's root equals the arena name's root, per method)
   T = team matches  (player's root equals his team name's root, per method)
 

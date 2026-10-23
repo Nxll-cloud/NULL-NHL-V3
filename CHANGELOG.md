@@ -6,9 +6,14 @@ Newest first. Model details: [MODEL_CARD.md](MODEL_CARD.md). Older release notes
 * Numbers TOP PICK tie-break: the model chance now comes from the next-goal model's player records (`pid` + `lam_game`,
   the same ones Home uses) via `numbers_v58_ui.model_p_from_results`. Before, it was built from ranking rows, came out
   empty (`{'None': 0.0}`), and every tie fell to alphabetical order. It is still only a tie-break inside equal points.
-* Day match counts the English digit only (`DAY_METHODS`). A Reverse digit that equals the day is a different English
-  digit (9 − d), so counting it doubled the day-match odds (2/9) and over-filled the hot tier. The date & arena table
-  follows the same rule (the REV-only tag is gone). The unused `v56_ui.num_legend` (stale "/18") is removed.
+* TOP PICK tie-break order inside equal points is now model chance → form index (`V3.2 Adjusted Index`) → shot rate
+  (`Shots/G L5`, L10 fallback) → raw English name total → player id (final deterministic key). Never alphabetical; a value
+  missing for a player ranks lowest at that stage (`numbers_v58_ui.pick_order`).
+* **Reverted** the English-only day match from fbcef82 at the owner's request: a Reverse digit equal to the universal day
+  counts as a day match again (`DAY_METHODS` = English, Reverse; Reverse = 9 − English). The date & arena table's Reverse
+  hits, REV tag, Player Matches view and captions are back to the old rule. Tonight (2026-10-23, all 76 players): day
+  matches 11 → 21, hot tier 11 → 21. The gematria history record frozen for 2026-10-23 under the narrowed rule is left
+  as frozen (method hash c1543e197ec2); later records carry the new method hash.
 
 ## Audit Phase 1 (2026-10)
 * D1 Defencemen's in-game pace counts missed + blocked attempts, capped (`MODEL_D_ATTEMPTS`, ON; 2026-04-04 log loss

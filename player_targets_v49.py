@@ -6,10 +6,9 @@ from numerology_v48 import gematria, universal_day
 METHODS=(('ordinal_root','English'),('reduction_root','Reduction'),('reverse_root','Reverse'))  # display order (all three digits)
 # The three digits are not independent: Reduction always equals English (both are the name total reduced mod 9), and
 # Reverse mirrors English (English + Reverse always reduces to 9, e.g. 7 <-> 2, 3 <-> 6). So a name carries ONE digit.
-# Scoring counts that digit once per target and only through English (== Reduction): a Reverse "day hit" is really a
-# different English digit (9 - d), so counting it doubled the day-match odds (2/9 instead of 1/9) and over-filled the
-# hot tier. Vs a team or arena name Reverse agrees whenever English does, so English is the only comparison there too.
-DAY_METHODS=(('ordinal_root','English'),)
+# Scoring counts that digit once per target: vs the day number, the English or the Reverse digit may hit (at most one
+# label); vs a team or arena name, Reverse agrees whenever English does, so only English is compared.
+DAY_METHODS=(('ordinal_root','English'),('reverse_root','Reverse'))
 NAME_METHODS=(('ordinal_root','English'),)
 
 def _first_hit(values, target, methods):
@@ -42,12 +41,18 @@ def target_rows(ranked, team, team_name, arena, day):
         arena_matches=_first_hit(values,arena_values if arena_values and arena_values['letters'] else None,NAME_METHODS)
         # Match counts are descriptive only, not estimated probabilities.
         total=len(day_matches)+len(team_matches)+len(arena_matches)
-        try: form=float(row.get('V3.2 Adjusted Index',0))
-        except (ValueError,TypeError): form=0.0
-        if not math.isfinite(form): form=0.0  # V5.3: NaN would break sorting and display
+        try: form=float(row.get('V3.2 Adjusted Index'))
+        except (ValueError,TypeError): form=float('nan')
+        form_known=math.isfinite(form)
+        if not form_known: form=0.0  # V5.3: NaN would break sorting and display
+        shot_rate=None  # V5.9: shots per game, last 5 (last 10 fallback); None when missing. TOP PICK tie-break only
+        for _col in ('Shots/G L5','Shots/G L10'):
+            try: _v=float(row.get(_col))
+            except (ValueError,TypeError): continue
+            if math.isfinite(_v): shot_rate=_v; break
         out.append({'player':name,'player_id':player_id,'team':team,'number':values['ordinal_root'],
                     'day':day_matches,'team_matches':team_matches,'arena_matches':arena_matches,
-                    'matches':total,'form':form,'values':values,
+                    'matches':total,'form':form,'form_known':form_known,'shot_rate':shot_rate,'values':values,
                     # raw cipher totals before the one-digit reduction: unique-ish per name, shown and used for ties
                     'eng_total':values['ordinal'],'rev_total':values['reverse'],'letters':values['letters']})
     out.sort(key=lambda x:(-x['matches'],-len(x['day']),-len(x['arena_matches']),-x['form'],x['player']))

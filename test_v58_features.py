@@ -37,10 +37,10 @@ def test_one_top_pick_and_one_runner_up_per_team():
     assert sorted(ranks.values()) == [1, 1, 2, 2]
 
 
-def test_ties_break_on_model_p_then_name():
+def test_ties_break_on_model_p_then_id_never_name():
     lists = [[_p(1, 'Zed', 'BOS', 30), _p(2, 'Amy', 'BOS', 30), _p(3, 'Bob', 'BOS', 30)]]
-    by_name = nv.top_picks_per_team(lists)['BOS']
-    assert [p['player'] for p in by_name] == ['Amy', 'Bob']
+    by_id = nv.top_picks_per_team(lists)['BOS']   # no model P / form / shots / Eng total: player id, not alphabetical
+    assert [p['player'] for p in by_id] == ['Zed', 'Amy']
     by_p = nv.top_picks_per_team(lists, model_p={'1': .4, '2': .2, '3': .3})['BOS']
     assert [p['player'] for p in by_p] == ['Zed', 'Bob']
 

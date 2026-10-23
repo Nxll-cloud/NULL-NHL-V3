@@ -5,6 +5,7 @@ same threat score formula, same tiers and colours, same per-game grouping, sort 
 cue: each tier also has an icon and a word, and each match chip says what it matched (DAY / ARENA / TEAM), which
 number, and by which cipher.
 """
+import math
 from datetime import date
 
 import v55_ui as v5
@@ -50,13 +51,12 @@ def legend():
             f'each counts once (0 or 1) when the player’s name number equals that target · ring fill = score · '
             f'Eng = the full name’s English total before reducing to one digit</span></div>'
             '<p class="nlg-k">The three ciphers are not independent: Reduction always gives the same digit as English, and '
-            'Reverse mirrors English (the two digits always add up to 9, e.g. 7 and 2). So each name has one number, and it is counted once; '
-            'the day match uses the English digit only (a Reverse digit equal to the day is a different English number).</p>'
+            'Reverse mirrors English (the two digits always add up to 9, e.g. 7 and 2). So each name has one number, and it is counted once.</p>'
             f'<ul class="nlg-t" aria-label="Threat tiers, warm = higher">{items}</ul>'
             '<p class="nlg-k"><span class="mc d">DAY</span> matches the universal day · <span class="mc a">ARENA</span> matches the game’s arena name · '
             '<span class="mc t">TEAM</span> matches his own team name · warm colours = higher score; every tier also has its icon and word</p>'
             '<p class="nlg-k"><span class="npk pk1">★ TOP PICK</span> each team’s highest score on the slate · <span class="npk pk2">☆ RUNNER-UP</span> its second · '
-            'ties: score, then model chance, then name</p></section>')
+            'ties: score, then model chance, form, shot rate, English name total</p></section>')
 
 
 def _numbers(p, labels):
@@ -96,10 +96,29 @@ def _norm_pid(pid):
         return str(pid)
 
 
+def _num(v):
+    """Finite float or None (missing / blank / NaN -> None, which ranks lowest)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
+
 def pick_order(p, model_p=None):
-    """Deterministic rank key: threat score (raw points), then model P, then name."""
+    """Deterministic rank key (lower sorts first): threat score (raw points), then model chance, then form index
+    ('form' = V3.2 Adjusted Index), then shot rate ('shot_rate' = Shots/G L5, L10 fallback), then the raw English name
+    total ('eng_total'), and only then the player id as a final deterministic key. Never alphabetical. Any value missing
+    for a player ranks lowest at that stage. Model chance etc. only break ties inside equal points."""
     mp = (model_p or {}).get(_norm_pid(p.get('player_id'))) if model_p else None
-    return (-int(p.get('threat_raw', 0)), -(mp if mp is not None else -1.0), str(p.get('player') or ''), str(p.get('player_id') or ''))
+    low = float('-inf')
+
+    def stage(v):
+        v = _num(v)
+        return -(v if v is not None else low)
+    form = p.get('form') if p.get('form_known', True) else None
+    return (-int(p.get('threat_raw', 0)), stage(mp), stage(form), stage(p.get('shot_rate')), stage(p.get('eng_total')),
+            _norm_pid(p.get('player_id') or ''))
 
 
 def model_p_from_results(results):
@@ -173,7 +192,7 @@ def pick_badge(rank):
     if rank not in PICK_LABEL:
         return ''
     icon, text, cls = PICK_LABEL[rank]
-    return f'<span class="npk {cls}" title="{text.title()} for this team (threat, then model chance, then name)">{icon} {text}</span>'
+    return f'<span class="npk {cls}" title="{text.title()} for this team (threat, then model chance, form, shot rate, English total)">{icon} {text}</span>'
 
 
 def player_row(p, rank=None):
