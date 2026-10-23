@@ -40,3 +40,7 @@ Home only: goalies get a small outlined, muted **G** pill (`.v55 .npg`, 12px des
 - **Where it appears:** Tonight's Board starter names, hero goalie duel, hero lead, Leaders cards, Targets rows, matchup goalie cards, parlay legs and long shot. Today the rankings pool has only skaters and the live pool excludes 'G', so in practice the leaders, long shot and parlay never show a goalie. The wiring is there in case that changes.
 - Tonight’s Board tiles: the starter (dot + surname + G) now sits on its own line under the team abbreviation, spanning the full tile width on mobile. Before, the surname shared the row with the abbreviation and was illegible at 320px, and adding the pill clipped it. Very long surnames get an ellipsis; the pill is never clipped. A live score stays on the team row.
 - Tests: `test_v59_goalie_badge.py`.
+
+## Merge: model-xg (129f92a)
+Normal merge `9fdde53` on top of research-hide + model-situational + V5.9 badge/goalie commits. It merged cleanly with no conflicts and adds `xg_v59.py`, `test_v59_xg.py` and `V59_XG_NOTES.md`. It also touches `feature_flags_v58.py` (adds the `MODEL_XG` switch and an 'xg' entry in `MODEL_PARTS`), `situational_v58.py`, `app.py` (`xg_cached`, a 6 h MoneyPuck fetch) and the tab model captions.
+**Note:** `MODEL_XG` defaults to **True**. With MODEL_SITUATIONAL on, the xG layer is live on deploy. Set `MODEL_XG = "false"` in secrets for exactly the V5.8 situational model.
