@@ -67,6 +67,7 @@ import edgelab_v58 as elv58
 import storylines_v58 as slx
 import venue_v58 as vn
 import gem_match_v58 as gmx
+import goalie_weak_v59 as gweak
 import situational_v58 as sit
 import xg_v59 as xgm
 # V5.8: display-only 'Scored tonight' badges in every model view (markdown/html/dataframe pass-through proxy).
@@ -255,6 +256,11 @@ def v56_h2h_cached(matchups, day, season):
         return {}
     with ThreadPoolExecutor(max_workers=min(6, len(matchups))) as pool:
         return dict(zip(matchups, pool.map(one, matchups)))
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def v59_goalie_weak_cached(goalie_id, team, day, season):
+    """V5.9: REAL goalie game logs + PBP of his games vs ``team`` (goalie_weak_v59; disk cache). Never raises."""
+    return gweak.load(goalie_id, team, day, season, requests.get)
 
 def format_game_time(raw):
     try:

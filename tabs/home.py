@@ -43,6 +43,12 @@ _v5_state=v5state.build_state(day=np_day,season=SEASON,games=np_games,ranked=np_
     discrepancies=_np_shared_discrepancies,track=v5state.track_summary(_trk_evals,trk.rolling),
     snapshot_at=np_snapshot['updated_at'] if np_snapshot is not None else None,
     rosters_fn=v55_rosters_cached,logs_fn=v55_logs_cached,price_label=price_label,track_badges=None)  # V5.8: no track badges on Home
+# V5.9: goalie weak-spot identifier on the Matchup targets rows (display only; goalie = the same listed starter the model uses).
+if np_flags.show_goalie_weak(st.secrets):
+    try:
+        _gw_stat=gweak.home_markers(_v5_state,_v5_gk,lambda _gid,_t:v59_goalie_weak_cached(_gid,_t,np_day,SEASON))
+    except Exception as _gw_exc:   # the identifier must never break Home
+        _gw_stat={'errors':[f'goalie weak-spot: {type(_gw_exc).__name__}']}
 # V5.6: board tiles carry live/final scores and the official game state (score endpoint, else play-by-play).
 _v5_state['scores']=lstate.tile_scores(_v56_results)
 for _g in (_v5_state.get('games') or [])+([_v5_state['featured']] if _v5_state.get('featured') else []):

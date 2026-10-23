@@ -78,3 +78,12 @@ def model_xg(secrets=None, environ=None):
     v = _parse(_lookup('MODEL_XG', secrets, environ)) if _lookup('MODEL_XG', secrets, environ) is not None else None
     return MODEL_XG if v is None else v
 
+
+
+# V5.9 goalie weak-spot identifier on Home 'Matchup targets' (goalie_weak_v59; display only, never in the model).
+# On by default; FEATURE_GOALIE_WEAK = "false" (secrets) or FEATURE_GOALIE_WEAK=0 (env) hides it. Env wins over secrets.
+SHOW_GOALIE_WEAK = True
+
+
+def show_goalie_weak(secrets=None, environ=None):
+    return _flag('FEATURE_GOALIE_WEAK', SHOW_GOALIE_WEAK, secrets, environ)

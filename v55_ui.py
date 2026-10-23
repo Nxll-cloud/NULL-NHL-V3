@@ -20,6 +20,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import position_badge_v59 as pb   # V5.9: Home goalie pill
+import goalie_weak_v59 as gw   # V5.9: goalie weak-spot pill (display only)
 import venue_v58 as vn
 
 HERE = Path(__file__).resolve().parent
@@ -594,7 +595,7 @@ def target_row(season, i, p):
 <div class="tn"><b>{esc(p.get("player"))}{pb.goalie_badge(p.get("position"))}</b><small>#{esc(p.get("jersey"), "?")} · Stat rank #{esc(p.get("stat_rank"))}{esc(matches, "")}</small>
 <div class="cats">{badges}</div></div>
 <div class="tf">{form_count(p.get("form_pct"), p.get("form_label"), "tnum")}<div class="fbar"><i style="--w:{min(bar, 100):.0f}%"></i></div></div>
-<div class="tt">{sparkline(p.get("log"), 120, 30, p.get("team"))}{heat_strip(p.get("log"))}</div></li>'''
+<div class="tt">{sparkline(p.get("log"), 120, 30, p.get("team"))}{heat_strip(p.get("log"))}</div>{gw.row_cell(p.get("goalie_weak"))}</li>'''
 
 
 def matchup_section(data, title=None, limit=5):
@@ -611,10 +612,11 @@ def matchup_section(data, title=None, limit=5):
         rows = ''.join(target_row(season, i, p) for i, p in enumerate(lst, 1)) or \
             '<li class="tr none"><span>Player targets appear once this slate’s rankings load.</span></li>'
         cols.append(f'''<div class="mcol" style="{team_vars(t)}"><div class="mhead">{logo(t, "ml")}<div><h4>{esc(TEAM_NAMES.get(t, t))} shooters</h4><p>vs {esc(opp)} goaltending</p></div>
-{'<span class="chip leak">▲ Faces the leakier goalie (by GAA)</span>' if t == weak else ''}</div>
+{'<span class="chip leak">▲ Faces the leakier goalie (by GAA)</span>' if t == weak else ''}{gw.team_chip(og.get('weak_team'))}</div>
 <div class="gcs">{goalie_card(season, opp, og, "starter")}{goalie_card(season, opp, og, "leaky")}</div><ol class="tl">{rows}</ol></div>''')
     head = title or f'Matchup targets · {esc(fg["away"])} @ {esc(fg["home"])}{vn.tag(fg.get("venue"))}'
-    return f'''<section class="sec mc"><div class="sh"><h3>{head}</h3><p>Both rosters ranked by Form % · bars are Form % (0–100) · strips are the last 10 games (heat = shots, number = goals) · none of this is a probability</p></div>
+    gw_note = gw.legend(data)   # V5.9: one-line basis for the 'vs G' pills, only when one is shown
+    return f'''<section class="sec mc"><div class="sh"><h3>{head}</h3><p>Both rosters ranked by Form % · bars are Form % (0–100) · strips are the last 10 games (heat = shots, number = goals) · none of this is a probability{gw_note}</p></div>
 <div class="mgrid">{"".join(cols)}</div></section>'''
 
 

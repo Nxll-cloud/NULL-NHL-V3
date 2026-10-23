@@ -174,3 +174,11 @@
 .v55 :is(.tr,.pc,.npp-leg,.nls-card).is-g{background-image:linear-gradient(90deg,rgba(150,170,200,.07),transparent 70%)}
 .v55 .sg .dot{flex:0 0 auto}
 @media(max-width:760px){.v55 .tile .row>.sg{grid-column:1/-1;padding-left:2px;padding-right:2px}}
+/* V5.9 goalie weak-spot pill ('vs G'): outlined cyan -> violet, compact, wraps with the badge line; tooltip = basis */
+.v55 .gwk{display:inline-flex;align-items:center;gap:4px;margin:2px 0 0 4px;padding:0 7px;border:1px solid color-mix(in srgb,var(--neon) 55%,transparent);border-radius:10px;background:linear-gradient(90deg,color-mix(in srgb,var(--neon) 10%,transparent),color-mix(in srgb,var(--neon2) 12%,transparent));color:var(--ink);font:700 .7rem/1.5 var(--fb);letter-spacing:.01em;white-space:normal;flex-wrap:wrap;max-width:100%;box-sizing:border-box;cursor:help;vertical-align:1px}.v55 .gwk>b{font-weight:700;white-space:nowrap}
+.v55 .gwk i{font-style:normal;font-weight:800;letter-spacing:.08em;color:var(--neon);font-size:.92em}
+.v55 .gwk em{font-style:normal;color:var(--mut);font-weight:600}
+.v55 .mhead .gwk.team{margin:6px 0 0;flex-basis:100%;width:max-content;max-width:100%}
+.v55 .tr .gwr{grid-column:3/-1;margin-top:-6px;min-width:0}.v55 .tr .gwr .gwk{margin-left:0}
+@media(max-width:760px){.v55 .tr .gwr{grid-column:2/5;margin-top:-2px}}
+.v55 .gwk-l{color:var(--mut)}.v55 .gwk-l b{color:var(--neon);font-weight:800;letter-spacing:.06em}
