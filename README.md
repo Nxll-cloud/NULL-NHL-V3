@@ -2,23 +2,25 @@
 
 # Null’s Playbook V5.9
 
-V5.9 merges the Research hide (everything below Top 10 Statistical Sleepers behind a flag) and the situational next-goal model (goalie SV%, PP TOI, line context), and adds 🚨 scored-tonight badges to Storylines, Live Next Goal, Edge Flags, the Home parlay / long shot and Research Top 10 lists. See `V59_NOTES.md`.
+**[Model card](MODEL_CARD.md)** · **[Changelog](CHANGELOG.md)** · release notes in [`docs/notes/`](docs/notes/). Not betting advice · 21+ · 1-800-GAMBLER · not affiliated with or endorsed by the NHL.
+
+V5.9 merges the Research hide (everything below Top 10 Statistical Sleepers behind a flag) and the situational next-goal model (goalie SV%, PP TOI, line context), and adds 🚨 scored-tonight badges to Storylines, Live Next Goal, Edge Flags, the Home parlay / long shot and Research Top 10 lists. See `docs/notes/V59_NOTES.md`.
 
 ## V5.8
 
-V5.8 tunes the app for phones and adds the Home parlay and long shot, scorer badges, the Numbers match table, arena names and the Storylines tab. See `V58_NOTES.md`.
+V5.8 tunes the app for phones and adds the Home parlay and long shot, scorer badges, the Numbers match table, arena names and the Storylines tab. See `docs/notes/V58_NOTES.md`.
 
 ## V5.7
 
-V5.7 swaps in the owner’s logo (crowned N) for the old shield/Ø mark — favicon, `st.logo`, sidebar, Home hero, tab headers and footers. Nothing else changed. See `V57_NOTES.md`.
+V5.7 swaps in the owner’s logo (crowned N) for the old shield/Ø mark — favicon, `st.logo`, sidebar, Home hero, tab headers and footers. Nothing else changed. See `docs/notes/V57_NOTES.md`.
 
 ## V5.6
 
-V5.6 adds the **⏱ Live Next Goal** model and tab (official NHL play-by-play, competing-risk next-goal %), Matchup Center goalie threats with real shooter-vs-goalie history, per-game numerology boards, **🚩 Edge Flags** against the opening anytime line, and a next-goal **backtest** with a write-once baseline (`python backtest_next_goal.py`, see `BACKTEST_V56.md`). See `V56_NOTES.md`.
+V5.6 adds the **⏱ Live Next Goal** model and tab (official NHL play-by-play, competing-risk next-goal %), Matchup Center goalie threats with real shooter-vs-goalie history, per-game numerology boards, **🚩 Edge Flags** against the opening anytime line, and a next-goal **backtest** with a write-once baseline (`python backtest_next_goal.py`, see `BACKTEST_V56.md`). See `docs/notes/V56_NOTES.md`.
 
 ## V5.5
 
-V5.5 adds the **🧪 EdgeLab** tab (¼-Kelly edge scanner on demo rows or your own prices + your own probability), **GitHub-upload safety** (`check_repo_size.py`, `.gitignore`, snapshot pruning, per-month Track export, `GITHUB_UPLOAD.md`) and the approved **neon-arena redesign** (designed live Home, Night / Light / High-contrast themes, local fonts). See `V55_NOTES.md`. V5.4 features (Matchup Center, Track Record, goalies, Form %) are unchanged — see `V54_NOTES.md`.
+V5.5 adds the **🧪 EdgeLab** tab (¼-Kelly edge scanner on demo rows or your own prices + your own probability), **GitHub-upload safety** (`check_repo_size.py`, `.gitignore`, snapshot pruning, per-month Track export, `GITHUB_UPLOAD.md`) and the approved **neon-arena redesign** (designed live Home, Night / Light / High-contrast themes, local fonts). See `docs/notes/V55_NOTES.md`. V5.4 features (Matchup Center, Track Record, goalies, Form %) are unchanged — see `docs/notes/V54_NOTES.md`.
 
 Before pushing to GitHub: `python check_repo_size.py` (see `GITHUB_UPLOAD.md`).
 
@@ -43,4 +45,4 @@ The tracker writes a SQLite file to `data/prediction_tracker_v54.sqlite` (overri
 
 ## Earlier releases
 
-NHL slate analytics with V4.4 scheduled snapshots and mobile dashboard, plus optional sportsbook odds via The Odds API and CSV fallback. See `V44_NOTES.md` and `V45_NOTES.md` for setup.
+NHL slate analytics with V4.4 scheduled snapshots and mobile dashboard, plus optional sportsbook odds via The Odds API and CSV fallback. See `docs/notes/V44_NOTES.md` and `docs/notes/V45_NOTES.md` for setup.

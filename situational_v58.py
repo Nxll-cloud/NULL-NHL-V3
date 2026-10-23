@@ -21,7 +21,7 @@ Situational adjustments are layered on top, each bounded, logged per player and 
    Live: the goalie actually in the opponent's net (latest goalieInNetId on this team's shots) replaces the starter.
 3. Line / deployment: EV TOI per game over the last 14 days vs the season (NHL stats timeonice report), shrunk toward 1
    with 3 ghost games, elasticity 0.5 (the shot prior is already L10), clamped [0.90, 1.10]; applied to the EV part.
-   This is ice-time deployment, NOT linemate identity (no reliable pregame line source; see V58_NOTES.md).
+   This is ice-time deployment, NOT linemate identity (no reliable pregame line source; see docs/notes/V58_NOTES.md).
 Final:  lambda = (core + (line_mult - 1) x ev_part) x goalie_mult, ratio = lambda / base clamped to [0.5, 2.0],
         core = ev + pp with the PP split, else base; ev_part = ev with the split, else base.
 V5.9 xG (part 'xg', xg_v59): shot quality from MoneyPuck xG/SOG scales the EV and PP sh% (or the whole base without

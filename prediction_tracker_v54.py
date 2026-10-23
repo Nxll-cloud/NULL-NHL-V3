@@ -9,7 +9,7 @@ single SQLite transaction (atomic: all rows or none).
 Streamlit Community Cloud has an EPHEMERAL filesystem: the file is lost on
 reboot/redeploy. Use the Track Record tab's JSON export/import to keep history.
 
-Definitions (also in V54_NOTES.md):
+Definitions (also in docs/notes/V54_NOTES.md):
 * Pick: a player the app predicted to score — the four Home leaders
   (Stats / Numbers / Odds / Overlap sources), the statistical top-N
   (default N=10, source Stats) and the gematria top-5 (source Numbers).
