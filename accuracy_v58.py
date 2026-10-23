@@ -103,12 +103,21 @@ def season_of(day):
     return f'{y}{y + 1}'
 
 
-def situ_for(day, games=(), getter=None, starters=False, environ=None):
+def mc_games(games):
+    """Snapshot game rows as dicts (start times feed the point-in-time xG cutoff)."""
+    return [g for g in (games or ()) if isinstance(g, dict)]
+
+
+def situ_for(day, games=(), getter=None, starters=False, environ=None, pit=True):
     """V5.9: the app's situational layer for ``day`` without Streamlit (feature_flags_v58 MODEL_SITUATIONAL /
     MODEL_SITUATIONAL_PARTS / MODEL_XG from the environment; off -> None = the V5.6 model exactly). ``getter`` is
     requests.get-like. ``starters`` True -> probable starters for the slate (only meaningful before puck drop).
-    Never raises: a failed feed leaves its adjustment neutral."""
+    Never raises: a failed feed leaves its adjustment neutral.
+    Audit fix: the MoneyPuck season file is used only if modified before the slate's first puck drop (from ``games``;
+    00:00 ET when unknown). ``pit`` True -> otherwise rebuild point-in-time xG from the per-shot file (workflow paths;
+    the app's on-the-fly path passes False to stay light, so a too-new file just leaves xG neutral)."""
     import feature_flags_v58 as ff
+    import xg_v59 as xgm
     import situational_v58 as sit
     if not ff.model_situational(None, environ):
         return None
@@ -122,7 +131,9 @@ def situ_for(day, games=(), getter=None, starters=False, environ=None):
         return r.json()
     parts = ff.model_parts(None, environ)
     try:
-        ctx = sit.load_context(day, season_of(day), parts, js, lambda url: getter(url, timeout=30, headers=UA))
+        ctx = sit.load_context(day, season_of(day), parts, js,
+                               lambda url, params=None: getter(url, params=params, timeout=60, headers=UA),
+                               cutoff=xgm.slate_cutoff(day, mc_games(games)), pit_fallback=pit)
     except Exception:
         ctx = sit.context(parts=parts)
     st = {}
@@ -453,7 +464,7 @@ def update(now=None, getter=None, snap_root=SNAP_DIR, root=LOG_DIR, injuries_fn=
             continue
         snap = _load_snap(day, snap_root)
         if snap and snap.get('rankings') and is_pregame(snap):
-            save_entry(predictions(snap, (), 'workflow catch-up', now, situ=situ_for(day, getter=getter)), root)
+            save_entry(predictions(snap, (), 'workflow catch-up', now, situ=situ_for(day, snap.get('games'), getter=getter)), root)
             done.append(f'caught up {day}')
     for e in load_all(root):
         if e.get('results') or e['day'] >= today:
@@ -513,7 +524,7 @@ def backfill(repo=HERE, root=LOG_DIR, getter=None, now=None, log=print):
             report[day] = 'already scored'
             continue
         if not cur:
-            cur = predictions(snap, (), f'backfill git {c[:7]}', now, 'no injury list in git history', situ_for(day, getter=getter))
+            cur = predictions(snap, (), f'backfill git {c[:7]}', now, 'no injury list in git history', situ_for(day, snap.get('games'), getter=getter))
             save_entry(cur, root)
         msg = f'frozen from {c[:7]} (snapshot {snap["updated_at"][:19]}Z, first puck drop {cur["first_start"]})'
         try:
@@ -550,7 +561,7 @@ def _live_entry(day, getter, snap_root):
     else:
         try:
             res = fetch_results(day, getter)
-            ent = predictions(snap, (), 'app on-the-fly', situ=situ_for(day, getter=getter))
+            ent = predictions(snap, (), 'app on-the-fly', situ=situ_for(day, snap.get('games'), getter=getter, pit=False))
             val = score(ent, res) if res['complete'] else ent
             why = None if res['complete'] else 'pending'
         except Exception:

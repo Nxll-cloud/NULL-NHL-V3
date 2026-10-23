@@ -141,7 +141,7 @@ def np_goalie_columns(ranked, day, games):
         sg=mc.slate_games(games)
         starters=starters_cached(day,tuple((g['key'],g['game_id'],g['away'],g['home'],g['status']) for g in sg))[0] if sg else {}
         parts=np_flags.model_parts(st.secrets) if np_flags.model_situational(st.secrets) else ()
-        ctx=sit.with_starters(situ_cached(day,SEASON,parts) if 'goalie' in parts else sit.context(parts=()),starters)
+        ctx=sit.with_starters(situ_cached(day,SEASON,parts,xg_cutoff(day,games)) if 'goalie' in parts else sit.context(parts=()),starters)
         return pd.DataFrame(sit.goalie_columns(ranked.to_dict('records'),ctx))
     except Exception:  # keep the rankings visible even if the goalie lookup fails
         return ranked
@@ -177,12 +177,21 @@ def goalies_cached(teams, season):
     return rows, sorted(errors)
 
 @st.cache_data(ttl=3 * 3600, show_spinner=False)
-def situ_cached(day, season, parts):
+def situ_cached(day, season, parts, cutoff=None):
     """V5.8: situational next-goal inputs (NHL stats API: PP / TOI / goalie / team PP reports, games before ``day``).
     Cached 3 h. Never raises: a failed report leaves its adjustment neutral.
-    V5.9: with 'xg' in parts the MoneyPuck shot-quality data (xg_cached) is attached, gated per day by xg_v59.for_day."""
+    V5.9: with 'xg' in parts the MoneyPuck shot-quality data (xg_cached) is attached, gated per day by xg_v59.for_day.
+    Audit fix: ``cutoff`` = the slate's first puck drop (ISO, xg_v59.slate_cutoff); a file modified at/after it is not used."""
     ctx = sit.fetch_context(day, season, parts=parts)
-    return sit.with_xg(ctx, xg_cached(season), day, season) if 'xg' in (parts or ()) else ctx
+    return sit.with_xg(ctx, xg_cached(season), day, season, cutoff) if 'xg' in (parts or ()) else ctx
+
+
+def xg_cutoff(day, games):
+    """ISO first puck drop of the slate (00:00 ET on ``day`` when no start times), the situ_cached cache key part."""
+    try:
+        return xgm.slate_cutoff(day, [g for g in (games or ()) if isinstance(g, dict)]).isoformat()
+    except Exception:
+        return None
 
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
 def xg_cached(season):

@@ -30,6 +30,7 @@ import io
 import zipfile
 from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+from zoneinfo import ZoneInfo
 
 SOURCE = 'MoneyPuck.com'
 CREDIT = 'Shot-quality (xG) data: MoneyPuck.com'
@@ -44,7 +45,11 @@ K_FIN = 25.0       # ghost goals for the finishing factor (heavy shrinkage)
 Q_LO, Q_HI = 0.6, 1.6
 F_LO, F_HI = 0.85, 1.15
 STALE_DAYS = 10    # file older than this vs the slate day -> neutral
-LEAK_HOURS = 36    # file modified more than this after the slate day's 00:00 UTC could contain later games -> neutral
+ET = ZoneInfo('America/New_York')
+# Audit fix (2026-10, replaces LEAK_HOURS = 36): a season file is accepted for a slate only when it was modified BEFORE the
+# slate's first puck drop (or, when puck times are unknown, before 00:00 ET on the slate date). The old 36 h-after-00:00 UTC
+# window let a file refreshed the next morning (~32-36 h, after the slate's games were final) leak those results in.
+# An undated file is trusted only for today's / future slates; for a past slate it is rejected (use ``point_in_time``).
 SITS = {'ev': '5on5', 'pp': '5on4', 'all': 'all'}
 _COLS = ('playerId', 'season', 'situation', 'I_F_xGoals', 'I_F_shotsOnGoal', 'I_F_goals')
 
@@ -133,25 +138,88 @@ def fetch(season, getter=None):
         return empty(f'fetch failed: {type(e).__name__}', season)
 
 
-def for_day(data, day, season=None):
-    """Gate a fetched structure for one slate day: wrong season, stale (> STALE_DAYS old) or a file newer than the
-    day (historical slate -> would include later games) all return a neutral structure with the reason."""
+def _utc(x):
+    if x is None or x == '':
+        return None
+    try:
+        d = x if isinstance(x, datetime) else datetime.fromisoformat(str(x).replace('Z', '+00:00'))
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def slate_cutoff(day, games=None):
+    """Point-in-time cutoff for a slate: its first puck drop (UTC) from ``games`` rows ('Start (UTC)' / 'start' /
+    'startTimeUTC'), else 00:00 America/New_York on the slate date. ``day`` = date or 'YYYY-MM-DD'."""
+    starts = [_utc((g or {}).get('Start (UTC)') or (g or {}).get('start') or (g or {}).get('startTimeUTC'))
+              for g in (games or ()) if isinstance(g, dict)]
+    starts = [x for x in starts if x]
+    if starts:
+        return min(starts)
+    d = day if isinstance(day, date) else date.fromisoformat(str(day)[:10])
+    return datetime(d.year, d.month, d.day, tzinfo=ET).astimezone(timezone.utc)
+
+
+PIT_ERRORS = ('file not before first puck drop', 'undated file for a past slate')
+
+
+def for_day(data, day, season=None, cutoff=None, now=None):
+    """Gate a fetched structure for one slate day. Neutral structure (with the reason) when: wrong season; stale
+    (> STALE_DAYS before the cutoff); modified at/after the slate's first puck drop (``cutoff``; default = 00:00 ET on
+    the slate date), which could contain that slate's results; or undated while the slate is already in the past
+    (``now``'s ET date > slate date). Undated files are trusted for today's / future slates (the fetch is current)."""
     if not isinstance(data, dict) or not data.get('players'):
         return empty((data or {}).get('error') or 'no data', season or '')
     if season and mp_year(data.get('season')) != mp_year(season):
         return empty('season mismatch', season, data.get('as_of'))
     try:
         d = day if isinstance(day, date) else date.fromisoformat(str(day)[:10])
-        a = datetime.fromisoformat(str(data.get('as_of')))
-        a = a if a.tzinfo else a.replace(tzinfo=timezone.utc)
-    except Exception:
-        return data   # no comparable dates: trust the season check
-    start = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
-    if a < start - timedelta(days=STALE_DAYS):
+    except (TypeError, ValueError):
+        return empty('bad slate day', data.get('season', ''), data.get('as_of'))
+    cut = _utc(cutoff) or slate_cutoff(d)
+    a = _utc(data.get('as_of'))
+    if a is None:
+        today = (now or datetime.now(timezone.utc)).astimezone(ET).date()
+        if d < today:
+            return empty(PIT_ERRORS[1] + ' (point-in-time: use aggregate_shots)', data.get('season', ''), data.get('as_of'))
+        return data
+    if a < cut - timedelta(days=STALE_DAYS):
         return empty('stale', data.get('season', ''), data.get('as_of'))
-    if a > start + timedelta(hours=LEAK_HOURS):
-        return empty('file newer than slate day (point-in-time: use aggregate_shots)', data.get('season', ''), data.get('as_of'))
+    if a >= cut:
+        return empty(PIT_ERRORS[0] + ' (point-in-time: use aggregate_shots)', data.get('season', ''), data.get('as_of'))
     return data
+
+
+def needs_point_in_time(gated):
+    """True when ``for_day`` rejected a file only because of its date (a point-in-time rebuild can replace it)."""
+    return bool(gated) and not gated.get('players') and any(e in str(gated.get('error') or '') for e in PIT_ERRORS)
+
+
+_PIT_CACHE = {}
+
+
+def point_in_time(day, season, getter=None, cache=_PIT_CACHE):
+    """Season-summary-shaped xG built ONLY from games dated before ``day`` (MoneyPuck per-shot file + NHL game dates).
+    Used when the season file is too new for a past slate. Never raises (neutral structure on failure). The parsed
+    per-shot rows are cached per season in-process (the zip is large)."""
+    yr = mp_year(season)
+    if not yr:
+        return empty('bad season', season)
+    try:
+        if season not in cache:
+            dates = fetch_game_dates(season, getter)
+            r = (getter or _default_get)(SHOTS_URL.format(yr=yr))
+            raw = getattr(r, 'content', r)
+            rows = read_shots(raw, SHOT_COLUMNS) if isinstance(raw, (bytes, bytearray)) else []
+            if not dates or not rows:
+                return empty('point-in-time data unavailable', season)
+            cache[season] = (rows, dates)
+        rows, dates = cache[season]
+        out = aggregate_shots(rows, str(day)[:10], dates, season)
+        out['source'] = SOURCE + ' (point-in-time, per-shot file)'
+        return out
+    except Exception as e:
+        return empty(f'point-in-time failed: {type(e).__name__}', season)
 
 
 def quality(data, pid, key):
@@ -214,8 +282,17 @@ def fetch_game_dates(season, getter=None):
         return {}
 
 
-def read_shots(src):
-    """Rows of MoneyPuck shots_{yyyy}.zip/.csv (path or bytes) as dicts. Never raises ([] on failure)."""
+SHOT_COLUMNS = ('game_id', 'shooterPlayerId', 'xGoal', 'goal', 'shotWasOnGoal', 'homeSkatersOnIce', 'awaySkatersOnIce',
+                'isHomeTeam', 'shotOnEmptyNet', 'isPlayoffGame', 'season')   # all aggregate_shots reads
+
+
+def _trim(rows, columns):
+    return [{k: r.get(k) for k in columns} for r in rows] if columns else list(rows)
+
+
+def read_shots(src, columns=None):
+    """Rows of MoneyPuck shots_{yyyy}.zip/.csv (path or bytes) as dicts (only ``columns`` when given, to keep a
+    full-season file small in memory). Never raises ([] on failure)."""
     try:
         if isinstance(src, (bytes, bytearray)):
             src = io.BytesIO(src)
@@ -224,9 +301,9 @@ def read_shots(src):
                 src.seek(0)
             with zipfile.ZipFile(src) as z:
                 name = next(n for n in z.namelist() if n.endswith('.csv'))
-                return list(csv.DictReader(io.TextIOWrapper(z.open(name), encoding='utf-8')))
+                return _trim(csv.DictReader(io.TextIOWrapper(z.open(name), encoding='utf-8')), columns)
         with open(src, encoding='utf-8') as fh:
-            return list(csv.DictReader(fh))
+            return _trim(csv.DictReader(fh), columns)
     except Exception:
         return []
 
@@ -262,6 +339,7 @@ def aggregate_shots(rows, before, game_dates, season=''):
             a[1] += on
             a[2] += g
     players = {p: {s: tuple(v) for s, v in d.items()} for p, d in pl.items()}
+    # as_of = 00:00 UTC on the cutoff date: strictly before any NHL puck drop that day, so for_day accepts it
     out = {**empty('' if players else 'no shots before date', season, f'{cut}T00:00+00:00'), 'players': players}
     out['league'] = _league(players)
     return out

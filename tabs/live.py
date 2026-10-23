@@ -42,7 +42,7 @@ _v56_situ=None   # V5.8: situational layer (PP split, opposing goalie, TOI deplo
 if _v56_games and _v56_priors and np_flags.model_situational(st.secrets):
     _v56_parts=np_flags.model_parts(st.secrets)
     _v56_st=starters_cached(np_day,tuple((g['key'],g['game_id'],g['away'],g['home'],g['status']) for g in _v56_games))[0] if 'goalie' in _v56_parts else {}
-    _v56_situ=sit.layer(situ_cached(np_day,SEASON,_v56_parts),_v56_st)
+    _v56_situ=sit.layer(situ_cached(np_day,SEASON,_v56_parts,xg_cutoff(np_day,_v56_games)),_v56_st)
 
 
 def v56_slate_results(scores=None, pbp=None, memory=None, use_form=False):

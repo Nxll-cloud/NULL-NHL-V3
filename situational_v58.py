@@ -206,14 +206,19 @@ def context(skaters=None, teams=None, goalies=None, starters=None, parts=PARTS, 
             'sources': sources or {}, 'errors': errors or [], 'xg': None}
 
 
-def with_xg(ctx, data, day=None, season=None):
+def with_xg(ctx, data, day=None, season=None, cutoff=None, now=None, pit_getter=None):
     """V5.9: same context with MoneyPuck xG data attached (gated by xg_v59.for_day: season, staleness, point-in-time).
-    Unusable data -> 'xg' is None and the reason goes to ctx['sources']['xg'], i.e. the situational model unchanged."""
+    Unusable data -> 'xg' is None and the reason goes to ctx['sources']['xg'], i.e. the situational model unchanged.
+    Audit fix: ``cutoff`` = the slate's first puck drop (xg_v59.slate_cutoff); a file modified at/after it (or undated
+    for a past slate) is rejected. With ``pit_getter`` (requests.get-like) such a rejection is replaced by the
+    point-in-time rebuild from the per-shot file (games dated before the slate only)."""
     ctx = dict(ctx or context())
-    d = xgm.for_day(data, day, season) if day is not None else (data or xgm.empty('no data'))
+    d = xgm.for_day(data, day, season, cutoff, now) if day is not None else (data or xgm.empty('no data'))
+    if day is not None and pit_getter is not None and xgm.needs_point_in_time(d):
+        d = xgm.for_day(xgm.point_in_time(day, season, pit_getter), day, season, cutoff, now)
     ok = bool(d.get('players')) and 'xg' in (ctx.get('parts') or ())
     ctx['xg'] = d if ok else None
-    ctx['sources'] = dict(ctx.get('sources') or {}, xg=(f"{xgm.SOURCE} (as of {d.get('as_of')})" if ok
+    ctx['sources'] = dict(ctx.get('sources') or {}, xg=(f"{d.get('source') or xgm.SOURCE} (as of {d.get('as_of')})" if ok
                                                        else f"off: {d.get('error') or 'xg part disabled'}"))
     return ctx
 
@@ -229,10 +234,13 @@ def layer(ctx, starters=None):
     return Situ(with_starters(ctx, starters or {}))
 
 
-def load_context(day, season, parts=PARTS, getter=None, xg_getter=None):
-    """Non-UI twin of app.situ_cached (no cache): fetch_context + the MoneyPuck xG data gated per day. Never raises."""
+def load_context(day, season, parts=PARTS, getter=None, xg_getter=None, cutoff=None, pit_fallback=False):
+    """Non-UI twin of app.situ_cached (no cache): fetch_context + the MoneyPuck xG data gated per day. Never raises.
+    ``cutoff``: the slate's first puck drop; ``pit_fallback``: rebuild point-in-time xG when the file is too new."""
     ctx = fetch_context(day, season, getter, parts=parts)
-    return with_xg(ctx, xgm.fetch(season, xg_getter), day, season) if 'xg' in (parts or ()) else ctx
+    if 'xg' not in (parts or ()):
+        return ctx
+    return with_xg(ctx, xgm.fetch(season, xg_getter), day, season, cutoff, pit_getter=(xg_getter or xgm._default_get) if pit_fallback else None)
 
 
 def _goalie_faced(ctx, team, opp, live_goalie_id=None):
