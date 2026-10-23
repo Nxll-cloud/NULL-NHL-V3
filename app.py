@@ -70,6 +70,7 @@ import gem_match_v58 as gmx
 import goalie_weak_v59 as gweak
 import threat_badges_v59 as threat
 import winprob_v59 as winprob
+import parlay_tracker_v59 as ptrack
 import situational_v58 as sit
 import xg_v59 as xgm
 # V5.8: display-only 'Scored tonight' badges in every model view (markdown/html/dataframe pass-through proxy).
@@ -364,6 +365,7 @@ def np_scorer_watch():
     """Header chip; while a game is live it re-polls PBP (cached ~25 s) and reruns the app only when a new goal lands."""
     rec = st.session_state.get(sctn.STATE_KEY)
     if _v56_live_n:
+        _pbp = None
         try:
             _pbp, _ = v56_collect(False)
             fresh = sctn.from_pbp(_pbp, np_day, demo=bool(_V56_DIR))
@@ -371,6 +373,11 @@ def np_scorer_watch():
             fresh = rec
         if fresh is not None and np_scorer_signature(fresh) != np_scorer_signature(rec):
             sctn.for_slate(st.session_state, np_day, fresh)
+            st.rerun()
+        # V5.9 parlay tracker: same poll, same fragment; also rerun Home when a game enters OT/SO or ends (legs go dead).
+        _pt_prev = st.session_state.get('v59_pt_phase')
+        if _pbp is not None and _pt_prev is not None and ptrack.phase_signature(_pbp) != _pt_prev:
+            st.session_state['v59_pt_phase'] = ptrack.phase_signature(_pbp)
             st.rerun()
     chip = sctn.ticker(rec)
     if chip:

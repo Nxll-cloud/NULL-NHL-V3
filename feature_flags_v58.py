@@ -101,3 +101,11 @@ SHOW_WIN_PROB = True
 
 def show_win_prob(secrets=None, environ=None):
     return _flag('FEATURE_WIN_PROB', SHOW_WIN_PROB, secrets, environ)
+
+# V5.9: Home 'Top four-leg parlay' becomes a live tracker (top 4 by model chance, locked at first puck drop, regulation
+# only). FEATURE_PARLAY_TRACKER = "false" / =0 restores the V5.8 card exactly.
+SHOW_PARLAY_TRACKER = True
+
+
+def show_parlay_tracker(secrets=None, environ=None):
+    return _flag('FEATURE_PARLAY_TRACKER', SHOW_PARLAY_TRACKER, secrets, environ)

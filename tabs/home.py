@@ -81,8 +81,20 @@ _pl_out={r['pid'] for _r in _v56_results for r in _r['result'].get('players') or
 _pl_rec=sctn.active(st.session_state,np_day)
 _pl_scored=dict((_pl_rec or {}).get('players') or {})
 _pl_sig=(np_day,len(_v56_rows),tuple(sorted(r['slate'].get('key','') for r in _v56_results)),tuple(sorted(_pl_out)))
-_pl_data=parlay.lock(st.session_state.setdefault('v58_parlay',{}),np_day,_pl_sig,
-    lambda:parlay.build(_v56_results,_v56_rows,_pl_out,_pl_scored),_v56_results)
+# V5.9: live tracker (flag on): legs = top 4 by model chance, locked at first puck drop (session; else the frozen pre-game
+# accuracy snapshot); status from the SAME polled play-by-play (_v56_pbp, tabs/live.py). No new poll or refresh timer.
+_pt_on=np_flags.show_parlay_tracker(st.secrets)
+if _pt_on:
+    try:
+        _pl_data=ptrack.resolve(st.session_state,np_day,_v56_results,_v56_rows,_pl_out,
+            ptrack.snapshot_entry(np_day) if ptrack.started(_v56_results) else None,datetime.now(timezone.utc).isoformat(timespec='seconds'))
+        _pt_states=ptrack.states(_pl_data,_v56_pbp,_v56_results)
+        st.session_state['v59_pt_phase']=ptrack.phase_signature(_v56_pbp)
+    except Exception:   # the tracker must never break Home: fall back to the V5.8 card
+        _pt_on=False
+if not _pt_on:
+    _pl_data=parlay.lock(st.session_state.setdefault('v58_parlay',{}),np_day,_pl_sig,
+        lambda:parlay.build(_v56_results,_v56_rows,_pl_out,_pl_scored),_v56_results)
 _pl_phase={r['slate'].get('key'):r['result'].get('phase') for r in _v56_results}
 _pl_status={l['pid']:parlay.leg_status(l,_pl_rec,_pl_phase) for l in _pl_data.get('legs') or []}
 _pl_picks={}
@@ -91,8 +103,10 @@ for _k,_lbl in INTEL_LABELS:
     except (TypeError,ValueError): pass
 _pl_gem=parlay.gem_index(_home_targets)
 _pl_story=slx.stories_for_day(np_day)
-_v5_state['parlay_html']=parlay.section_html(_pl_data,_pl_status,{l['pid']:parlay.support(l,_pl_picks,_pl_gem,_pl_story) for l in _pl_data.get('legs') or []},
-    '' if _v56_rows else 'Build this slate’s rankings first (the leg chances come from the season model priors).',scored=_pl_rec)
+_pl_chips={l['pid']:parlay.support(l,_pl_picks,_pl_gem,_pl_story) for l in _pl_data.get('legs') or []}
+_pl_empty='' if _v56_rows else 'Build this slate’s rankings first (the leg chances come from the season model priors).'
+_v5_state['parlay_html']=(ptrack.section_html(_pl_data,_pt_states,_pl_chips,_pl_empty,scored=_pl_rec) if _pt_on else
+    parlay.section_html(_pl_data,_pl_status,_pl_chips,_pl_empty,scored=_pl_rec))
 # V5.8: Top long shot candidate (price-free): band-limited model chance x upside signals, never a parlay leg.
 _ls_open=(st.session_state.get('v56_openers') or {}).get(np_day) or {}   # REAL opening lines only (never DEMO)
 _ls_edge={x['pid'] for _r in _v56_results for x in (eflags.edges_for_game(_r['result'],_ls_open) if _ls_open else []) if x['flag']}

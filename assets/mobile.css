@@ -59,6 +59,7 @@
   .v55 .gc .chip,.v55 .gcb .chip{white-space:normal;max-width:100%}
   .v55 .fmeta{flex-wrap:wrap}
   .v55 .npp-sum strong{font-size:2rem}
+  .v55 .npt-sum strong.npt-hit{font-size:1.7rem}.v55 .npt-j{white-space:normal}.v55 .npt-rule{font-size:12px}
   .v55 .nls-card{grid-template-columns:auto minmax(0,1fr);gap:10px 12px}
   .v55 .nls-card .nls-p{grid-column:1 / -1;flex-direction:row;align-items:baseline;justify-content:space-between}
   .v58-num .ntg{grid-template-columns:1fr}
@@ -79,6 +80,7 @@
   .v55 .npp-sum{padding:12px 14px}
   .v58-num .npr{grid-template-columns:32px minmax(0,1fr) 44px;padding:8px}
   .v58-num .npr-ring{width:32px;height:32px}.v58-num .npr-ring span{width:25px;height:25px}
+  .v55 .npt-leg .npp-top{flex-wrap:wrap}.v55 .npt-leg .npp-id{flex:1 1 140px}.v55 .npt-leg .npt-st{margin-left:auto}.v55 .npt-nm{overflow-wrap:normal;word-break:normal}
 }
 @media (max-width:640px){
   /* V5.9 DEMO replay: transport buttons stay on one row, slider below; roomier, non-wrapping rows */
