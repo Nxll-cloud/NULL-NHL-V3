@@ -34,8 +34,12 @@ jobs:
           if [ -n "$SLATE_DATE" ]; then python precompute_slate.py "$SLATE_DATE"; else python precompute_slate.py; fi
       - name: Accuracy log (V5.8; freeze today's pre-game predictions, score finished slates; never blocks the commit)
         run: python accuracy_v58.py update || echo "accuracy log update skipped"
+      - name: Gematria history (V5.9; freeze tonight's matches once pre-game, add results to finished nights; never blocks the commit)
+        run: python gematria_log_v59.py update || echo "gematria history update skipped"
       - name: Prune old snapshots (V5.5, keeps the last 60 days)
         run: python snapshot_store.py prune --keep-days 60
+      - name: Prune old gematria history (V5.9, keeps the last 90 days; snapshots/gematria/ only)
+        run: python gematria_log_v59.py prune --keep-days 90 || echo "gematria prune skipped"
       - name: Repo size check (V5.5; fails on any file GitHub would reject)
         run: python check_repo_size.py --top 15 --max-file-kb 100
       - name: Commit updated snapshots
@@ -44,7 +48,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # snapshots/*.json is in .gitignore (keeps manual uploads small), so the bot force-adds them;
           # -A stages pruned (deleted) snapshots too.
-          git add -f -A snapshots/
+          git add -f -A snapshots/   # includes snapshots/accuracy/ and snapshots/gematria/
           if ! git diff --cached --quiet; then
             git commit -m "Update NHL slate snapshots"
             git push

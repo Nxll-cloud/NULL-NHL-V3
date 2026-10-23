@@ -17,6 +17,11 @@ _gm_targets=num_slate_targets(_analyses,_nb_ranked,np_day) if (_nb_ok and _analy
 _nb_all=numboard.slate_boards(_gm_targets) if _gm_targets is not None else None
 v5.html_block(st,numv58.tonight_strip(np_day,_day_num,_analyses,_nb_all),extra_class='v58-num')
 if _analyses:  # V5.8: Player | Match type (date / arena) | Number
+    if np_flags.show_gem_history(st.secrets):  # V5.9: saved-history strip (last 3 nights' arena-match scorers); hidden on any error
+        try:
+            v5.html_block(st,gemlog.strip_html(gemlog.last_n_days(3,'arena',np_day)),extra_class='v58-num')
+        except Exception:
+            pass
     v5.html_block(st,gmx.table_html(*gmx.match_table(_gm_targets,_day_num),_day_num,loaded=_gm_targets is not None),extra_class='v58-num')
 with st.expander('ⓘ How numbers are calculated'):
     st.write('Universal day: sum every digit of YYYY-MM-DD and reduce to one digit. English ordinal: A=1 through Z=26. Full reduction: reduce each letter to a single digit, sum, and reduce again. Reverse ordinal: A=26 through Z=1. Punctuation and spaces are ignored. Arena names come from the game schedule.')

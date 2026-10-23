@@ -149,3 +149,12 @@ def model_d_attempts(secrets=None, environ=None):
     v = _lookup('MODEL_D_ATTEMPTS', secrets, environ)
     p = _parse(v) if v is not None else None
     return MODEL_D_ATTEMPTS if p is None else p
+
+
+# V5.9: gematria history (snapshots/gematria/ dated records + the Numbers page 'Arena-match scorers' strip).
+# FEATURE_GEM_HISTORY = "false" (secrets) / =0 (env) hides the strip and makes the workflow step a no-op.
+SHOW_GEM_HISTORY = True
+
+
+def show_gem_history(secrets=None, environ=None):
+    return _flag('FEATURE_GEM_HISTORY', SHOW_GEM_HISTORY, secrets, environ)

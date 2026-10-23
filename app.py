@@ -111,6 +111,7 @@ import edgelab_v58 as elv58
 import storylines_v58 as slx
 import venue_v58 as vn
 import gem_match_v58 as gmx
+import gematria_log_v59 as gemlog
 import goalie_weak_v59 as gweak
 import threat_badges_v59 as threat
 import winprob_v59 as winprob
