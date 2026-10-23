@@ -40,7 +40,7 @@ def _board(starter):
 
 def test_board_pill_for_starter_with_position_only():
     html = _board({'goalie': 'Jeremy Swayman', 'status': 'confirmed', 'position': 'G'})
-    assert html.count('class="npg"') == 1 and 'Swayman<span class="npg"' in html
+    assert html.count('class="npg"') == 1 and 'Swayman</span><span class="npg"' in html
     assert 'class="npg"' not in _board({'goalie': 'Jeremy Swayman', 'status': 'confirmed'})     # no position data
 
 
@@ -88,3 +88,9 @@ def test_goalie_pill_css():
 
 def test_espn_position_shapes():
     assert pgk._espn_position({'abbreviation': 'G'}) == 'G' and pgk._espn_position('G') == 'G' and pgk._espn_position(None) == 'G'
+
+
+def test_board_tile_layout_keeps_pill_inside():
+    css = (HERE / 'assets' / 'v58.css').read_text()
+    assert '.v55 .tile .row>.sg{grid-column:2/-1;grid-row:2' in css and '.v55 .tile .row>.scr{grid-column:3;grid-row:1}' in css
+    assert 'text-overflow:ellipsis' in css.split('.v55 .sg .sgn{')[1].split('}')[0]

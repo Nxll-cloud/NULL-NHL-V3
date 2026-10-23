@@ -485,7 +485,8 @@ def scoreboard(data, now):
         def gl(t):
             x = sts.get(t) or {}; stt = x.get('status', 'unknown')
             mark = {'confirmed': '<i class="dot ok"></i>', 'probable': '<i class="dot warn"></i>'}.get(stt, '<i class="dot"></i>')
-            return f'<span class="sg">{mark}{esc((x.get("goalie") or "TBD").split(" ")[-1])}{pb.goalie_badge(pb.position_of(x)) if x.get("goalie") else ""}</span>'
+            gb = pb.goalie_badge(pb.position_of(x)) if x.get("goalie") else ''   # V5.9: surname truncates, pill never clips
+            return f'<span class="sg"><span class="sgn">{mark}{esc((x.get("goalie") or "TBD").split(" ")[-1])}</span>{gb}</span>'
         sc = (data.get('scores') or {}).get(g['key'])  # V5.6: live/final score from the score endpoint or PBP
         clk = f'<span class="clk">{esc(sc.get("label"), "")}</span>' if sc and s == 'live' else ''
         badge = (f'<span class="st live"><i class="pulse"></i>Live{clk}</span>' if s == 'live' else

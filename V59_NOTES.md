@@ -38,4 +38,5 @@ Home only: goalies get a small outlined, muted **G** pill (`.v55 .npg`, 12px des
   - Rankings / leaders / targets use the roster `Position` column.
   If there's no position, no badge is shown.
 - **Where it appears:** Tonight's Board starter names, hero goalie duel, hero lead, Leaders cards, Targets rows, matchup goalie cards, parlay legs and long shot. Today the rankings pool has only skaters and the live pool excludes 'G', so in practice the leaders, long shot and parlay never show a goalie. The wiring is there in case that changes.
+- Tonight’s Board tiles: the starter (dot + surname + G) now sits on its own line under the team abbreviation, spanning the full tile width on mobile. Before, the surname shared the row with the abbreviation and was illegible at 320px, and adding the pill clipped it. Very long surnames get an ellipsis; the pill is never clipped. A live score stays on the team row.
 - Tests: `test_v59_goalie_badge.py`.
