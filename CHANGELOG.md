@@ -3,6 +3,8 @@
 Newest first. Model details: [MODEL_CARD.md](MODEL_CARD.md). Older release notes: [docs/notes/](docs/notes/).
 
 ## Audit Phase 1 (2026-10)
+* D1 Defencemen's in-game pace counts missed + blocked attempts, capped (`MODEL_D_ATTEMPTS`, ON; 2026-04-04 log loss
+  3.4284 → 3.4157). E2 deferred to the Phase 2 multi-night backtest.
 * P1.7 Official basics: this changelog and the model card; release notes moved to `docs/notes/`; prediction hashes and
   model version on frozen entries; Python 3.11 pin + `requirements.lock`; shared footer (21+ / 1-800-GAMBLER, data
   sources, not affiliated with the NHL, not betting advice, model card link); streamlit >= 1.50.

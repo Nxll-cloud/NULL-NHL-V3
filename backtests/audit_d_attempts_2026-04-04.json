@@ -1,0 +1,587 @@
+{
+ "slate_date": "2026-04-04",
+ "purpose": "Audit D1 (MODEL_D_ATTEMPTS): defencemen in-game pace counts missed + blocked attempts (cap 6/game). Written alongside backtests/baseline_v56.json, never over it.",
+ "command": "python backtest_next_goal.py --date 2026-04-04 [--situ --pp-coherent on] --d-attempts off|on",
+ "model": {
+  "D_SOG_PER_ATT": 0.41,
+  "D_ATT_WEIGHT": 0.5,
+  "D_ATT_CAP": 6
+ },
+ "labels": {
+  "plain_off": "V5.6 model, D1 off (= baseline_v56 setting)",
+  "plain_D1": "V5.6 model, D1 on",
+  "app_off": "app as shipped (situational + xG + MODEL_PP_COHERENT on), D1 off",
+  "app_D1": "app as shipped, D1 on",
+  "shots_share": "log_loss_sog_share: shots-share baseline (P1.4)"
+ },
+ "runs": {
+  "plain_off": {
+   "headline": {
+    "goals": 106,
+    "games": 15,
+    "game_top1": 0.0755,
+    "team_top1": 0.1038,
+    "sog_game_top1": 0.0566,
+    "sog_team_top1": 0.1509,
+    "rand_game_top1": 0.0278,
+    "rand_team_top1": 0.0556,
+    "game_top3": 0.1981,
+    "team_top3": 0.2925,
+    "sog_game_top3": 0.2264,
+    "sog_team_top3": 0.3302,
+    "rand_game_top3": 0.0833,
+    "rand_team_top3": 0.1667,
+    "game_top5": 0.3113,
+    "team_top5": 0.434,
+    "sog_game_top5": 0.3019,
+    "sog_team_top5": 0.4906,
+    "rand_game_top5": 0.1389,
+    "rand_team_top5": 0.2778,
+    "brier": 0.965,
+    "log_loss": 3.469,
+    "log_loss_uniform": 3.5835,
+    "log_loss_sog_share": 3.4343,
+    "brier_uniform": 0.9722,
+    "games_pregame_top1_scored": 0.4,
+    "games_sog_leader_scored": 0.4,
+    "teams_pregame_top1_scored": 0.3333,
+    "anytime_brier": 0.1328
+   },
+   "calibration_next_goal": [
+    {
+     "bucket": "0%-2%",
+     "n": 1911,
+     "mean_pred": 0.0104,
+     "observed": 0.0167
+    },
+    {
+     "bucket": "2%-5%",
+     "n": 1309,
+     "mean_pred": 0.0319,
+     "observed": 0.0298
+    },
+    {
+     "bucket": "5%-10%",
+     "n": 518,
+     "mean_pred": 0.0668,
+     "observed": 0.056
+    },
+    {
+     "bucket": "10%-15%",
+     "n": 68,
+     "mean_pred": 0.1201,
+     "observed": 0.0735
+    },
+    {
+     "bucket": "15%-25%",
+     "n": 10,
+     "mean_pred": 0.1659,
+     "observed": 0.1
+    }
+   ],
+   "code_hash": "d117cff70a213bce",
+   "situational": null,
+   "d_attempts": false
+  },
+  "plain_D1": {
+   "headline": {
+    "goals": 106,
+    "games": 15,
+    "game_top1": 0.0755,
+    "team_top1": 0.1038,
+    "sog_game_top1": 0.0566,
+    "sog_team_top1": 0.1509,
+    "rand_game_top1": 0.0278,
+    "rand_team_top1": 0.0556,
+    "game_top3": 0.1981,
+    "team_top3": 0.2925,
+    "sog_game_top3": 0.2264,
+    "sog_team_top3": 0.3302,
+    "rand_game_top3": 0.0833,
+    "rand_team_top3": 0.1667,
+    "game_top5": 0.3113,
+    "team_top5": 0.434,
+    "sog_game_top5": 0.3019,
+    "sog_team_top5": 0.4906,
+    "rand_game_top5": 0.1389,
+    "rand_team_top5": 0.2778,
+    "brier": 0.9644,
+    "log_loss": 3.4566,
+    "log_loss_uniform": 3.5835,
+    "log_loss_sog_share": 3.4343,
+    "brier_uniform": 0.9722,
+    "games_pregame_top1_scored": 0.4,
+    "games_sog_leader_scored": 0.4,
+    "teams_pregame_top1_scored": 0.3333,
+    "anytime_brier": 0.1328
+   },
+   "calibration_next_goal": [
+    {
+     "bucket": "0%-2%",
+     "n": 1927,
+     "mean_pred": 0.0108,
+     "observed": 0.0161
+    },
+    {
+     "bucket": "2%-5%",
+     "n": 1302,
+     "mean_pred": 0.0317,
+     "observed": 0.0307
+    },
+    {
+     "bucket": "5%-10%",
+     "n": 510,
+     "mean_pred": 0.067,
+     "observed": 0.0569
+    },
+    {
+     "bucket": "10%-15%",
+     "n": 66,
+     "mean_pred": 0.1194,
+     "observed": 0.0758
+    },
+    {
+     "bucket": "15%-25%",
+     "n": 11,
+     "mean_pred": 0.1639,
+     "observed": 0.0909
+    }
+   ],
+   "code_hash": "d117cff70a213bce",
+   "situational": null,
+   "d_attempts": true
+  },
+  "app_off": {
+   "headline": {
+    "goals": 106,
+    "games": 15,
+    "game_top1": 0.066,
+    "team_top1": 0.1132,
+    "sog_game_top1": 0.0566,
+    "sog_team_top1": 0.1509,
+    "rand_game_top1": 0.0278,
+    "rand_team_top1": 0.0556,
+    "game_top3": 0.1981,
+    "team_top3": 0.3113,
+    "sog_game_top3": 0.2264,
+    "sog_team_top3": 0.3302,
+    "rand_game_top3": 0.0833,
+    "rand_team_top3": 0.1667,
+    "game_top5": 0.3302,
+    "team_top5": 0.4434,
+    "sog_game_top5": 0.3019,
+    "sog_team_top5": 0.4906,
+    "rand_game_top5": 0.1389,
+    "rand_team_top5": 0.2778,
+    "brier": 0.9626,
+    "log_loss": 3.4284,
+    "log_loss_uniform": 3.5835,
+    "log_loss_sog_share": 3.4343,
+    "brier_uniform": 0.9722,
+    "games_pregame_top1_scored": 0.4667,
+    "games_sog_leader_scored": 0.4,
+    "teams_pregame_top1_scored": 0.4,
+    "anytime_brier": 0.1321
+   },
+   "calibration_next_goal": [
+    {
+     "bucket": "0%-2%",
+     "n": 1871,
+     "mean_pred": 0.0108,
+     "observed": 0.0144
+    },
+    {
+     "bucket": "2%-5%",
+     "n": 1407,
+     "mean_pred": 0.0317,
+     "observed": 0.0291
+    },
+    {
+     "bucket": "5%-10%",
+     "n": 449,
+     "mean_pred": 0.0666,
+     "observed": 0.069
+    },
+    {
+     "bucket": "10%-15%",
+     "n": 78,
+     "mean_pred": 0.1184,
+     "observed": 0.0769
+    },
+    {
+     "bucket": "15%-25%",
+     "n": 10,
+     "mean_pred": 0.181,
+     "observed": 0.1
+    },
+    {
+     "bucket": "25%-100%",
+     "n": 1,
+     "mean_pred": 0.2687,
+     "observed": 0.0
+    }
+   ],
+   "code_hash": "d117cff70a213bce",
+   "situational": {
+    "pp_coherent": true,
+    "sources": {
+     "summary": "https://api.nhle.com/stats/rest/en/skater/summary",
+     "powerplay": "https://api.nhle.com/stats/rest/en/skater/powerplay",
+     "toi_season": "https://api.nhle.com/stats/rest/en/skater/timeonice",
+     "toi_recent": "https://api.nhle.com/stats/rest/en/skater/timeonice",
+     "team_pp": "https://api.nhle.com/stats/rest/en/team/powerplay",
+     "team_pk": "https://api.nhle.com/stats/rest/en/team/penaltykill",
+     "goalies": "https://api.nhle.com/stats/rest/en/goalie/summary",
+     "team_summary": "https://api.nhle.com/stats/rest/en/team/summary",
+     "teams": "https://api.nhle.com/stats/rest/en/team",
+     "xg": "MoneyPuck.com (point-in-time, per-shot file) (as of 2026-04-04T00:00+00:00)"
+    }
+   },
+   "d_attempts": false
+  },
+  "app_D1": {
+   "headline": {
+    "goals": 106,
+    "games": 15,
+    "game_top1": 0.066,
+    "team_top1": 0.1132,
+    "sog_game_top1": 0.0566,
+    "sog_team_top1": 0.1509,
+    "rand_game_top1": 0.0278,
+    "rand_team_top1": 0.0556,
+    "game_top3": 0.1981,
+    "team_top3": 0.3019,
+    "sog_game_top3": 0.2264,
+    "sog_team_top3": 0.3302,
+    "rand_game_top3": 0.0833,
+    "rand_team_top3": 0.1667,
+    "game_top5": 0.3491,
+    "team_top5": 0.4717,
+    "sog_game_top5": 0.3019,
+    "sog_team_top5": 0.4906,
+    "rand_game_top5": 0.1389,
+    "rand_team_top5": 0.2778,
+    "brier": 0.9618,
+    "log_loss": 3.4157,
+    "log_loss_uniform": 3.5835,
+    "log_loss_sog_share": 3.4343,
+    "brier_uniform": 0.9722,
+    "games_pregame_top1_scored": 0.4667,
+    "games_sog_leader_scored": 0.4,
+    "teams_pregame_top1_scored": 0.4,
+    "anytime_brier": 0.1321
+   },
+   "calibration_next_goal": [
+    {
+     "bucket": "0%-2%",
+     "n": 1892,
+     "mean_pred": 0.0113,
+     "observed": 0.0153
+    },
+    {
+     "bucket": "2%-5%",
+     "n": 1392,
+     "mean_pred": 0.0315,
+     "observed": 0.0287
+    },
+    {
+     "bucket": "5%-10%",
+     "n": 444,
+     "mean_pred": 0.0667,
+     "observed": 0.0676
+    },
+    {
+     "bucket": "10%-15%",
+     "n": 78,
+     "mean_pred": 0.1185,
+     "observed": 0.0769
+    },
+    {
+     "bucket": "15%-25%",
+     "n": 9,
+     "mean_pred": 0.1845,
+     "observed": 0.1111
+    },
+    {
+     "bucket": "25%-100%",
+     "n": 1,
+     "mean_pred": 0.2696,
+     "observed": 0.0
+    }
+   ],
+   "code_hash": "d117cff70a213bce",
+   "situational": {
+    "pp_coherent": true,
+    "sources": {
+     "summary": "https://api.nhle.com/stats/rest/en/skater/summary",
+     "powerplay": "https://api.nhle.com/stats/rest/en/skater/powerplay",
+     "toi_season": "https://api.nhle.com/stats/rest/en/skater/timeonice",
+     "toi_recent": "https://api.nhle.com/stats/rest/en/skater/timeonice",
+     "team_pp": "https://api.nhle.com/stats/rest/en/team/powerplay",
+     "team_pk": "https://api.nhle.com/stats/rest/en/team/penaltykill",
+     "goalies": "https://api.nhle.com/stats/rest/en/goalie/summary",
+     "team_summary": "https://api.nhle.com/stats/rest/en/team/summary",
+     "teams": "https://api.nhle.com/stats/rest/en/team",
+     "xg": "MoneyPuck.com (point-in-time, per-shot file) (as of 2026-04-04T00:00+00:00)"
+    }
+   },
+   "d_attempts": true
+  }
+ },
+ "holdout_7_nights": {
+  "dates": [
+   "2026-03-07",
+   "2026-03-14",
+   "2026-03-21",
+   "2026-03-28",
+   "2026-03-31",
+   "2026-04-01",
+   "2026-04-02"
+  ],
+  "pooled_goal_weighted": {
+   "plain_off": {
+    "log_loss": 3.3653,
+    "brier": 0.9578,
+    "game_top3": 0.2149,
+    "log_loss_sog_share": 3.4174,
+    "goals": 498
+   },
+   "plain_D1": {
+    "log_loss": 3.3538,
+    "brier": 0.9572,
+    "game_top3": 0.2189,
+    "log_loss_sog_share": 3.4174,
+    "goals": 498,
+    "nights_ll_better_than_off": 6
+   },
+   "app_off": {
+    "log_loss": 3.3319,
+    "brier": 0.9544,
+    "game_top3": 0.2128,
+    "log_loss_sog_share": 3.4174,
+    "goals": 498
+   },
+   "app_D1": {
+    "log_loss": 3.3205,
+    "brier": 0.9537,
+    "game_top3": 0.2149,
+    "log_loss_sog_share": 3.4174,
+    "goals": 498,
+    "nights_ll_better_than_off": 6
+   }
+  },
+  "per_night": {
+   "2026-03-07": {
+    "plain_off": {
+     "goals": 75,
+     "log_loss": 3.4545,
+     "brier": 0.9662,
+     "game_top3": 0.1867,
+     "log_loss_sog_share": 3.4066
+    },
+    "plain_D1": {
+     "goals": 75,
+     "log_loss": 3.4394,
+     "brier": 0.9654,
+     "game_top3": 0.1867,
+     "log_loss_sog_share": 3.4066
+    },
+    "app_off": {
+     "goals": 75,
+     "log_loss": 3.4178,
+     "brier": 0.964,
+     "game_top3": 0.2,
+     "log_loss_sog_share": 3.4066
+    },
+    "app_D1": {
+     "goals": 75,
+     "log_loss": 3.4026,
+     "brier": 0.963,
+     "game_top3": 0.2,
+     "log_loss_sog_share": 3.4066
+    }
+   },
+   "2026-03-14": {
+    "plain_off": {
+     "goals": 72,
+     "log_loss": 3.4281,
+     "brier": 0.9594,
+     "game_top3": 0.2083,
+     "log_loss_sog_share": 3.4502
+    },
+    "plain_D1": {
+     "goals": 72,
+     "log_loss": 3.4241,
+     "brier": 0.9592,
+     "game_top3": 0.2083,
+     "log_loss_sog_share": 3.4502
+    },
+    "app_off": {
+     "goals": 72,
+     "log_loss": 3.386,
+     "brier": 0.9478,
+     "game_top3": 0.2083,
+     "log_loss_sog_share": 3.4502
+    },
+    "app_D1": {
+     "goals": 72,
+     "log_loss": 3.382,
+     "brier": 0.9476,
+     "game_top3": 0.2083,
+     "log_loss_sog_share": 3.4502
+    }
+   },
+   "2026-03-21": {
+    "plain_off": {
+     "goals": 67,
+     "log_loss": 3.3923,
+     "brier": 0.9584,
+     "game_top3": 0.2239,
+     "log_loss_sog_share": 3.4229
+    },
+    "plain_D1": {
+     "goals": 67,
+     "log_loss": 3.3785,
+     "brier": 0.9579,
+     "game_top3": 0.2388,
+     "log_loss_sog_share": 3.4229
+    },
+    "app_off": {
+     "goals": 67,
+     "log_loss": 3.3555,
+     "brier": 0.9566,
+     "game_top3": 0.209,
+     "log_loss_sog_share": 3.4229
+    },
+    "app_D1": {
+     "goals": 67,
+     "log_loss": 3.3417,
+     "brier": 0.9559,
+     "game_top3": 0.209,
+     "log_loss_sog_share": 3.4229
+    }
+   },
+   "2026-03-28": {
+    "plain_off": {
+     "goals": 104,
+     "log_loss": 3.4485,
+     "brier": 0.9612,
+     "game_top3": 0.1827,
+     "log_loss_sog_share": 3.4756
+    },
+    "plain_D1": {
+     "goals": 104,
+     "log_loss": 3.4397,
+     "brier": 0.9607,
+     "game_top3": 0.1827,
+     "log_loss_sog_share": 3.4756
+    },
+    "app_off": {
+     "goals": 104,
+     "log_loss": 3.4095,
+     "brier": 0.9588,
+     "game_top3": 0.2019,
+     "log_loss_sog_share": 3.4756
+    },
+    "app_D1": {
+     "goals": 104,
+     "log_loss": 3.4009,
+     "brier": 0.9586,
+     "game_top3": 0.1923,
+     "log_loss_sog_share": 3.4756
+    }
+   },
+   "2026-03-31": {
+    "plain_off": {
+     "goals": 68,
+     "log_loss": 3.2391,
+     "brier": 0.9516,
+     "game_top3": 0.2353,
+     "log_loss_sog_share": 3.3813
+    },
+    "plain_D1": {
+     "goals": 68,
+     "log_loss": 3.2458,
+     "brier": 0.9516,
+     "game_top3": 0.2353,
+     "log_loss_sog_share": 3.3813
+    },
+    "app_off": {
+     "goals": 68,
+     "log_loss": 3.1933,
+     "brier": 0.9496,
+     "game_top3": 0.2059,
+     "log_loss_sog_share": 3.3813
+    },
+    "app_D1": {
+     "goals": 68,
+     "log_loss": 3.1999,
+     "brier": 0.9493,
+     "game_top3": 0.2353,
+     "log_loss_sog_share": 3.3813
+    }
+   },
+   "2026-04-01": {
+    "plain_off": {
+     "goals": 24,
+     "log_loss": 3.4571,
+     "brier": 0.9634,
+     "game_top3": 0.2083,
+     "log_loss_sog_share": 3.3784
+    },
+    "plain_D1": {
+     "goals": 24,
+     "log_loss": 3.3942,
+     "brier": 0.9618,
+     "game_top3": 0.2083,
+     "log_loss_sog_share": 3.3784
+    },
+    "app_off": {
+     "goals": 24,
+     "log_loss": 3.3871,
+     "brier": 0.9559,
+     "game_top3": 0.25,
+     "log_loss_sog_share": 3.3784
+    },
+    "app_D1": {
+     "goals": 24,
+     "log_loss": 3.3252,
+     "brier": 0.954,
+     "game_top3": 0.25,
+     "log_loss_sog_share": 3.3784
+    }
+   },
+   "2026-04-02": {
+    "plain_off": {
+     "goals": 88,
+     "log_loss": 3.1913,
+     "brier": 0.9481,
+     "game_top3": 0.2614,
+     "log_loss_sog_share": 3.3653
+    },
+    "plain_D1": {
+     "goals": 88,
+     "log_loss": 3.1753,
+     "brier": 0.9471,
+     "game_top3": 0.2727,
+     "log_loss_sog_share": 3.3653
+    },
+    "app_off": {
+     "goals": 88,
+     "log_loss": 3.1969,
+     "brier": 0.9478,
+     "game_top3": 0.2386,
+     "log_loss_sog_share": 3.3653
+    },
+    "app_D1": {
+     "goals": 88,
+     "log_loss": 3.1811,
+     "brier": 0.9467,
+     "game_top3": 0.2386,
+     "log_loss_sog_share": 3.3653
+    }
+   }
+  }
+ },
+ "decision": "MODEL_D_ATTEMPTS default ON: 2026-04-04 log loss improves in both settings (app 3.4284 -> 3.4157; plain 3.469 -> 3.4566), no regression."
+}

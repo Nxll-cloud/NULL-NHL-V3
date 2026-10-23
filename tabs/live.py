@@ -38,6 +38,7 @@ def v56_collect(force=False):
 
 _v56_pbp,_v56_pollers=v56_collect(_v56_force)
 _v56_mem=st.session_state.setdefault('v56_rank_mem',{})
+ng.D_ATTEMPTS=np_flags.model_d_attempts(st.secrets)   # audit D1: MODEL_D_ATTEMPTS (secrets/env/default) for every surface
 _v56_situ=None   # V5.8: situational layer (PP split, opposing goalie, TOI deployment); off -> the V5.6 model exactly
 if _v56_games and _v56_priors and np_flags.model_situational(st.secrets):
     _v56_parts=np_flags.model_parts(st.secrets)

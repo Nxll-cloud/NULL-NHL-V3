@@ -85,7 +85,8 @@ def test_home_strip_leader_matches_next_goal_tab(on):
     assert lead, 'Home live strip shows the live game leader'
     (name, team), p = next(iter(panel(on, 'nextgoal', 'UTA @ SEA').items()))
     assert name.split(' ')[-1] == html.unescape(lead.group(1))
-    assert round(float(p.rstrip('%'))) == round(float(lead.group(2).rstrip('%')))
+    # same number at two display precisions (tab 1 dp, strip 0 dp): compare within rounding, not round(round(x))
+    assert abs(float(p.rstrip('%')) - float(lead.group(2).rstrip('%'))) <= 0.55
 
 
 def test_layer_actually_changes_the_numbers(on, off):

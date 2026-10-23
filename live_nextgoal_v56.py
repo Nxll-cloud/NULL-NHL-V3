@@ -34,6 +34,15 @@ M_SHOTS = 5               # pseudo-games toward the positional mean
 PACE_TAU = 30.0           # minutes; w = elapsed / (elapsed + PACE_TAU)
 XG_TAU = 5.0              # in-game shots; v = n / (n + XG_TAU)
 XG_VMAX = 0.5             # in-game xG never more than half the conversion estimate
+# Audit D1 (feature_flags_v58.MODEL_D_ATTEMPTS): defencemen's in-game shot pace also counts their missed and blocked
+# attempts. D in-game count = (1 - D_ATT_WEIGHT) * SOG + D_ATT_WEIGHT * D_SOG_PER_ATT * (SOG + min(miss + block,
+# D_ATT_CAP)). D_SOG_PER_ATT: league D shots on goal per attempt, 2025-26 before 2026-04-04 (0.408-0.409 on every
+# backtest night). D_ATT_CAP: about the 99th percentile of a D's missed + blocked attempts in one game (3 slates), so
+# one blowout cannot run a D's pace away. Forwards are unchanged. Pregame (elapsed 0) is unchanged.
+D_SOG_PER_ATT = 0.41
+D_ATT_WEIGHT = 0.5
+D_ATT_CAP = 6
+D_ATTEMPTS = None         # process-wide override set by the app from secrets; None -> feature_flags_v58 (env/default)
 FORM_MIN, FORM_MAX = 0.9, 1.1
 REG_MINUTES = 60.0
 OT_MINUTES = 5.0          # regular-season 3-on-3 OT
@@ -301,7 +310,23 @@ def situation_mult(situation_code, team_is_home):
 
 
 # ---------------------------------------------------------------- model
-def model(game, priors=None, use_form=False, lineup=None, situ=None):
+def d_attempts_enabled(d_attempts=None):
+    """Audit D1 switch: explicit argument, else the app's D_ATTEMPTS override, else feature_flags_v58 (env/default)."""
+    if d_attempts is not None:
+        return bool(d_attempts)
+    if D_ATTEMPTS is not None:
+        return bool(D_ATTEMPTS)
+    import feature_flags_v58 as ff
+    return ff.model_d_attempts()
+
+
+def d_in_game_count(sog, att):
+    """Audit D1: a defenceman's in-game shot count with missed/blocked attempts (capped) folded in."""
+    other = min(max(0, att - sog), D_ATT_CAP)
+    return (1 - D_ATT_WEIGHT) * sog + D_ATT_WEIGHT * D_SOG_PER_ATT * (sog + other)
+
+
+def model(game, priors=None, use_form=False, lineup=None, situ=None, d_attempts=None):
     """Next-goal probabilities for one game. ``lineup``: optional {pid: {...}} restricting to dressed skaters.
 
     ``situ``: optional V5.8 situational layer (``situational_v58.Situ``). None = the V5.6 model exactly. With it, each
@@ -309,8 +334,11 @@ def model(game, priors=None, use_form=False, lineup=None, situ=None):
     goalie, TOI deployment); the per-player breakdown is kept in ``rec['situ']``. Ratio 1.0 (no data) = old numbers.
     Audit PP fix: with ``situ.pp_coherent`` (feature_flags_v58.MODEL_PP_COHERENT) the live PP is priced ONCE, by the
     team multiplier SITUATION_MULT['PP']: the player's PP split becomes a neutral share ratio and PP shots count at
-    their EV xG. Pregame (and situ None / flag off) is unchanged."""
+    their EV xG. Pregame (and situ None / flag off) is unchanged.
+    Audit D1: ``d_attempts`` (None -> ``d_attempts_enabled()``) folds defencemen's missed/blocked attempts, capped, into
+    their in-game shot pace (``d_in_game_count``); forwards and pregame are unchanged."""
     priors = priors or {}
+    d_att = d_attempts_enabled(d_attempts)
     coherent = bool(getattr(situ, 'pp_coherent', False))
     ph = phase(game)
     elapsed, remaining = elapsed_remaining(game)
@@ -362,7 +390,8 @@ def model(game, priors=None, use_form=False, lineup=None, situ=None):
         if rec['team'] not in team_rate:
             continue
         prior_pg = prior_shots_pg(rec['season_sog'], rec['gp'], rec['pos'])
-        in_rate = rec['sog'] / elapsed if elapsed > 0 else 0.0
+        in_cnt = d_in_game_count(rec['sog'], rec['att']) if d_att and pos_group(rec['pos']) == 'D' else rec['sog']
+        in_rate = in_cnt / elapsed if elapsed > 0 else 0.0
         s = w * in_rate + (1 - w) * prior_pg / 60.0
         sh = shrunk_sh(rec['season_g'], rec['season_sog'])
         v = min(XG_VMAX, rec['sog'] / (rec['sog'] + XG_TAU)) if rec['sog'] else 0.0
@@ -412,7 +441,7 @@ def model(game, priors=None, use_form=False, lineup=None, situ=None):
     out.sort(key=lambda r: (-r['p_next'], -r['sog'], r['name']))
     return {'phase': ph, 'elapsed': round(elapsed, 2), 'remaining': round(remaining, 2), 'pace_weight': round(w, 3),
             'team_rate': team_rate, 'team_mult': mult, 'p_team': p_team, 'p_any': p_any, 'p_none': 1 - p_any,
-            'pool': pool_kind, 'players': out, 'game': {k: game.get(k) for k in ('game_id', 'away', 'home', 'away_score', 'home_score',
+            'pool': pool_kind, 'd_attempts': d_att, 'players': out, 'game': {k: game.get(k) for k in ('game_id', 'away', 'home', 'away_score', 'home_score',
                                                                'away_sog', 'home_sog', 'period', 'ptype', 'state', 'situation', 'intermission')}}
 
 

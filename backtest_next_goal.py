@@ -165,10 +165,12 @@ def _rebound(game, i, e):
     return False
 
 
-def replay_game(payload, priors, situ=None):
-    """Per-goal records plus a pregame record for one game. ``situ``: optional situational layer (None = V5.6 model)."""
+def replay_game(payload, priors, situ=None, d_attempts=False):
+    """Per-goal records plus a pregame record for one game. ``situ``: optional situational layer (None = V5.6 model).
+    ``d_attempts``: audit D1 switch, explicit (default off = the baseline's setting; never read from the environment)."""
     game0 = ng.parse_pbp(payload)
-    pre = ng.model(ng.pregame_game(game0['game_id'], game0['away'], game0['home']) | {'roster': game0['roster']}, priors, situ=situ)
+    pre = ng.model(ng.pregame_game(game0['game_id'], game0['away'], game0['home']) | {'roster': game0['roster']}, priors, situ=situ,
+                   d_attempts=d_attempts)
     scorers = {}
     for e in game0['events']:
         if e['kind'] == 'goal':
@@ -179,7 +181,7 @@ def replay_game(payload, priors, situ=None):
     sog_lead = _sog_leader_order(pre['players'])[0] if pre['players'] else None
     records = []
     for i, e, g, full in goal_moments(payload):
-        res = ng.model(g, priors, situ=situ)
+        res = ng.model(g, priors, situ=situ, d_attempts=d_attempts)
         ps = res['players']
         if not ps:
             continue
@@ -319,7 +321,7 @@ def situ_layer(date, payloads, pp_coherent=False, getter=None):
     return sit.layer(ctx, {}, pp_coherent)
 
 
-def run_backtest(date, getter=None, payloads=None, logs=None, cache_dir=CACHE_DIR, lines_path=None, situ=None):
+def run_backtest(date, getter=None, payloads=None, logs=None, cache_dir=CACHE_DIR, lines_path=None, situ=None, d_attempts=False):
     """Run the backtest for ``date``. Pass ``payloads``/``logs`` (offline) or a ``getter``; default = cached HTTP.
     ``situ``: optional situational layer (``situ_layer``); None = the V5.6 model exactly (the baseline's setting)."""
     if payloads is None or logs is None:
@@ -329,10 +331,10 @@ def run_backtest(date, getter=None, payloads=None, logs=None, cache_dir=CACHE_DI
     for p in payloads:
         roster = ng.parse_pbp(p)['roster']
         plogs = {pid: logs.get(pid) or logs.get(str(pid)) or [] for pid in roster}
-        g, recs = replay_game(p, priors_as_of(plogs, roster, date), situ)
+        g, recs = replay_game(p, priors_as_of(plogs, roster, date), situ, d_attempts)
         games.append(g)
         records.extend(recs)
-        g2, recs2 = replay_game(p, priors_as_of(plogs, roster, date, mode='app_l10'), situ)
+        g2, recs2 = replay_game(p, priors_as_of(plogs, roster, date, mode='app_l10'), situ, d_attempts)
         l10_games.append(g2)
         l10_records.extend(recs2)
     s = summarize(games, records)
@@ -346,6 +348,7 @@ def run_backtest(date, getter=None, payloads=None, logs=None, cache_dir=CACHE_DI
             'season': season_for(date), 'priors': 'season-to-date game logs, games dated before slate_date; Form off',
             'situational': None if situ is None else {'pp_coherent': bool(getattr(situ, 'pp_coherent', False)),
                                                       'sources': (getattr(situ, 'ctx', {}) or {}).get('sources')},
+            'd_attempts': bool(d_attempts),
             **s, 'games': [{k: v for k, v in g.items() if not k.startswith('_')} for g in games],
             'records': [public_record(r) for r in records]}
 
@@ -483,6 +486,7 @@ def main(argv=None, getter=None):
     ap.add_argument('--json', default=None, help='also write this run to a file (never the baseline path)')
     ap.add_argument('--situ', action='store_true', help='audit: replay with the point-in-time situational layer')
     ap.add_argument('--pp-coherent', choices=('on', 'off'), default='off', help='audit: MODEL_PP_COHERENT for --situ')
+    ap.add_argument('--d-attempts', choices=('on', 'off'), default='off', help='audit D1: MODEL_D_ATTEMPTS (default off)')
     a = ap.parse_args(argv)
     base = load_baseline(a.baseline)
     if a.baseline_only:
@@ -494,9 +498,9 @@ def main(argv=None, getter=None):
     if a.situ:
         payloads, logs = fetch_slate(date, getter or cached(http_getter, CACHE_DIR))
         result = run_backtest(date, payloads=payloads, logs=logs, lines_path=a.lines,
-                              situ=situ_layer(date, payloads, a.pp_coherent == 'on'))
+                              situ=situ_layer(date, payloads, a.pp_coherent == 'on'), d_attempts=a.d_attempts == 'on')
     else:
-        result = run_backtest(date, getter=getter, lines_path=a.lines)
+        result = run_backtest(date, getter=getter, lines_path=a.lines, d_attempts=a.d_attempts == 'on')
     print(f'slate {date} | code {result["code_hash"]}')
     print(_fmt(result['headline']))
     print('opening-line comparison:', json.dumps({k: v for k, v in result['lines'].items() if k != 'rows'}))

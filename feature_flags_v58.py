@@ -136,3 +136,16 @@ SHOW_PARLAY_TRACKER = True
 
 def show_parlay_tracker(secrets=None, environ=None):
     return _flag('FEATURE_PARLAY_TRACKER', SHOW_PARLAY_TRACKER, secrets, environ)
+
+
+# Audit D1 (live_nextgoal_v56.d_in_game_count): defencemen's in-game shot pace also counts their missed and blocked
+# attempts (capped at D_ATT_CAP per game); forwards and pregame unchanged. MODEL_D_ATTEMPTS = "false" (secrets) / =0
+# (env) restores the old SOG-only pace exactly. Default from the 2026-04-04 backtest
+# (backtests/audit_d_attempts_2026-04-04.json): ON only with no log-loss regression on that night.
+MODEL_D_ATTEMPTS = True    # 2026-04-04 (app setting): log loss 3.4284 (off) -> 3.4157 (on), no regression
+
+
+def model_d_attempts(secrets=None, environ=None):
+    v = _lookup('MODEL_D_ATTEMPTS', secrets, environ)
+    p = _parse(v) if v is not None else None
+    return MODEL_D_ATTEMPTS if p is None else p

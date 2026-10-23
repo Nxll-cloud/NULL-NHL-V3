@@ -30,6 +30,7 @@ Gematria / Numbers picks are **not** model output (see "Separate lenses").
 | P1.5 | **Win % V2** (`MODEL_WINPROB_V2`): 18 dressed skaters (roster/lineup, else top 12 F + 6 D by TOI), 50/50 blend with shrunk team GF/GA (NHL team/summary), home ice ×1.037, real regulation-tie rate 22.05% and OT/SO home 52.5% (NHL 2023-24..2025-26, 3,936 games), range in the tooltip | **OFF** | 2026-04-04 log loss 0.6499 → 0.6645 (regression ⇒ OFF by rule); 8 slates 0.6955 → 0.6755; `backtests/audit_winprob_*.json` |
 | P1.7b | Each frozen accuracy-log entry carries `content_hash` (SHA-256 of the canonical frozen prediction fields), `model_version` and `model_source_hash` (SHA-256 over the model source files); it is marked `final` at first puck drop and is never re-frozen. The Home accuracy card shows the hash and whether it verifies | always on | tests |
 | P1.6 | Gematria / Numbers kept apart from model picks (two labelled long-shot options; tracker model-only vs Numbers rates) | always on | tests |
+| D1 | **Defencemen's in-game pace counts missed + blocked attempts**: D in-game count = 0.5·SOG + 0.5·0.41·(SOG + min(missed + blocked, 6)); 0.41 = league D shots per attempt, cap 6 ≈ 99th pct of a D's missed+blocked in one game. Forwards and pregame unchanged | `MODEL_D_ATTEMPTS` ON | 2026-04-04 next-goal log loss (app setting) 3.4284 → 3.4157, V5.6 plain 3.469 → 3.4566 (shots-share 3.4343); 7 other nights pooled (498 goals) 3.3319 → 3.3205, better on 6 of 7; `backtests/audit_d_attempts_2026-04-04.json` |
 
 ## Separate lenses (not the model)
 Gematria / numerology and storylines are a "Numbers" lens. They never change a model probability, never enter a model
@@ -37,12 +38,13 @@ hit rate, the learning prior, the leaderboard or badges. Long Shot shows a **Mod
 **Gematria / Numbers pick**. The Track Record reports **Model (Stats + Odds)** and **Numbers (Numbers + Overlap)** apart.
 
 ## Evaluation
-* `python backtest_next_goal.py --date YYYY-MM-DD [--situ --pp-coherent on|off]`: replays official play-by-play.
+* `python backtest_next_goal.py --date YYYY-MM-DD [--situ --pp-coherent on|off] [--d-attempts on|off]`: replays official play-by-play.
   `backtests/baseline_v56.json` is write-once (never overwritten); audit runs are written alongside it.
 * `python backtest_winprob.py --date ...`: win % log loss / Brier / accuracy, V5.9 vs V2.
 * Daily accuracy card (accuracy_v58.py): yesterday's frozen pregame probabilities vs real scorers, with the baseline.
 * Known limits: single-slate decisions are noisy (one 15-game night); multi-night backtesting and weight fitting are
-  Phase 2. No injury/line-change feed beyond ESPN injuries; live data can lag.
+  Phase 2. **Phase 2 note (E2):** the second defenceman candidate from the D prototype (E2) is *not* implemented; it
+  will be evaluated in the Phase 2 multi-night backtest and weight fitting, together with D1's constants. No injury/line-change feed beyond ESPN injuries; live data can lag.
 
 ## Data sources
 NHL API (api-web.nhle.com, api.nhle.com stats: schedule, play-by-play, rosters, game logs, team summary) · ESPN
