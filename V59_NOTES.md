@@ -44,3 +44,8 @@ Home only: goalies get a small outlined, muted **G** pill (`.v55 .npg`, 12px des
 ## Merge: model-xg (129f92a)
 Normal merge `9fdde53` on top of research-hide + model-situational + V5.9 badge/goalie commits. It merged cleanly with no conflicts and adds `xg_v59.py`, `test_v59_xg.py` and `V59_XG_NOTES.md`. It also touches `feature_flags_v58.py` (adds the `MODEL_XG` switch and an 'xg' entry in `MODEL_PARTS`), `situational_v58.py`, `app.py` (`xg_cached`, a 6 h MoneyPuck fetch) and the tab model captions.
 **Note:** `MODEL_XG` defaults to **True**. With MODEL_SITUATIONAL on, the xG layer is live on deploy. Set `MODEL_XG = "false"` in secrets for exactly the V5.8 situational model.
+
+## Merge: home-accuracy (a7e35e4) + origin/main snapshot commit
+- origin/main's `ffbe483` (snapshot bot) was merged first. It only touched snapshots/2026-10-23.json, with no conflict.
+- In `home-accuracy`, the only conflict was in `tabs/home.py`. The fix keeps V5.9's long-shot call (`record=_pl_rec` for the scored badge) and adds the accuracy card hook right after it.
+- Goalie pill on the accuracy card: the score feed's goals carry no position. `results_from_score` now reads each final game's boxscore (forwards / defense / goalies), or play-by-play rosterSpots when it falls back to PBP, and saves `results.positions = {pid: position}` for scorers. The card also uses the saved slate's roster Position column, matched by player ID. A scorer with no known position gets no pill, and older log entries without positions show none. A failed boxscore fetch never breaks results. Tests: `test_v59_accuracy_goalie.py`.
