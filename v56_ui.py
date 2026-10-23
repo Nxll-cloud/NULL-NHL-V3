@@ -176,12 +176,6 @@ def num_game_board(board, day_num):
             f'<div class="nbm"><span>Day {day_num}</span>{arena_html}</div><div class="nbl">{"".join(rows) or "<p>No ranked players.</p>"}</div></section>')
 
 
-def num_legend():
-    from numboard_v56 import TIERS
-    tiers = ''.join(f'<span><i style="background:{c}"></i>{n} ≥{lo}</span>' for lo, n, c in TIERS)
-    return f'<div class="nleg">{tiers}<span>threat = 100·(3·D + 2·A + 1·T)/18 · ring = score · centre = English root</span></div>'
-
-
 def _am(v):
     return '—' if v is None else f'{int(v):+d}'
 

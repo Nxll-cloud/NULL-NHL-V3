@@ -6,9 +6,10 @@ from numerology_v48 import gematria, universal_day
 METHODS=(('ordinal_root','English'),('reduction_root','Reduction'),('reverse_root','Reverse'))  # display order (all three digits)
 # The three digits are not independent: Reduction always equals English (both are the name total reduced mod 9), and
 # Reverse mirrors English (English + Reverse always reduces to 9, e.g. 7 <-> 2, 3 <-> 6). So a name carries ONE digit.
-# Scoring counts that digit once per target: vs the day number, the English or the Reverse digit may hit (at most one
-# label); vs a team or arena name, Reverse agrees whenever English does, so only English is compared.
-DAY_METHODS=(('ordinal_root','English'),('reverse_root','Reverse'))
+# Scoring counts that digit once per target and only through English (== Reduction): a Reverse "day hit" is really a
+# different English digit (9 - d), so counting it doubled the day-match odds (2/9 instead of 1/9) and over-filled the
+# hot tier. Vs a team or arena name Reverse agrees whenever English does, so English is the only comparison there too.
+DAY_METHODS=(('ordinal_root','English'),)
 NAME_METHODS=(('ordinal_root','English'),)
 
 def _first_hit(values, target, methods):

@@ -50,7 +50,8 @@ def legend():
             f'each counts once (0 or 1) when the player’s name number equals that target · ring fill = score · '
             f'Eng = the full name’s English total before reducing to one digit</span></div>'
             '<p class="nlg-k">The three ciphers are not independent: Reduction always gives the same digit as English, and '
-            'Reverse mirrors English (the two digits always add up to 9, e.g. 7 and 2). So each name has one number, and it is counted once.</p>'
+            'Reverse mirrors English (the two digits always add up to 9, e.g. 7 and 2). So each name has one number, and it is counted once; '
+            'the day match uses the English digit only (a Reverse digit equal to the day is a different English number).</p>'
             f'<ul class="nlg-t" aria-label="Threat tiers, warm = higher">{items}</ul>'
             '<p class="nlg-k"><span class="mc d">DAY</span> matches the universal day · <span class="mc a">ARENA</span> matches the game’s arena name · '
             '<span class="mc t">TEAM</span> matches his own team name · warm colours = higher score; every tier also has its icon and word</p>'
@@ -87,10 +88,41 @@ def _pkey(p):
     return ('id', pid) if pid and pid not in ('None', 'nan') else ('name', str(p.get('player') or '').casefold())
 
 
+def _norm_pid(pid):
+    """8483493 / '8483493' / 8483493.0 -> '8483493' (the model_p_from_results key); anything else -> str()."""
+    try:
+        return str(int(float(pid)))
+    except (TypeError, ValueError):
+        return str(pid)
+
+
 def pick_order(p, model_p=None):
     """Deterministic rank key: threat score (raw points), then model P, then name."""
-    mp = (model_p or {}).get(str(p.get('player_id'))) if model_p else None
+    mp = (model_p or {}).get(_norm_pid(p.get('player_id'))) if model_p else None
     return (-int(p.get('threat_raw', 0)), -(mp if mp is not None else -1.0), str(p.get('player') or ''), str(p.get('player_id') or ''))
+
+
+def model_p_from_results(results):
+    """{str(pid): pregame model chance} for the TOP PICK tie-break, from the next-goal model's player records
+    (``lstate.slate_results`` -> result['players'], the same records Home's parlay / Long Shot use: ``pid`` + ``lam_game``).
+    Only ever a tie-break inside equal gematria points; never part of any Numbers score or hit rate.
+    (Ranking rows have 'Player ID' and no 'lam_game', so building this from them gave {'None': 0.0} and every tie
+    fell to alphabetical order.)"""
+    from live_nextgoal_v56 import p_anytime
+    out = {}
+    for r in results or []:
+        res = (r or {}).get('result') or {}
+        for rec in res.get('players') or []:
+            pid, lam = rec.get('pid'), rec.get('lam_game')
+            if pid in (None, '') or lam is None:
+                continue
+            try:
+                key, p = _norm_pid(pid), p_anytime(lam)
+            except (TypeError, ValueError):
+                continue
+            if key not in out or p > out[key]:
+                out[key] = p
+    return out
 
 
 def top_picks_per_team(lists, model_p=None, n=2):

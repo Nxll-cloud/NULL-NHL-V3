@@ -27,6 +27,9 @@ def arena_number(arena):
 
 SHORT = {'ordinal_root': 'Eng', 'reduction_root': 'Red', 'reverse_root': 'Rev'}   # page METHODS order
 RAW = {'ordinal_root': 'ordinal', 'reduction_root': 'reduction', 'reverse_root': 'reverse'}
+# Date hits follow the boards (player_targets_v49.DAY_METHODS = English only). Reduction always equals English, so it
+# ticks together with it; a Reverse digit equal to the day is a different English digit (9 - d) and is NOT a date match.
+DATE_FIELDS = ('ordinal_root', 'reduction_root')
 
 
 def player_matches(name, day_num, arena_nums, arena_name='', arena_raw=None):
@@ -38,8 +41,8 @@ def player_matches(name, day_num, arena_nums, arena_name='', arena_raw=None):
     if not v['letters']:
         return []
     out, day = [], int(day_num)
-    cells = [{'field': f, 'short': SHORT[f], 'raw': int(v[RAW[f]]), 'digit': int(v[f]), 'target': day, 'hit': v[f] == day}
-             for f, _ in METHODS]
+    cells = [{'field': f, 'short': SHORT[f], 'raw': int(v[RAW[f]]), 'digit': int(v[f]), 'target': day,
+              'hit': f in DATE_FIELDS and v[f] == day} for f, _ in METHODS]
     if any(c['hit'] for c in cells):
         out.append({'type': 'date', 'number': day, 'cells': cells, 'arena': ''})
     if arena_nums:   # one arena row; Number = the arena digit of the first matching cipher in page order (Eng, Red, Rev)
@@ -54,12 +57,6 @@ def player_matches(name, day_num, arena_nums, arena_name='', arena_raw=None):
 def player_rows(name, day_num, arena_nums):
     """[(match type, number)] for one player: at most one 'date' row and at most one 'arena' row."""
     return [(m['type'], m['number']) for m in player_matches(name, day_num, arena_nums)]
-
-
-def rev_only(row):
-    """True when the row matched ONLY through the Reverse cipher (English and Reduction both miss); same hit data as calc_line."""
-    hits = {c['field'] for c in row.get('calc') or [] if c['hit']}
-    return hits == {'reverse_root'}
 
 
 def calc_line(row):
@@ -116,14 +113,13 @@ def table_html(rows, missing, day_num, loaded=True):
     """Compact three-column table (Player | Match type | Number) for st.html; scrolls vertically, never horizontally."""
     e = html.escape
     head = (f'<div class="sh"><h3>Date &amp; arena matches</h3><p>Players whose name number equals tonight’s universal day '
-            f'(<b>{e(str(day_num))}</b>) or their game’s arena number · same three ciphers as the boards · the line under each row shows each cipher’s digit vs the target (✓ = match; REV = Reverse cipher only) · entertainment only</p></div>')
+            f'(<b>{e(str(day_num))}</b>) or their game’s arena number · same three ciphers as the boards · the line under each row shows each cipher’s digit vs the target (✓ = match; the date counts the Eng digit only, like the boards; Rev never ticks for the date) · entertainment only</p></div>')
     if not loaded:
         body = '<div class="gm-empty">Player matches appear once this slate’s rankings are loaded.</div>'
     elif not rows:
         body = '<div class="gm-empty">No player matches tonight’s date or arena numbers.</div>'
     else:
         trs = ''.join(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(r["Player"]))}</b>'
-                      + (' <span class="gm-rev" title="Matched through Reverse cipher only">REV</span>' if rev_only(r) else '')
                       + f'</td><td><span class="gm-t {r["Match type"]}">{r["Match type"]}</span></td>'
                       f'<td class="gm-n">{int(r["Number"])}</td></tr>'
                       + (f'<tr class="gm-c"><td colspan="3" title="{e(calc_title(r))}">{e(calc_line(r))}</td></tr>' if r.get('calc') else '')

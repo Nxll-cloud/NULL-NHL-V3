@@ -2,6 +2,14 @@
 
 Newest first. Model details: [MODEL_CARD.md](MODEL_CARD.md). Older release notes: [docs/notes/](docs/notes/).
 
+## Numbers fixes (2026-10-23)
+* Numbers TOP PICK tie-break: the model chance now comes from the next-goal model's player records (`pid` + `lam_game`,
+  the same ones Home uses) via `numbers_v58_ui.model_p_from_results`. Before, it was built from ranking rows, came out
+  empty (`{'None': 0.0}`), and every tie fell to alphabetical order. It is still only a tie-break inside equal points.
+* Day match counts the English digit only (`DAY_METHODS`). A Reverse digit that equals the day is a different English
+  digit (9 − d), so counting it doubled the day-match odds (2/9) and over-filled the hot tier. The date & arena table
+  follows the same rule (the REV-only tag is gone). The unused `v56_ui.num_legend` (stale "/18") is removed.
+
 ## Audit Phase 1 (2026-10)
 * D1 Defencemen's in-game pace counts missed + blocked attempts, capped (`MODEL_D_ATTEMPTS`, ON; 2026-04-04 log loss
   3.4284 → 3.4157). E2 deferred to the Phase 2 multi-night backtest.
