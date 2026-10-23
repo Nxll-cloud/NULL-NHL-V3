@@ -82,3 +82,8 @@ V5.8 is V5.7 tuned for phones, plus the requested Home/Numbers/EdgeLab/Storyline
 ## GitHub status
 - V5.8 (with arena names and the date & arena match table) is on GitHub main, and the `V5.8` tag points to that commit. The earlier V5.8 commit was 0f91d5f.
 - Odds keys stay in Streamlit secrets.
+
+## Research: hidden below Top 10 Statistical Sleepers
+- **Display only:** Research now ends at "Top 10 Statistical Sleepers" (and its CSV button). Everything rendered after it is hidden: Full NHL Slate/Matchup cards, Player Statistics Explorer, V3.2 Goal-Scorer Rankings, V3.3 Historical Backtesting, V3.5 Auto Storyline, Numerology & Gematria, V3.8 Opponent History, the V3.8.2/3.8.4/3.8.5/3.8.6 audits and the V3.8.2 Combined Explorer, plus their captions, buttons, downloads and dividers.
+- **Still runs:** the live ranking pipeline (Home's source when no snapshot exists) with its default settings (3 prior games, defense adjustment on), the shared intelligence pipeline and the three-season history job. Nothing was deleted.
+- **Re-enable:** set `FEATURE_RESEARCH_EXTRAS = "true"` in Streamlit secrets, or the env var `FEATURE_RESEARCH_EXTRAS=1` (env wins), same as Track Record. Code: `feature_flags_v58.py`; tests: `test_v58_research.py`.
