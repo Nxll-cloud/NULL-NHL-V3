@@ -40,7 +40,7 @@ _v5_gk,_v5_gk_err=goalies_cached((_v5_fg['away'],_v5_fg['home']),SEASON) if _v5_
 _v5_st,_v5_st_err,_v5_st_at=starters_cached(np_day,tuple((g['key'],g['game_id'],g['away'],g['home'],g['status']) for g in _v5_mg)) if _v5_mg else ({},[],None)
 _v5_state=v5state.build_state(day=np_day,season=SEASON,games=np_games,ranked=np_ranked if np_ready else None,targets=_home_targets,
     leaders=_home_leaders,picks=_np_picks,ranked_with_stat=_v5_ranked,goalie_rows=_v5_gk,starters=_v5_st,starters_fetched_at=_v5_st_at,
-    discrepancies=_np_shared_discrepancies,track=v5state.track_summary(_trk_evals,trk.rolling),
+    discrepancies=_np_shared_discrepancies,track=v5state.track_summary(_trk_evals,trk.model_rolling),
     snapshot_at=np_snapshot['updated_at'] if np_snapshot is not None else None,
     rosters_fn=v55_rosters_cached,logs_fn=v55_logs_cached,price_label=price_label,track_badges=None)  # V5.8: no track badges on Home
 # V5.9: goalie weak-spot identifier on the Matchup targets rows (display only; goalie = the same listed starter the model uses).
@@ -111,9 +111,11 @@ _v5_state['parlay_html']=(ptrack.section_html(_pl_data,_pt_states,_pl_chips,_pl_
 # V5.8: Top long shot candidate (price-free): band-limited model chance x upside signals, never a parlay leg.
 _ls_open=(st.session_state.get('v56_openers') or {}).get(np_day) or {}   # REAL opening lines only (never DEMO)
 _ls_edge={x['pid'] for _r in _v56_results for x in (eflags.edges_for_game(_r['result'],_ls_open) if _ls_open else []) if x['flag']}
-_ls_pick=longshot.pick(parlay.candidates(_v56_results,_v56_rows,_pl_out,_pl_scored),[l['pid'] for l in _pl_data.get('legs') or []],
+# audit P1.6: two separately labelled options - the Model pick (model signals only) and the Gematria / Numbers pick
+# (never a model pick, never in model hit rates).
+_ls_picks=longshot.picks(parlay.candidates(_v56_results,_v56_rows,_pl_out,_pl_scored),[l['pid'] for l in _pl_data.get('legs') or []],
     longshot.gem_threats(_home_targets),_pl_story,longshot.game_jumps(_v56_results),_ls_edge) if _v56_rows else None
-_v5_state['longshot_html']=longshot.section_html(_ls_pick,bool(_ls_pick and _ls_pick['pid'] in _pl_scored),record=_pl_rec)
+_v5_state['longshot_html']=longshot.pair_html(_ls_picks,_pl_scored,record=_pl_rec)
 _v5_state['longshot_html']+=__import__('accuracy_v58').home_html()   # V5.8: daily accuracy card (yesterday's real scorers vs frozen pre-game predictions), under the long shot
 v5.html_block(st,v5.render_home(_v5_state,datetime.now(timezone.utc)))
 if _v56_results:  # V5.6: Home live strip (score + current next-goal leader per game)

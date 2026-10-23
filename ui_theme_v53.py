@@ -716,8 +716,9 @@ def track_strip(rate, slates, hits, picks, pending=0):
 
 def slate_card(ev):
     status = ev.get('status')
-    rate = ev.get('hit_rate')
-    head = {'pending': 'Pending', 'no_picks': 'No picks graded'}.get(status, f'{(rate or 0) * 100:.0f}% hit rate')
+    grp = ev.get('groups') or {}
+    rate = (grp.get('model') or {}).get('rate') if grp else ev.get('hit_rate')   # audit P1.6: the model rate
+    head = {'pending': 'Pending', 'no_picks': 'No picks graded'}.get(status, f'{(rate or 0) * 100:.0f}% model hit rate')
     tone = 'muted' if status != 'evaluated' else ('overlap' if (rate or 0) >= 0.3 else 'odds')
     flags = ''.join(badge(t, b) for t, b in ((('Locked', 'stat') if ev.get('locked') else ('Unlocked', 'muted')),)
                     ) + (badge('Retro', 'gem') if ev.get('retro') else '') + (badge('DEMO DATA', 'odds') if ev.get('demo') else '')
@@ -725,7 +726,9 @@ def slate_card(ev):
     near = ', '.join(esc(h['player']) for h in ev.get('near_misses', [])[:4]) or '—'
     return (f'<article class="np-slate"><div class="np-slate-head"><b>{esc(ev.get("day"))}</b>{badge(head, tone)}</div>'
             f'<div class="np-lead-badges">{flags}</div><small>Hits: {hits}</small><small>Near-misses: {near}</small>'
-            f'<small>{len(ev.get("hits", []))}/{ev.get("picks", 0)} picks · {len(ev.get("unpredicted", []))} unpredicted scorers · '
+            + ''.join(f'<small>{lab}: {(grp.get(g) or {}).get("hits", 0)}/{(grp.get(g) or {}).get("picks", 0)}</small>'
+                      for g, lab in (('model', 'Model (Stats + Odds)'), ('numbers', 'Numbers (gematria, not a model)')) if grp)
+            + f'<small>{len(ev.get("hits", []))}/{ev.get("picks", 0)} picks · {len(ev.get("unpredicted", []))} unpredicted scorers · '
             f'{ev.get("final_games", 0)} final games</small></article>')
 
 

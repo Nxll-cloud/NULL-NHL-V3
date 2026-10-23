@@ -21,6 +21,8 @@ Definitions (also in V54_NOTES.md):
 * Near-miss: (a) a watch-band player who scored, or (b) a pick who did not
   score but recorded an assist (when assists are known).
 * Hit rate = hits / (hits + misses) over unique picks in evaluated games.
+* Audit P1.6: reported per group: MODEL (Stats + Odds) and NUMBERS (Numbers + Overlap: gematria). A Numbers-only
+  pick is never in a model hit rate, the learning prior, the leaderboard or the badges.
 
 Learning (bounded, conservative): for player i with n evaluated picks and k
 hits, prior p0 = pooled pick hit rate over all evaluated history (0.25 before
@@ -50,6 +52,13 @@ from odds_intelligence_v46 import normalized_name
 
 DEFAULT_DB = Path(__file__).resolve().parent / 'data' / 'prediction_tracker_v54.sqlite'
 SOURCES = ('Stats', 'Numbers', 'Odds', 'Overlap')
+# Audit P1.6: model picks (statistical model + odds gap) and Numbers picks (gematria + the gematria/storyline overlap)
+# are graded and reported SEPARATELY. A Numbers-only pick never enters a model hit rate, the learning prior or the
+# player leaderboard/badges. A player picked by both counts once in each group.
+MODEL_SOURCES = ('Stats', 'Odds')
+NUMBERS_SOURCES = ('Numbers', 'Overlap')
+GROUPS = {'model': MODEL_SOURCES, 'numbers': NUMBERS_SOURCES}
+GROUP_LABELS = {'model': 'Model picks (Stats + Odds)', 'numbers': 'Numbers picks (Numbers + Overlap, gematria; not a model)'}
 PICK_CUTOFF = 10
 WATCH_BAND = 5
 NUMBERS_PICKS = 5
@@ -436,7 +445,12 @@ def evaluate_slate(conn, day):
     unpredicted = [{'player': a['player'], 'player_key': a['player_key'], 'team': a['team'], 'goals': a['goals']}
                    for a in acts if a['goals'] > 0 and a['player_key'] not in matched_keys]
     n = len(hits) + len(misses)
-    return {**base, 'status': 'evaluated' if n else 'no_picks', 'hits': hits, 'misses': misses, 'unpredicted': unpredicted,
+    groups = {}
+    for g, srcs in GROUPS.items():
+        gh = sum(1 for r in hits if set(r['sources']) & set(srcs))
+        gp = gh + sum(1 for r in misses if set(r['sources']) & set(srcs))
+        groups[g] = {'picks': gp, 'hits': gh, 'rate': (gh / gp) if gp else None}
+    return {**base, 'status': 'evaluated' if n else 'no_picks', 'groups': groups, 'model_rate': groups['model']['rate'], 'hits': hits, 'misses': misses, 'unpredicted': unpredicted,
             'near_misses': near, 'picks': n, 'hit_rate': (len(hits) / n) if n else None, 'baseline': baseline,
             'by_source': {s: {**v, 'rate': (v['hits'] / v['picks']) if v['picks'] else None} for s, v in by_source.items()}}
 
@@ -449,14 +463,47 @@ def history(conn):
     return [evaluate_slate(conn, d) for d in all_days(conn)]
 
 
-def rolling(evals, last_n=None):
+def in_group(rec, group):
+    """Is a graded pick record in ``group`` ('model' / 'numbers'; None = every pick)? Legacy records without
+    'sources' count as model picks."""
+    if group is None:
+        return True
+    src = rec.get('sources')
+    if src is None:
+        return group == 'model'
+    return bool(set(src) & set(GROUPS[group]))
+
+
+def _group_counts(e, group):
+    if group is None:
+        return len(e['hits']), e['picks']
+    g = (e.get('groups') or {}).get(group)
+    if g is not None:
+        return g['hits'], g['picks']
+    h = sum(1 for r in e['hits'] if in_group(r, group))
+    return h, h + sum(1 for r in e['misses'] if in_group(r, group))
+
+
+def rolling(evals, last_n=None, group=None):
+    """Hit rate over the last ``last_n`` evaluated slates. ``group``: 'model' (Stats + Odds) / 'numbers'
+    (Numbers + Overlap) / None (every pick pooled, kept for the export format; never shown as a model rate)."""
     done = [e for e in evals if e['status'] == 'evaluated']
     done = sorted(done, key=lambda e: e['day'])
     if last_n:
         done = done[-last_n:]
-    hits = sum(len(e['hits']) for e in done)
-    picks = sum(e['picks'] for e in done)
-    return {'slates': len(done), 'hits': hits, 'picks': picks, 'rate': (hits / picks) if picks else None}
+    hits = picks = 0
+    for e in done:
+        h, p = _group_counts(e, group)
+        hits += h; picks += p
+    return {'slates': len(done), 'hits': hits, 'picks': picks, 'rate': (hits / picks) if picks else None, 'group': group}
+
+
+def model_rolling(evals, last_n=None):
+    return rolling(evals, last_n, 'model')
+
+
+def numbers_rolling(evals, last_n=None):
+    return rolling(evals, last_n, 'numbers')
 
 
 def baseline_rollup(evals, last_n=None):
@@ -472,31 +519,35 @@ def baseline_rollup(evals, last_n=None):
 
 
 def source_breakdown(evals, last_n=None):
+    """Per source, model sources first, then the Numbers group (column 'Group' says which; audit P1.6)."""
     done = sorted([e for e in evals if e['status'] == 'evaluated'], key=lambda e: e['day'])
     if last_n:
         done = done[-last_n:]
     out = []
-    for s in SOURCES:
-        p = sum(e['by_source'].get(s, {}).get('picks', 0) for e in done)
-        h = sum(e['by_source'].get(s, {}).get('hits', 0) for e in done)
-        out.append({'Source': s, 'Picks': p, 'Hits': h, 'Hit rate': (h / p) if p else None})
+    for g, srcs in GROUPS.items():
+        for s in srcs:
+            p = sum(e['by_source'].get(s, {}).get('picks', 0) for e in done)
+            h = sum(e['by_source'].get(s, {}).get('hits', 0) for e in done)
+            out.append({'Group': 'Model' if g == 'model' else 'Numbers (not a model)', 'Source': s, 'Picks': p, 'Hits': h,
+                        'Hit rate': (h / p) if p else None})
     return pd.DataFrame(out)
 
 
-def trend(evals):
+def trend(evals, group=None):
     done = sorted([e for e in evals if e['status'] == 'evaluated'], key=lambda e: e['day'])
     rows, hits, picks = [], [], []
     for e in done:
-        hits.append(len(e['hits'])); picks.append(e['picks'])
+        h, p = _group_counts(e, group)
+        hits.append(h); picks.append(p)
         h7, p7 = sum(hits[-7:]), sum(picks[-7:])
-        rows.append({'Slate': e['day'], 'Hit rate': e['hit_rate'], 'Rolling 7': (h7 / p7) if p7 else None})
+        rows.append({'Slate': e['day'], 'Hit rate': (h / p) if p else None, 'Rolling 7': (h7 / p7) if p7 else None})
     return pd.DataFrame(rows, columns=['Slate', 'Hit rate', 'Rolling 7'])
 
 
 # ---------------------------------------------------------------- learning
 
 def pooled_rate(evals):
-    r = rolling(evals)
+    r = rolling(evals, group='model')   # audit P1.6: the learning prior is the MODEL pick hit rate only
     return r['rate'] if r['picks'] >= MIN_POOL and r['rate'] else PRIOR_RATE
 
 
@@ -528,6 +579,8 @@ def player_records(evals):
         if e['status'] != 'evaluated':
             continue
         for rec, hit in [(r, 1) for r in e['hits']] + [(r, 0) for r in e['misses']]:
+            if not in_group(rec, 'model'):   # audit P1.6: Numbers-only picks never feed the leaderboard / badges / adjustment
+                continue
             a = agg.setdefault(rec['player_key'], {'Player': rec['player'], 'Team': rec['team'], 'Picks': 0, 'Hits': 0})
             a['Picks'] += 1; a['Hits'] += hit
             a['Player'], a['Team'] = rec['player'], rec['team'] or a['Team']   # latest team (trades)

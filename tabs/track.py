@@ -10,7 +10,10 @@ else:
         st.warning('DEMO DATA: this store contains seeded demonstration slates, not real results.')
     st.caption(f'Store: {trk.db_path()} · Streamlit Community Cloud storage is ephemeral (lost on reboot/redeploy); export JSON below to keep history.')
     # V5.8: the accuracy rings + per-slate bars moved here from Home (single home for every track-record element).
-    v5.html_block(st, v5.track_section(v5state.track_summary(_tevals, trk.rolling), 'Accuracy summary'), extra_class='v58-track')
+    # audit P1.6: model picks (Stats + Odds) and Numbers picks (gematria: Numbers + Overlap) are graded separately;
+    # Numbers never counts in a model hit rate.
+    v5.html_block(st, v5.track_section(v5state.track_summary(_tevals, trk.model_rolling), 'Accuracy summary · ' + trk.GROUP_LABELS['model']), extra_class='v58-track')
+    v5.html_block(st, v5.track_section(v5state.track_summary(_tevals, trk.numbers_rolling), trk.GROUP_LABELS['numbers']), extra_class='v58-track')
     _tb = trk.baseline_rollup(_tevals)   # audit P1.4: the shots-share baseline next to every track-record rate
     if _tb['picks']:
         _ok = _tb['stats_rate_same_slates'] is not None and _tb['stats_rate_same_slates'] >= _tb['rate']
@@ -47,14 +50,14 @@ else:
     if _tevals:
         st.markdown(ui.section('Recent slates','Newest first · pending slates are excluded from every rate','🗂️','overlap'),unsafe_allow_html=True)
         st.markdown('<div class="np-slates">'+''.join(ui.slate_card(e) for e in sorted(_tevals,key=lambda e:e['day'],reverse=True)[:9])+'</div>',unsafe_allow_html=True)
-        _trend = trk.trend(_tevals)
+        _trend = trk.trend(_tevals, 'model')
         if not _trend.empty:
-            st.markdown(ui.section('Hit-rate trend','Per slate and rolling 7 slates (%)','📈','stat'),unsafe_allow_html=True)
+            st.markdown(ui.section('Hit-rate trend','Model picks (Stats + Odds) · per slate and rolling 7 slates (%) · Numbers picks excluded','📈','stat'),unsafe_allow_html=True)
             st.line_chart((_trend.set_index('Slate')*100).round(1))
-        st.markdown(ui.section('By source','Stats · Numbers · Odds · Overlap picks','🧩','gem'),unsafe_allow_html=True)
+        st.markdown(ui.section('By source','Model: Stats · Odds  |  Numbers (gematria, not a model): Numbers · Overlap','🧩','gem'),unsafe_allow_html=True)
         _src = trk.source_breakdown(_tevals)
         _tb = trk.baseline_rollup(_tevals)
-        _src = pd.concat([_src, pd.DataFrame([{'Source': 'Shots baseline (comparison only)', 'Picks': _tb['picks'], 'Hits': _tb['hits'], 'Hit rate': _tb['rate']}])], ignore_index=True)
+        _src = pd.concat([_src, pd.DataFrame([{'Group': 'Baseline', 'Source': 'Shots baseline (comparison only)', 'Picks': _tb['picks'], 'Hits': _tb['hits'], 'Hit rate': _tb['rate']}])], ignore_index=True)
         _src['Hit rate'] = _src['Hit rate'].map(lambda v: None if v is None else round(v*100,1))
         st.dataframe(_src, hide_index=True, use_container_width=True, column_config={'Hit rate': st.column_config.NumberColumn('Hit rate', format='%.1f%%')})
         st.markdown(ui.section('Player leaderboard','Shrunk hit rate (prior strength 10) · badges need ≥3 graded picks','🏅','odds'),unsafe_allow_html=True)

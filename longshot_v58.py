@@ -12,6 +12,12 @@ A candidate needs at least one upside signal. Score = model P x (1 + upside), up
 + JUMP_W per rank the player has climbed in his game's live next-goal order vs the pregame order (live games only), capped at JUMP_CAP ranks
 + EDGE_W when Edge Flags flags him against a real opening line.
 Tie-break: score, then model P, then name, then player id (deterministic).
+
+Audit P1.6: Home shows TWO separately labelled options via picks()/pair_html():
+  * Model pick - in-band model P x (1 + next-goal jump + Edge flag); model signals only, no gematria/storyline input.
+  * Gematria / Numbers pick - in-band, needs a gematria or storyline signal, ranked by model P x (1 + those signals);
+    it is not a model pick and is never counted in a model hit rate.
+pick() (the legacy single mixed pick) is kept for compatibility but no longer drives Home.
 """
 import parlay_v58 as parlay
 
@@ -94,6 +100,42 @@ def pick(cands, parlay_ids=(), gem=None, stories=None, jumps=None, edge_ids=()):
     return best[0] if best else None
 
 
+def model_score(c, jumps=None, edge_ids=()):
+    """Model-only upside (next-goal jump + Edge flag); never gematria or storylines."""
+    return score(c, None, None, jumps, edge_ids)
+
+
+def numbers_score(c, gem=None, stories=None):
+    """Gematria / storyline upside only (the Numbers lens)."""
+    return score(c, gem, stories, None, ())
+
+
+def picks(cands, parlay_ids=(), gem=None, stories=None, jumps=None, edge_ids=()):
+    """{'model': candidate or None, 'numbers': candidate or None} - two separate options (audit P1.6).
+
+    model: best in-band candidate by model_score (no signal required: the model's own long shot).
+    numbers: best in-band candidate by numbers_score that HAS a gematria/storyline signal, a different player from the
+    model pick. Each dict gains 'ls_score', 'signals', 'why' and 'lens' ('model' / 'numbers')."""
+    taken = set(parlay_ids or ())
+    band = [c for c in in_band(cands) if c['pid'] not in taken]
+    key = lambda c: (-c['ls_score'], -c['p'], c['name'], c['pid'])
+    m = []
+    for c in band:
+        s, sig, why = model_score(c, jumps, edge_ids)
+        m.append(dict(c, ls_score=s, signals=sig, why=why or ['highest model chance in the long-shot band'], lens='model'))
+    m.sort(key=key)
+    model = m[0] if m else None
+    n = []
+    for c in band:
+        if model is not None and c['pid'] == model['pid']:
+            continue
+        s, sig, why = numbers_score(c, gem, stories)
+        if sig:
+            n.append(dict(c, ls_score=s, signals=sig, why=why, lens='numbers'))
+    n.sort(key=key)
+    return {'model': model, 'numbers': n[0] if n else None}
+
+
 def gem_threats(targets):
     """home_leaders_v52.all_targets -> {player_id str: {'threat', 'day', 'arena', 'team'}} via numboard_v56 (unchanged formula)."""
     import numboard_v56 as nb
@@ -125,3 +167,41 @@ def section_html(c, scored=False, record=None):
             f'<div class="nls-id"><span class="kind">Long shot</span><b class="nls-name">{v5.esc(c["name"])}{pb.goalie_badge(pb.position_of(c))}{sctn.badge_for(record, c.get("pid"), c.get("name"))}</b><small>{where}{" · " + v5.esc(when) if when else ""}</small>{vn.tag(c.get("venue"))}'
             f'<p class="nls-why">{v5.esc(why)}</p><div class="cats">{v5.chips(c["signals"])}</div></div>'
             f'<div class="nls-p"><span class="lbl">Model chance</span><strong>{c["p"] * 100:.1f}%</strong>{state}</div></article></section>')
+
+
+PAIR_LABELS = {'model': ('Model pick', 'Model long shot: model chance plus live next-goal / Edge-flag signals only.'),
+               'numbers': ('Gematria / Numbers pick', 'Numbers lens (gematria + storylines). Not a model pick; never counted in model hit rates.')}
+
+
+def _card(c, lens, scored, record):
+    import position_badge_v59 as pb
+    import scorers_tonight_v58 as sctn
+    import v55_ui as v5
+    import venue_v58 as vn
+    label, note = PAIR_LABELS[lens]
+    if not c:
+        empty = ('No in-band candidate tonight.' if lens == 'model' else
+                 'Nobody else in the band has a gematria or storyline signal tonight.')
+        return (f'<article class="nls-card nls-{lens} empty"><div class="nls-id"><span class="kind">{v5.esc(label)}</span>'
+                f'<p class="nls-why">{v5.esc(empty)}</p><small class="nls-note">{v5.esc(note)}</small></div></article>')
+    where = f'{v5.esc(c["team"])} {"vs" if c.get("home") else "@"} {v5.esc(c["opp"])}'
+    when = v5.et_time(c.get('start')) if c.get('start') else ''
+    why = 'Why: ' + '; '.join(c['why']) + f' - on top of a {c["p"] * 100:.1f}% model chance.'
+    state = '<span class="npp-st s-hit">✓ Scored</span>' if scored else ''
+    return (f'<article class="nls-card nls-{lens}" style="{v5.team_vars(c["team"])}">{v5.logo(c["team"], "nls-lg")}'
+            f'<div class="nls-id"><span class="kind">{v5.esc(label)}</span><b class="nls-name">{v5.esc(c["name"])}{pb.goalie_badge(pb.position_of(c))}{sctn.badge_for(record, c.get("pid"), c.get("name"))}</b><small>{where}{" · " + v5.esc(when) if when else ""}</small>{vn.tag(c.get("venue"))}'
+            f'<p class="nls-why">{v5.esc(why)}</p><div class="cats">{v5.chips(c["signals"])}</div><small class="nls-note">{v5.esc(note)}</small></div>'
+            f'<div class="nls-p"><span class="lbl">Model chance</span><strong>{c["p"] * 100:.1f}%</strong>{state}</div></article>')
+
+
+def pair_html(pp, scored_ids=(), record=None):
+    """Two labelled long-shot options (audit P1.6). pp = picks() output (or None when rankings are not built)."""
+    head = ('<div class="sh"><h3>Top long shot candidates</h3><p>Two separate options outside the favourites (model chance '
+            f'{P_FLOOR * 100:.0f}–{P_CAP * 100:.0f}%, below the slate’s top quartile) · not parlay legs · '
+            'the Gematria / Numbers pick is not a model pick</p></div>')
+    if not pp or not (pp.get('model') or pp.get('numbers')):
+        return (f'<section class="sec nls">{head}<div class="npp-empty"><b>No qualifying long shot tonight</b><p>Nobody is in the long-shot band yet '
+                '(or rankings are not built for this slate).</p></div></section>')
+    sc = set(scored_ids or ())
+    cards = ''.join(_card(pp.get(k), k, bool(pp.get(k) and pp[k]['pid'] in sc), record) for k in ('model', 'numbers'))
+    return f'<section class="sec nls">{head}{cards}</section>'

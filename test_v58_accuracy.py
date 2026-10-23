@@ -255,6 +255,6 @@ def test_committed_log_files_are_valid_and_small():
 def test_home_calls_the_card_once_below_the_long_shot():
     src = (HERE / 'tabs' / 'home.py').read_text()
     assert src.count("__import__('accuracy_v58').home_html()") == 1
-    assert src.index('longshot.section_html') < src.index('accuracy_v58') < src.index('v5.render_home')
+    assert src.index('longshot.pair_html') < src.index('accuracy_v58') < src.index('v5.render_home')   # audit P1.6: the two-option long shot
     wf = (HERE / '.github' / 'workflows' / 'precompute.yml').read_text()
     assert 'python accuracy_v58.py update' in wf and wf.index('accuracy_v58') < wf.index('git add -f -A snapshots/')
