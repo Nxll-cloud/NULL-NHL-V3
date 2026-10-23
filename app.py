@@ -68,6 +68,7 @@ import storylines_v58 as slx
 import venue_v58 as vn
 import gem_match_v58 as gmx
 import situational_v58 as sit
+import xg_v59 as xgm
 # V5.8: display-only 'Scored tonight' badges in every model view (markdown/html/dataframe pass-through proxy).
 st = sctn.MarkingStreamlit(st)
 
@@ -174,8 +175,15 @@ def goalies_cached(teams, season):
 @st.cache_data(ttl=3 * 3600, show_spinner=False)
 def situ_cached(day, season, parts):
     """V5.8: situational next-goal inputs (NHL stats API: PP / TOI / goalie / team PP reports, games before ``day``).
-    Cached 3 h. Never raises: a failed report leaves its adjustment neutral."""
-    return sit.fetch_context(day, season, parts=parts)
+    Cached 3 h. Never raises: a failed report leaves its adjustment neutral.
+    V5.9: with 'xg' in parts the MoneyPuck shot-quality data (xg_cached) is attached, gated per day by xg_v59.for_day."""
+    ctx = sit.fetch_context(day, season, parts=parts)
+    return sit.with_xg(ctx, xg_cached(season), day, season) if 'xg' in (parts or ()) else ctx
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def xg_cached(season):
+    """V5.9: MoneyPuck season skater xG summary (one listed CSV, credited on screen). Cached 6 h. Never raises."""
+    return xgm.fetch(season)
 
 @st.cache_data(ttl=pgk.STARTER_TTL_SECONDS, show_spinner=False)
 def starters_cached(day, games_key):

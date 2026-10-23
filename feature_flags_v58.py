@@ -31,9 +31,9 @@ def show_track_record(secrets=None, environ=None):
 
 # V5.8 situational next-goal model (situational_v58). On by default; MODEL_SITUATIONAL = "false" (secrets) or
 # MODEL_SITUATIONAL=0 (env) falls back to the V5.6 model exactly. MODEL_SITUATIONAL_PARTS picks the layers
-# (comma list of pp, goalie, line; default all). Env wins over secrets, as above.
+# (comma list of pp, goalie, line, xg; default all). Env wins over secrets, as above.
 MODEL_SITUATIONAL = True
-MODEL_PARTS = ('pp', 'goalie', 'line')
+MODEL_PARTS = ('pp', 'goalie', 'line', 'xg')   # V5.9: + 'xg' shot quality (xg_v59)
 
 
 def _lookup(name, secrets, environ):
@@ -53,6 +53,16 @@ def model_situational(secrets=None, environ=None):
 
 def model_parts(secrets=None, environ=None):
     v = _lookup('MODEL_SITUATIONAL_PARTS', secrets, environ)
-    if v is None:
-        return MODEL_PARTS
-    return tuple(p for p in (x.strip().lower() for x in str(v).split(',')) if p in MODEL_PARTS)
+    parts = MODEL_PARTS if v is None else tuple(p for p in (x.strip().lower() for x in str(v).split(',')) if p in MODEL_PARTS)
+    return parts if model_xg(secrets, environ) else tuple(p for p in parts if p != 'xg')   # V5.9 MODEL_XG switch
+
+
+# V5.9 shot-quality (xG) layer (xg_v59, MoneyPuck data). On by default; MODEL_XG = "false" (secrets) or MODEL_XG=0
+# (env) drops 'xg' from the parts, i.e. the V5.8 situational model exactly. Needs MODEL_SITUATIONAL on.
+MODEL_XG = True
+
+
+def model_xg(secrets=None, environ=None):
+    v = _parse(_lookup('MODEL_XG', secrets, environ)) if _lookup('MODEL_XG', secrets, environ) is not None else None
+    return MODEL_XG if v is None else v
+

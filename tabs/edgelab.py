@@ -34,4 +34,5 @@ st.caption(('Live price = each sportsbook’s latest anytime-goal quote for the 
            'λ: pregame = prior shots/game × shrunk sh%; live = current scoring rate × remaining minutes. Final/shootout games'+
            (f' ({_el_over} tonight)' if _el_over else '')+' and players who already scored are left out. No moneylines: the model has no win probability. '
            'Form % is never used as a probability. Model estimates are uncalibrated; entertainment and research only.')
+if xgm.attribution(_v56_results): st.caption(xgm.attribution(_v56_results)+' (model chances use shot quality; non-commercial use, see MoneyPuck terms).')  # V5.9 credit
 st.markdown(ui.footer("NULL’S PLAYBOOK · EDGELAB"),unsafe_allow_html=True)

@@ -24,6 +24,8 @@ Situational adjustments are layered on top, each bounded, logged per player and 
    This is ice-time deployment, NOT linemate identity (no reliable pregame line source; see V58_NOTES.md).
 Final:  lambda = (core + (line_mult - 1) x ev_part) x goalie_mult, ratio = lambda / base clamped to [0.5, 2.0],
         core = ev + pp with the PP split, else base; ev_part = ev with the split, else base.
+V5.9 xG (part 'xg', xg_v59): shot quality from MoneyPuck xG/SOG scales the EV and PP sh% (or the whole base without
+        the PP split) by mult = (W x T x Q x F + (1 - W) x sh) / sh; see xg_v59. No xG for a player -> mult exactly 1.
 Live:   the player's per-minute rate is multiplied by the same ratio (current strength PP/SH/EN stays the team-level
         multiplier in live_nextgoal_v56). No situational data for a player (or every switch off) -> ratio exactly 1,
         i.e. the old numbers.
@@ -36,6 +38,8 @@ from __future__ import annotations
 
 import math
 from datetime import date, timedelta
+
+import xg_v59 as xgm
 
 LEAGUE_SH = 0.10
 K_SHRINK = 50
@@ -54,7 +58,7 @@ GOALIE_MIN, GOALIE_MAX = 0.85, 1.15
 LINE_DAYS, LINE_K, LINE_ELASTICITY = 14, 3, 0.5
 LINE_MIN, LINE_MAX = 0.90, 1.10
 RATIO_MIN, RATIO_MAX = 0.5, 2.0
-PARTS = ('pp', 'goalie', 'line')
+PARTS = ('pp', 'goalie', 'line', 'xg')   # V5.9: + 'xg' (shot quality, xg_v59)
 STATS = 'https://api.nhle.com/stats/rest/en'
 
 
@@ -199,7 +203,19 @@ def context(skaters=None, teams=None, goalies=None, starters=None, parts=PARTS, 
             by_pair[teams_in] = v
     return {'skaters': skaters or {}, 'teams': teams or {}, 'goalies': goalies or [], 'starters': by_pair,
             'parts': tuple(p for p in (parts or ()) if p in PARTS), 'league_pp_opp_pg': league_pp_opp_pg(teams),
-            'sources': sources or {}, 'errors': errors or []}
+            'sources': sources or {}, 'errors': errors or [], 'xg': None}
+
+
+def with_xg(ctx, data, day=None, season=None):
+    """V5.9: same context with MoneyPuck xG data attached (gated by xg_v59.for_day: season, staleness, point-in-time).
+    Unusable data -> 'xg' is None and the reason goes to ctx['sources']['xg'], i.e. the situational model unchanged."""
+    ctx = dict(ctx or context())
+    d = xgm.for_day(data, day, season) if day is not None else (data or xgm.empty('no data'))
+    ok = bool(d.get('players')) and 'xg' in (ctx.get('parts') or ())
+    ctx['xg'] = d if ok else None
+    ctx['sources'] = dict(ctx.get('sources') or {}, xg=(f"{xgm.SOURCE} (as of {d.get('as_of')})" if ok
+                                                       else f"off: {d.get('error') or 'xg part disabled'}"))
+    return ctx
 
 
 def with_starters(ctx, starters):
@@ -271,7 +287,12 @@ def live_goalie(game, team):
     return None
 
 
-def breakdown(ctx, pid, team, opp, prior_pg, base, game=None, phase='pregame'):
+def _sh_ev_pp(sk):
+    return (shrink(sk['goals'] - sk['pp_goals'], sk['shots'] - sk['pp_shots'], LEAGUE_EV_SH, K_SHRINK),
+            shrink(sk['pp_goals'], sk['pp_shots'], LEAGUE_PP_SH, K_PP))
+
+
+def breakdown(ctx, pid, team, opp, prior_pg, base, game=None, phase='pregame', rec=None):
     """Per-player situational breakdown. ratio == 1.0 exactly when nothing applies."""
     parts = ctx.get('parts') or ()
     sk = (ctx.get('skaters') or {}).get(pid)
@@ -280,14 +301,29 @@ def breakdown(ctx, pid, team, opp, prior_pg, base, game=None, phase='pregame'):
     if base <= 0 or not parts:
         return bd
     core, ev_part = base, base
+    xgd = ctx.get('xg') if 'xg' in parts else None
+    xinfo = {}
     if 'pp' in parts:
         fac = opp_factor(team, opp, ctx.get('teams'), ctx.get('league_pp_opp_pg'))
         split = pp_split(prior_pg, sk, fac)
         if split is not None:
             ev, pp = split
+            if xgd:   # V5.9: shot quality scales each situation's sh%
+                sh_ev, sh_pp = _sh_ev_pp(sk)
+                m_ev, xinfo['ev'] = xgm.blend(sh_ev, LEAGUE_EV_SH, xgm.quality(xgd, pid, 'ev'))
+                m_pp, xinfo['pp'] = xgm.blend(sh_pp, LEAGUE_PP_SH, xgm.quality(xgd, pid, 'pp'))
+                ev, pp = ev * m_ev, pp * m_pp
             core, ev_part = ev + pp, ev
             bd.update(ev=ev, pp=pp, pp_add=ev + pp - base, opp_factor=fac)
             bd['applied'].append('pp')
+    if xgd and bd['ev'] is None and rec is not None:   # no PP split: one all-situations multiplier on base
+        sh = shrink(rec.get('season_g', rec.get('goals')), rec.get('season_sog', rec.get('sog')), LEAGUE_SH, K_SHRINK)
+        m_all, xinfo['all'] = xgm.blend(sh, LEAGUE_SH, xgm.quality(xgd, pid, 'all'))
+        core, ev_part = core * m_all, ev_part * m_all
+    xinfo = {k: v for k, v in xinfo.items() if v}
+    if xinfo:
+        bd['xg'] = dict(xinfo, weight=xgm.W, source=xgd.get('source'), as_of=xgd.get('as_of'))
+        bd['applied'].append('xg')
     lm = line_mult(sk) if 'line' in parts else 1.0
     if lm != 1.0:
         bd['line_mult'] = lm
@@ -314,7 +350,7 @@ class Situ:
         self.ctx = ctx
 
     def __call__(self, rec, team, opp, game, prior_pg, base, phase):
-        return breakdown(self.ctx, rec.get('pid'), team, opp, prior_pg, base, game, phase)
+        return breakdown(self.ctx, rec.get('pid'), team, opp, prior_pg, base, game, phase, rec=rec)
 
 
 def why(bd):
@@ -328,6 +364,8 @@ def why(bd):
         bits.append(f"goalie ×{bd['goalie_mult']:.2f}" + (f" {bd['goalie']}" if bd.get('goalie') else ''))
     if bd.get('line_mult', 1.0) != 1.0:
         bits.append(f"TOI ×{bd['line_mult']:.2f}")
+    if bd.get('xg'):
+        bits.append(xgm.why_bit(bd['xg']))
     return ' · '.join(bits) + f" → λ {bd['final']:.2f}"
 
 
