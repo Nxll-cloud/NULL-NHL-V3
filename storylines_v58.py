@@ -9,6 +9,7 @@ Pure functions (offline-tested) come first; ``build`` orchestrates the fetches w
 ``Job`` runs ``build`` in a background thread so the page never blocks while ~500 landings load.
 """
 import gzip
+import html as _html
 import math
 import re
 import threading
@@ -676,3 +677,17 @@ def stories_for_day(day):
             if r.get('pid') and r['group'] != G_NEWS:
                 out.setdefault(r['pid'], []).append(r['tag'])
     return out
+
+
+def row_html(r, stars=(), score='—', badge=''):
+    """One Storylines table row (V5.9: moved out of the tab so the scored-tonight badge is testable). ``badge`` is
+    scorers_tonight_v58.badge_for(...) html, placed right after the name text; display only."""
+    e = _html.escape
+    star = ''.join(f'<span class="sl-star" title="{e(x)}">★ {e(x)}</span>' for x in stars)
+    story = e(r['story'])
+    if r.get('link'):
+        story = f'<a href="{e(r["link"])}" target="_blank" rel="noopener">{story}</a>'
+    return (f'<tr><td><span class="sl-tag t-{norm(r["tag"]).replace(" ", "-")}">{e(r["tag"])}</span></td>'
+            f'<td class="sl-p"><b>{e(r["player"] or "—")}{badge}</b>{star}</td><td>{e(r["team"] or "—")}</td>'
+            f'<td>{e(r["opp"] or "—")}</td><td class="sl-n">{score}</td><td class="sl-s">{story}</td>'
+            f'<td class="sl-d">{e(r["detail"])} <small>· {e(r["source"])}</small></td></tr>')

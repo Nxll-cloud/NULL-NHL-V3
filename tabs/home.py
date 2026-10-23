@@ -71,13 +71,13 @@ for _k,_lbl in INTEL_LABELS:
 _pl_gem=parlay.gem_index(_home_targets)
 _pl_story=slx.stories_for_day(np_day)
 _v5_state['parlay_html']=parlay.section_html(_pl_data,_pl_status,{l['pid']:parlay.support(l,_pl_picks,_pl_gem,_pl_story) for l in _pl_data.get('legs') or []},
-    '' if _v56_rows else 'Build this slate’s rankings first (the leg chances come from the season model priors).')
+    '' if _v56_rows else 'Build this slate’s rankings first (the leg chances come from the season model priors).',scored=_pl_rec)
 # V5.8: Top long shot candidate (price-free): band-limited model chance x upside signals, never a parlay leg.
 _ls_open=(st.session_state.get('v56_openers') or {}).get(np_day) or {}   # REAL opening lines only (never DEMO)
 _ls_edge={x['pid'] for _r in _v56_results for x in (eflags.edges_for_game(_r['result'],_ls_open) if _ls_open else []) if x['flag']}
 _ls_pick=longshot.pick(parlay.candidates(_v56_results,_v56_rows,_pl_out,_pl_scored),[l['pid'] for l in _pl_data.get('legs') or []],
     longshot.gem_threats(_home_targets),_pl_story,longshot.game_jumps(_v56_results),_ls_edge) if _v56_rows else None
-_v5_state['longshot_html']=longshot.section_html(_ls_pick,bool(_ls_pick and _ls_pick['pid'] in _pl_scored))
+_v5_state['longshot_html']=longshot.section_html(_ls_pick,bool(_ls_pick and _ls_pick['pid'] in _pl_scored),record=_pl_rec)
 v5.html_block(st,v5.render_home(_v5_state,datetime.now(timezone.utc)))
 if _v56_results:  # V5.6: Home live strip (score + current next-goal leader per game)
     v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results)))

@@ -49,6 +49,7 @@ else:
             st.warning(f'Storylines could not be built: {j.error or "no result"}. Nothing is shown rather than guessed.')
             return
         res=j.result
+        _sl_rec=sctn.active(st.session_state,np_day)  # V5.9: scored-tonight badge (display only)
         rows=[r for r in res['rows'] if r['group'] in _sl_groups]
         q=slx.norm(_sl_q)
         if q:
@@ -67,14 +68,8 @@ else:
                 msg='ESPN feeds unavailable right now - no news shown (never invented).' if g==slx.G_NEWS and not res.get('feeds_ok') else 'Nothing on tonight’s slate.'
                 body.append(f'<tr class="sl-none"><td colspan="7">{msg}</td></tr>')
             for r in rs:
-                star=''.join(f'<span class="sl-star" title="{_sl_html.escape(x)}">★ {_sl_html.escape(x)}</span>' for x in _sl_pick_ids.get(r.get('pid'),[]))
-                story=_sl_html.escape(r['story'])
-                if r.get('link'): story=f'<a href="{_sl_html.escape(r["link"])}" target="_blank" rel="noopener">{story}</a>'
-                score=ui.format_form_pct(r['score']) if r.get('score') is not None else '—'
-                body.append(f'<tr><td><span class="sl-tag t-{slx.norm(r["tag"]).replace(" ","-")}">{_sl_html.escape(r["tag"])}</span></td>'
-                            f'<td class="sl-p"><b>{_sl_html.escape(r["player"] or "—")}</b>{star}</td><td>{_sl_html.escape(r["team"] or "—")}</td>'
-                            f'<td>{_sl_html.escape(r["opp"] or "—")}</td><td class="sl-n">{score}</td><td class="sl-s">{story}</td>'
-                            f'<td class="sl-d">{_sl_html.escape(r["detail"])} <small>· {_sl_html.escape(r["source"])}</small></td></tr>')
+                body.append(slx.row_html(r,_sl_pick_ids.get(r.get('pid'),[]),ui.format_form_pct(r['score']) if r.get('score') is not None else '—',
+                                         sctn.badge_for(_sl_rec,r.get('pid'),r.get('player'))))
         st.markdown(v5.inline('<div class="sl-wrap"><table class="sl-t"><thead><tr><th>Tag</th><th>Player</th><th>TM</th><th>OPP</th><th>NP FORM</th>'
                               '<th>Story</th><th>Detail</th></tr></thead><tbody>'+''.join(body)+'</tbody></table></div>','v58-sl'),unsafe_allow_html=True)
         src=' · '.join(f'{k}: {v}' for k,v in res['sources'].items())

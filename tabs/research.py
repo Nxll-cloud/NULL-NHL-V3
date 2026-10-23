@@ -329,7 +329,8 @@ if _intel is not None:
             if frame.empty: st.info('No eligible players in currently loaded data.')
             else:
                 cols=['Player','Team','Statistical rank','Storyline rank','Storyline evidence score','Storyline count','Historical opponent GP','Historical opponent goals','Historical opponent shots','Shots/G L5','Verified data flags']
-                st.dataframe(ui.with_form_pct(frame[[c for c in cols if c in frame]]),hide_index=True,use_container_width=True,column_config=ui.form_pct_config(st))
+                _t10=ui.with_form_pct(frame[[c for c in cols+['Player ID'] if c in frame]])  # V5.9: scored-tonight badge by id
+                st.dataframe(sctn.mark_frame_by_id(_t10,sctn.active(st.session_state,day),'Player ID'),hide_index=True,use_container_width=True,column_config=ui.form_pct_config(st))
                 st.download_button('Download '+title+' CSV',ui.with_form_pct(frame).to_csv(index=False),file_name=f'null-v387-{key}-{day}.csv',mime='text/csv',key=f'v387_{key}')
     if _rx:
         st.download_button('Download top 10 storyline watchlist CSV', ui.with_form_pct(top_stories).to_csv(index=False), file_name=f'null-v381-top10-{day}.csv', mime='text/csv')

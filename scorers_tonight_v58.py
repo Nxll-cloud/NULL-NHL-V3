@@ -142,6 +142,24 @@ def badge(rec, demo=False):
     return f'<span class="{cls}" title="{_html.escape(tooltip(rec, demo))}" role="img" aria-label="{_html.escape(tooltip(rec, demo))}">{short(rec)}</span>'
 
 
+def badge_for(record, pid=None, name=None):
+    """V5.9: explicit badge html for one listed player (id first, unique-name fallback); '' when he has not scored.
+    Views place it right after the name text so the MarkingStreamlit name pass never adds a second one."""
+    if not record or not record.get('players'):
+        return ''
+    rec = lookup(record, pid=pid) if _pid(pid) is not None else lookup(record, name=name)
+    return badge(rec, bool(record.get('demo'))) if rec else ''
+
+
+def mark_frame_by_id(frame, record, id_col):
+    """V5.9: mark_frame keyed on an id column (one of ID_COLS) that the view hides; the id column is dropped afterwards."""
+    marked = mark_frame(frame, record)
+    try:
+        return marked.drop(columns=[id_col]) if id_col in marked.columns else marked
+    except AttributeError:  # pragma: no cover - not a DataFrame
+        return marked
+
+
 def ticker(record):
     """Header chip: who has scored tonight (empty string when nobody has)."""
     if not record or not record.get('players'):

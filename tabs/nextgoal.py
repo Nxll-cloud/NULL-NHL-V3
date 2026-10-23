@@ -35,7 +35,7 @@ def _ng_panels(force=False):
         note = (r['note'] + ' ' if r['note'] else '') + 'Arrows: ' + r['result'].get('rank_basis', '') + '.'
         if r['result']['phase'] == 'final':
             note += ' Final: no further goal is possible, so next-goal % is 0; the list keeps the final shot leaders.'
-        v5.html_block(st, v56.nextgoal_panel(r['result'], SEASON, r['label'], v56_updated(r['slate']['game_id']), top=_ng_top, note=note, venue=r['slate'].get('venue')))
+        v5.html_block(st, v56.nextgoal_panel(r['result'], SEASON, r['label'], v56_updated(r['slate']['game_id']), top=_ng_top, note=note, venue=r['slate'].get('venue'), scored=sctn.active(st.session_state, np_day)))
     if not shown:
         st.info('No games in this state on the selected slate.' if _v56_games else 'No NHL games for this date.')
     st.caption(f'Last checked {datetime.now(timezone.utc).strftime("%H:%M:%S UTC")} · score feed: {"ok" if not _v56_scores_err else _v56_scores_err}'

@@ -148,7 +148,7 @@ else:
     # V5.6: Live Next Goal panel + this game's goalie threats / reverse view / H2H flags.
     _v56_r=_v56_by_key.get(_game['key'])
     if _v56_r is not None:
-        v5.html_block(st,v56.nextgoal_panel(_v56_r['result'],SEASON,_v56_r['label'],v56_updated(_game['game_id']),note=_v56_r['note']+' Arrows: '+_v56_r['result'].get('rank_basis','')+'.',title='Live Next Goal',venue=_game.get('venue')))
+        v5.html_block(st,v56.nextgoal_panel(_v56_r['result'],SEASON,_v56_r['label'],v56_updated(_game['game_id']),note=_v56_r['note']+' Arrows: '+_v56_r['result'].get('rank_basis','')+'.',title='Live Next Goal',venue=_game.get('venue'),scored=sctn.active(st.session_state,np_day)))
         _v56_h=v56_h2h_cached(((_game['away'],_game['home']),),np_day,SEASON).get((_game['away'],_game['home'])) or {}
         _v56_v=mcg.game_view(_game,_v56_r['result'],_v56_r['game'],_starters,_gk_rows,_v56_h,priors=_v56_priors)
         _v56_c=h2h.coverage_label(SEASON,games=_v56_h.get('games',0))

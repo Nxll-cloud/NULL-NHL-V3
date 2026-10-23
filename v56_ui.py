@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import v55_ui as v5
+import scorers_tonight_v58 as sctn
 import venue_v58 as vn
 from v55_ui import esc
 
@@ -52,7 +53,7 @@ def team_bar(result):
             f'<div class="ngleg"><span>{esc(a)} {pct(pa)}</span><span>No further goal {pct(pn)}</span><span>{esc(h)} {pct(ph)}</span></div>')
 
 
-def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, title=None, note='', venue=None):
+def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, title=None, note='', venue=None, scored=None):
     """'Live Next Goal' panel: score line, team split, top shooters with headshot, SOG, xG, conv %, next-goal %, rank change."""
     g = result['game']
     a, h = g['away'], g['home']
@@ -61,7 +62,7 @@ def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, ti
     rows = []
     for p in result['players'][:top]:
         rows.append(f'<div class="ngr" style="--tc:{v5.colors(p["team"])[0]}"><span class="rk">{p.get("rank", "")}</span>{_arrow(p.get("delta"))}'
-                    f'{_headshot(p, season)}<div class="ngn"><b>{esc(p["name"])}</b><small>{esc(p["team"])} · {esc(p.get("pos"), "")}'
+                    f'{_headshot(p, season)}<div class="ngn"><b>{esc(p["name"])}{sctn.badge_for(scored, p.get("pid"), p.get("name"))}</b><small>{esc(p["team"])} · {esc(p.get("pos"), "")}'
                     f'{" · prior: league" if p.get("prior_source") == "league" else ""}</small></div>'
                     f'<span class="ngs"><em>{p["sog"]}</em><small>SOG</small></span><span class="ngs"><em>{p["xg"]:.2f}</em><small>xG</small></span>'
                     f'<span class="ngs"><em>{p["conv"] * 100:.1f}%</em><small>conv</small></span>'
@@ -163,7 +164,7 @@ def _am(v):
     return '—' if v is None else f'{int(v):+d}'
 
 
-def edge_card(game, flag, rows, season, label):
+def edge_card(game, flag, rows, season, label, scored=None):
     top = flag['top']
     a, h = game['away'], game['home']
     if top is None:
@@ -176,7 +177,7 @@ def edge_card(game, flag, rows, season, label):
             tone = 'pos' if top.get('outcome') else 'neg'
         else:
             etxt = 'no line' if e is None else f'{e * 100:+.1f} pts'
-        body = (f'<div class="efr top">{_headshot(top, season)}<div><b>{esc(top["name"])}</b><small>#{top.get("rank")} next-goal · {esc(top["team"])}</small></div>'
+        body = (f'<div class="efr top">{_headshot(top, season)}<div><b>{esc(top["name"])}{sctn.badge_for(scored, top.get("pid"), top.get("name"))}</b><small>#{top.get("rank")} next-goal · {esc(top["team"])}</small></div>'
                 f'<span class="ngs"><em>{pct(top["model_p"])}</em><small>model p</small></span>'
                 f'<span class="ngs"><em>{_am(top["american"])}</em><small>open line</small></span>'
                 f'<span class="ngs"><em>{pct(top["implied"])}</em><small>implied</small></span>'

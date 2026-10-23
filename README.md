@@ -1,6 +1,14 @@
 <p align="center"><img src="assets/logo_full.webp" alt="Null’s Playbook" width="280"/></p>
 
-# Null’s Playbook V5.7
+# Null’s Playbook V5.9
+
+V5.9 merges the Research hide (everything below Top 10 Statistical Sleepers behind a flag) and the situational next-goal model (goalie SV%, PP TOI, line context), and adds 🚨 scored-tonight badges to Storylines, Live Next Goal, Edge Flags, the Home parlay / long shot and Research Top 10 lists. See `V59_NOTES.md`.
+
+## V5.8
+
+V5.8 tunes the app for phones and adds the Home parlay and long shot, scorer badges, the Numbers match table, arena names and the Storylines tab. See `V58_NOTES.md`.
+
+## V5.7
 
 V5.7 swaps in the owner’s logo (crowned N) for the old shield/Ø mark — favicon, `st.logo`, sidebar, Home hero, tab headers and footers. Nothing else changed. See `V57_NOTES.md`.
 

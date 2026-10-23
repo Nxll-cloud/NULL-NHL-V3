@@ -35,6 +35,9 @@
   [data-testid="stMultiSelectTagsContainer"] button{padding:19px!important;margin:-19px!important;box-sizing:content-box}
   [data-testid="stMetricLabel"] [data-testid="stMarkdownContainer"] p,.v55 .gtk,.v55 .gtf,.v55 .ngnote{font-size:13px!important}
   [data-testid="stSelectbox"] input,[data-testid="stSelectbox"] button,[data-testid="stMultiSelect"] [data-baseweb="select"]{min-height:44px}
+  [data-testid="stMultiSelect"] [role="group"][data-rac]{min-height:44px;align-items:center}
+  [data-testid="stMultiSelect"] input[role="combobox"]{min-height:44px!important;min-width:44px!important;flex:1 0 44px}
+  [data-testid="stMultiSelect"] [role="group"][data-rac] > button{min-width:44px!important;min-height:44px!important;justify-content:center}
   [data-testid="stSidebar"]{width:min(86vw,320px)!important;min-width:0!important}
   [data-testid="stSidebar"] [data-testid="stSidebarContent"]{padding:0 .4rem}
   [data-testid="stSidebar"] img{max-width:100%;height:auto}

@@ -18,6 +18,7 @@ if _ef_demo:
     st.warning('DEMO lines: no ODDS_API_KEY in Streamlit secrets and no uploaded CSV, so these opening prices are synthetic '
                '(season goals/game + 5% vig), not sportsbook prices. Add a key or a CSV on the Odds tab for real lines.')
 _ef_cards=[]
+_ef_rec=sctn.active(st.session_state,np_day)  # V5.9: scored-tonight badge (display only; settled rows stay unflagged)
 _ef_all=[]
 for r in _v56_results:
     rows=eflags.edges_for_game(r['result'],_ef_lines,min_edge=_ef_min,top_n=_ef_top)
@@ -32,12 +33,12 @@ st.markdown(ui.stat_strip([('Games',len(_ef_cards),'odds'),('Flagged',_ef_n,'war
 if not _ef_cards:
     st.info('No NHL games for this date.')
 else:
-    v5.html_block(st,'<div class="efgrid">'+''.join(v56.edge_card(r['slate'],f,rows,SEASON,(r['label'] or r['result']['phase'].title())+' · '+_ef_label)
+    v5.html_block(st,'<div class="efgrid">'+''.join(v56.edge_card(r['slate'],f,rows,SEASON,(r['label'] or r['result']['phase'].title())+' · '+_ef_label,scored=_ef_rec)
                                                    for r,rows,f in _ef_cards)+'</div>')
     with st.expander('All rows'):
         _ef_df=pd.DataFrame(_ef_all)
         if not _ef_df.empty:
-            st.dataframe(_ef_df[['game','state','rank','name','team','lambda','model_p','american','implied','edge','settled','flag','line_source']],
+            st.dataframe(sctn.mark_frame_by_id(_ef_df[['game','state','rank','name','team','lambda','model_p','american','implied','edge','settled','flag','line_source','pid']],_ef_rec,'pid'),
                          hide_index=True,width='stretch')
 st.caption('λ: pregame = prior shots/game × shrunk sh% (k=50); live = the player’s current scoring rate × remaining minutes; final = no flag. '
            'A player who already scored is settled (anytime prop won) and never flagged. Openers: the Odds API current-odds endpoint has no '
