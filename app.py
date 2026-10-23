@@ -3,6 +3,49 @@
 V5.5: neon-arena redesign (v55_ui.py / v55_state.py), EdgeLab research tab (edgelab_v55.py), GitHub-upload safety.
 V5.6: tabs split into tabs/*.py (every file < 100 KB), live next-goal model (live_nextgoal_v56.py) fed by official NHL
 play-by-play, goalies + real H2H in Matchup Center (h2h_v56.py), Numbers by game (numboard_v56.py), edge flags (edgeflags_v56.py)."""
+# Startup-crash fix: Streamlit Cloud updates the repo in place on every push, but each NEW browser session starts
+# with an empty module-eviction queue, so it keeps the project modules imported by the old code while app.py and
+# tabs/*.py are re-read fresh (e.g. new app.py -> sit.with_xg(..., cutoff) on the old situational_v58 -> TypeError).
+# Before importing anything local: if any project module's file changed since it was loaded (or since this process
+# started), drop every project module so the whole app re-imports one consistent version. No-op otherwise.
+def _np_drop_stale_modules():
+    import os, sys, time, types
+    here = os.path.dirname(os.path.abspath(__file__))
+    reg = sys.modules.get('_np_module_mtimes')
+    if reg is None:
+        reg = sys.modules['_np_module_mtimes'] = types.ModuleType('_np_module_mtimes')
+        reg.seen = {}
+        try:   # process start (Linux): /proc/stat btime + /proc/self/stat starttime ticks; else 0 = trust first sight
+            btime = next(int(l.split()[1]) for l in open('/proc/stat') if l.startswith('btime'))
+            ticks = int(open('/proc/self/stat').read().rsplit(')', 1)[1].split()[19])
+            reg.last = btime + ticks / os.sysconf('SC_CLK_TCK') - 2
+        except Exception:
+            reg.last = 0
+    local, stale = {}, False
+    for name, mod in list(sys.modules.items()):
+        f = getattr(mod, '__file__', None) or ''
+        if name == '__main__' or not f.startswith(here + os.sep) or 'site-packages' in f:
+            continue
+        try:
+            mt = os.stat(f).st_mtime
+        except OSError:
+            continue
+        local[name] = mt
+        if (reg.seen[name] != mt) if name in reg.seen else (reg.last and mt > reg.last):
+            stale = True
+    if stale:
+        for name in local:
+            sys.modules.pop(name, None)
+        reg.seen = {}
+    else:
+        reg.seen.update(local)
+    reg.last = time.time()   # modules first seen next run were imported after this point
+
+
+try:
+    _np_drop_stale_modules()
+except Exception:   # the guard must never be the thing that breaks startup
+    pass
 from datetime import date, datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from zoneinfo import ZoneInfo
