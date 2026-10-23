@@ -144,7 +144,7 @@ def situ_for(day, games=(), getter=None, starters=False, environ=None, pit=True)
             st = pgk.fetch_starters(day, mc.slate_games(games), getter=js)[0]
         except Exception:
             st = {}
-    return sit.layer(ctx, st)
+    return sit.layer(ctx, st, ff.model_pp_coherent(None, environ))
 
 
 def predictions(snapshot, out_ids=(), source='snapshot', now=None, injuries_note=None, situ=None):

@@ -165,10 +165,10 @@ def _rebound(game, i, e):
     return False
 
 
-def replay_game(payload, priors):
-    """Per-goal records plus a pregame record for one game."""
+def replay_game(payload, priors, situ=None):
+    """Per-goal records plus a pregame record for one game. ``situ``: optional situational layer (None = V5.6 model)."""
     game0 = ng.parse_pbp(payload)
-    pre = ng.model(ng.pregame_game(game0['game_id'], game0['away'], game0['home']) | {'roster': game0['roster']}, priors)
+    pre = ng.model(ng.pregame_game(game0['game_id'], game0['away'], game0['home']) | {'roster': game0['roster']}, priors, situ=situ)
     scorers = {}
     for e in game0['events']:
         if e['kind'] == 'goal':
@@ -179,7 +179,7 @@ def replay_game(payload, priors):
     sog_lead = _sog_leader_order(pre['players'])[0] if pre['players'] else None
     records = []
     for i, e, g, full in goal_moments(payload):
-        res = ng.model(g, priors)
+        res = ng.model(g, priors, situ=situ)
         ps = res['players']
         if not ps:
             continue
@@ -302,8 +302,26 @@ LINES_BLOCKED = ('blocked: no historical opening anytime-goal lines available (O
                  'no CSV supplied). Supply one with --lines; template backtests/opening_lines_template.csv')
 
 
-def run_backtest(date, getter=None, payloads=None, logs=None, cache_dir=CACHE_DIR, lines_path=None):
-    """Run the backtest for ``date``. Pass ``payloads``/``logs`` (offline) or a ``getter``; default = cached HTTP."""
+def situ_layer(date, payloads, pp_coherent=False, getter=None):
+    """Audit: the point-in-time situational layer for ``date`` (NHL stats before the slate; MoneyPuck xG only if dated
+    before first puck drop, else the per-shot point-in-time rebuild), with the MODEL_PP_COHERENT switch set explicitly."""
+    import situational_v58 as sit
+    import xg_v59 as xgm
+    import requests
+
+    def js(url, params=None):
+        r = requests.get(url, params=params, timeout=30, headers={'User-Agent': 'nhl-playbook-backtest'})
+        r.raise_for_status()
+        return r.json()
+    starts = [{'start': p.get('startTimeUTC')} for p in payloads]
+    ctx = sit.load_context(date, season_for(date), sit.PARTS, getter or js, None, cutoff=xgm.slate_cutoff(date, starts),
+                           pit_fallback=True)
+    return sit.layer(ctx, {}, pp_coherent)
+
+
+def run_backtest(date, getter=None, payloads=None, logs=None, cache_dir=CACHE_DIR, lines_path=None, situ=None):
+    """Run the backtest for ``date``. Pass ``payloads``/``logs`` (offline) or a ``getter``; default = cached HTTP.
+    ``situ``: optional situational layer (``situ_layer``); None = the V5.6 model exactly (the baseline's setting)."""
     if payloads is None or logs is None:
         getter = getter or cached(http_getter, cache_dir)
         payloads, logs = fetch_slate(date, getter)
@@ -311,10 +329,10 @@ def run_backtest(date, getter=None, payloads=None, logs=None, cache_dir=CACHE_DI
     for p in payloads:
         roster = ng.parse_pbp(p)['roster']
         plogs = {pid: logs.get(pid) or logs.get(str(pid)) or [] for pid in roster}
-        g, recs = replay_game(p, priors_as_of(plogs, roster, date))
+        g, recs = replay_game(p, priors_as_of(plogs, roster, date), situ)
         games.append(g)
         records.extend(recs)
-        g2, recs2 = replay_game(p, priors_as_of(plogs, roster, date, mode='app_l10'))
+        g2, recs2 = replay_game(p, priors_as_of(plogs, roster, date, mode='app_l10'), situ)
         l10_games.append(g2)
         l10_records.extend(recs2)
     s = summarize(games, records)
@@ -326,6 +344,8 @@ def run_backtest(date, getter=None, payloads=None, logs=None, cache_dir=CACHE_DI
         lines = {'status': LINES_BLOCKED, 'n': 0, 'rows': []}
     return {'lines': lines, 'backtest_version': BACKTEST_VERSION, 'model_version': MODEL_VERSION, 'code_hash': code_hash(), 'slate_date': date,
             'season': season_for(date), 'priors': 'season-to-date game logs, games dated before slate_date; Form off',
+            'situational': None if situ is None else {'pp_coherent': bool(getattr(situ, 'pp_coherent', False)),
+                                                      'sources': (getattr(situ, 'ctx', {}) or {}).get('sources')},
             **s, 'games': [{k: v for k, v in g.items() if not k.startswith('_')} for g in games],
             'records': [public_record(r) for r in records]}
 
@@ -461,6 +481,8 @@ def main(argv=None, getter=None):
     ap.add_argument('--baseline-only', action='store_true')
     ap.add_argument('--lines', default=None, help='opening-lines CSV (see backtests/opening_lines_template.csv)')
     ap.add_argument('--json', default=None, help='also write this run to a file (never the baseline path)')
+    ap.add_argument('--situ', action='store_true', help='audit: replay with the point-in-time situational layer')
+    ap.add_argument('--pp-coherent', choices=('on', 'off'), default='off', help='audit: MODEL_PP_COHERENT for --situ')
     a = ap.parse_args(argv)
     base = load_baseline(a.baseline)
     if a.baseline_only:
@@ -469,7 +491,12 @@ def main(argv=None, getter=None):
     date = a.date or (base or {}).get('slate_date')
     if not date:
         ap.error('--date is required when no baseline exists')
-    result = run_backtest(date, getter=getter, lines_path=a.lines)
+    if a.situ:
+        payloads, logs = fetch_slate(date, getter or cached(http_getter, CACHE_DIR))
+        result = run_backtest(date, payloads=payloads, logs=logs, lines_path=a.lines,
+                              situ=situ_layer(date, payloads, a.pp_coherent == 'on'))
+    else:
+        result = run_backtest(date, getter=getter, lines_path=a.lines)
     print(f'slate {date} | code {result["code_hash"]}')
     print(_fmt(result['headline']))
     print('opening-line comparison:', json.dumps({k: v for k, v in result['lines'].items() if k != 'rows'}))

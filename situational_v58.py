@@ -58,6 +58,7 @@ GOALIE_MIN, GOALIE_MAX = 0.85, 1.15
 LINE_DAYS, LINE_K, LINE_ELASTICITY = 14, 3, 0.5
 LINE_MIN, LINE_MAX = 0.90, 1.10
 RATIO_MIN, RATIO_MAX = 0.5, 2.0
+PP_GOAL_FRAC = 0.197            # league share of goals scored on the PP (1,595 PPG / 8,086 G, same 2025-26 pull)
 PARTS = ('pp', 'goalie', 'line', 'xg')   # V5.9: + 'xg' (shot quality, xg_v59)
 STATS = 'https://api.nhle.com/stats/rest/en'
 
@@ -229,9 +230,13 @@ def with_starters(ctx, starters):
     return dict(ctx or context(), starters=fresh['starters'])
 
 
-def layer(ctx, starters=None):
-    """V5.9: the ONE way a context becomes the model's situational layer (tabs/live.py and accuracy_v58 both call it)."""
-    return Situ(with_starters(ctx, starters or {}))
+def layer(ctx, starters=None, pp_coherent=None):
+    """V5.9: the ONE way a context becomes the model's situational layer (tabs/live.py and accuracy_v58 both call it).
+    ``pp_coherent`` None -> feature_flags_v58.model_pp_coherent() (environment / default)."""
+    if pp_coherent is None:
+        import feature_flags_v58 as ff
+        pp_coherent = ff.model_pp_coherent()
+    return Situ(dict(with_starters(ctx, starters or {}), pp_coherent=bool(pp_coherent)))
 
 
 def load_context(day, season, parts=PARTS, getter=None, xg_getter=None, cutoff=None, pit_fallback=False):
@@ -311,6 +316,35 @@ def _sh_ev_pp(sk):
             shrink(sk['pp_goals'], sk['pp_shots'], LEAGUE_PP_SH, K_PP))
 
 
+def split_sum(split):
+    return (split[0] + split[1]) or 1.0
+
+
+def _live_pp_share(ev, pp, team, game):
+    """Audit PP fix: neutral live PP ratio. On the PP: the player's PP-goal fraction over the league's (PP_GOAL_FRAC);
+    at even strength: his EV fraction over the league's; SH / EN / unknown: 1. Averages ~1 across a team, so it moves
+    share between teammates without adding PP scoring on top of the team's SITUATION_MULT['PP']."""
+    tot = ev + pp
+    if tot <= 0:
+        return 1.0
+    st = _strength(game, team)
+    if st == 'PP':
+        return (pp / tot) / PP_GOAL_FRAC
+    if st == 'EV':
+        return (ev / tot) / (1.0 - PP_GOAL_FRAC)
+    return 1.0
+
+
+def _strength(game, team):
+    s = str((game or {}).get('situation') or '')
+    if len(s) != 4 or not s.isdigit():
+        return 'EV'
+    ag, ask, hsk, hg = (int(c) for c in s)
+    home = team == (game or {}).get('home')
+    own, opp, opp_goalie = (hsk, ask, ag) if home else (ask, hsk, hg)
+    return 'EN' if opp_goalie == 0 else 'PP' if own > opp else 'SH' if own < opp else 'EV'
+
+
 def breakdown(ctx, pid, team, opp, prior_pg, base, game=None, phase='pregame', rec=None):
     """Per-player situational breakdown. ratio == 1.0 exactly when nothing applies."""
     parts = ctx.get('parts') or ()
@@ -322,8 +356,12 @@ def breakdown(ctx, pid, team, opp, prior_pg, base, game=None, phase='pregame', r
     core, ev_part = base, base
     xgd = ctx.get('xg') if 'xg' in parts else None
     xinfo = {}
+    coherent = phase == 'live' and bool(ctx.get('pp_coherent'))
     if 'pp' in parts:
-        fac = opp_factor(team, opp, ctx.get('teams'), ctx.get('league_pp_opp_pg'))
+        # Audit PP fix (MODEL_PP_COHERENT): pregame the split adds the player's PP scoring (expected PP time x PP
+        # rate); live, the team's PP state is already priced by live_nextgoal_v56.SITUATION_MULT, so the split only
+        # sets the player's SHARE (no opponent-PP factor, no PP scoring re-added): see _live_pp_share.
+        fac = None if coherent else opp_factor(team, opp, ctx.get('teams'), ctx.get('league_pp_opp_pg'))
         split = pp_split(prior_pg, sk, fac)
         if split is not None:
             ev, pp = split
@@ -332,8 +370,13 @@ def breakdown(ctx, pid, team, opp, prior_pg, base, game=None, phase='pregame', r
                 m_ev, xinfo['ev'] = xgm.blend(sh_ev, LEAGUE_EV_SH, xgm.quality(xgd, pid, 'ev'))
                 m_pp, xinfo['pp'] = xgm.blend(sh_pp, LEAGUE_PP_SH, xgm.quality(xgd, pid, 'pp'))
                 ev, pp = ev * m_ev, pp * m_pp
-            core, ev_part = ev + pp, ev
-            bd.update(ev=ev, pp=pp, pp_add=ev + pp - base, opp_factor=fac)
+            if coherent:
+                share = _live_pp_share(ev, pp, team, game)
+                core = ev_part = base * share * ((ev + pp) / split_sum(split) if xgd else 1.0)
+                bd.update(ev=ev, pp=pp, pp_add=core - base, opp_factor=None, pp_share=share, pp_mode='live share')
+            else:
+                core, ev_part = ev + pp, ev
+                bd.update(ev=ev, pp=pp, pp_add=ev + pp - base, opp_factor=fac)
             bd['applied'].append('pp')
     if xgd and bd['ev'] is None and rec is not None:   # no PP split: one all-situations multiplier on base
         sh = shrink(rec.get('season_g', rec.get('goals')), rec.get('season_sog', rec.get('sog')), LEAGUE_SH, K_SHRINK)
@@ -359,6 +402,9 @@ def breakdown(ctx, pid, team, opp, prior_pg, base, game=None, phase='pregame', r
     final = (core + (lm - 1.0) * ev_part) * gm
     ratio = _clamp(final / base, RATIO_MIN, RATIO_MAX)
     bd.update(final=base * ratio, ratio=ratio)
+    if bd.get('pp_share'):   # live PP share: the same ratio without the share (the model keeps team totals at this)
+        neutral = core / bd['pp_share']
+        bd['ratio_neutral'] = _clamp((neutral + (lm - 1.0) * neutral) * gm / base, RATIO_MIN, RATIO_MAX)
     return bd
 
 
@@ -367,6 +413,11 @@ class Situ:
 
     def __init__(self, ctx):
         self.ctx = ctx
+
+    @property
+    def pp_coherent(self):
+        """Audit PP fix flag (MODEL_PP_COHERENT), carried on the context by ``layer``."""
+        return bool((self.ctx or {}).get('pp_coherent'))
 
     def __call__(self, rec, team, opp, game, prior_pg, base, phase):
         return breakdown(self.ctx, rec.get('pid'), team, opp, prior_pg, base, game, phase, rec=rec)

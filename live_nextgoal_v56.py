@@ -163,6 +163,8 @@ def parse_pbp(payload):
                        'secs': (_secs(p.get('timeInPeriod')) or 0), 'shooter': shooter, 'team': team,
                        'goalie': d.get('goalieInNetId'), 'strength': strength, 'shot_type': d.get('shotType'),
                        'x': x, 'y': y, 'xg': shot_xg(x, y, nx, d.get('shotType'), strength),
+                       # audit PP fix: the same shot without the PP logit bonus (used only with MODEL_PP_COHERENT)
+                       'xg_ev': shot_xg(x, y, nx, d.get('shotType'), 'EV') if strength == 'PP' else None,
                        'order': p.get('sortOrder', 0), 'sit': str(p.get('situationCode') or '')}
     clock = payload.get('clock') or {}
     pdesc = payload.get('periodDescriptor') or {}
@@ -304,8 +306,12 @@ def model(game, priors=None, use_form=False, lineup=None, situ=None):
 
     ``situ``: optional V5.8 situational layer (``situational_v58.Situ``). None = the V5.6 model exactly. With it, each
     skater's pregame lambda and live per-minute rate are scaled by the bounded ratio it returns (PP split, opposing
-    goalie, TOI deployment); the per-player breakdown is kept in ``rec['situ']``. Ratio 1.0 (no data) = old numbers."""
+    goalie, TOI deployment); the per-player breakdown is kept in ``rec['situ']``. Ratio 1.0 (no data) = old numbers.
+    Audit PP fix: with ``situ.pp_coherent`` (feature_flags_v58.MODEL_PP_COHERENT) the live PP is priced ONCE, by the
+    team multiplier SITUATION_MULT['PP']: the player's PP split becomes a neutral share ratio and PP shots count at
+    their EV xG. Pregame (and situ None / flag off) is unchanged."""
     priors = priors or {}
+    coherent = bool(getattr(situ, 'pp_coherent', False))
     ph = phase(game)
     elapsed, remaining = elapsed_remaining(game)
     w = pace_weight(elapsed)
@@ -340,10 +346,13 @@ def model(game, priors=None, use_form=False, lineup=None, situ=None):
         if rec is None:
             continue
         rec['att'] += 1
-        rec['xg'] += e['xg']
+        # audit PP fix (MODEL_PP_COHERENT, situational layer only): PP shots count at their EV xG, since the team's
+        # PP is already priced by SITUATION_MULT['PP'] - the +0.25 logit PP bonus is not stacked on top of it.
+        xg = e['xg_ev'] if coherent and e.get('xg_ev') is not None else e['xg']
+        rec['xg'] += xg
         if e['kind'] in ('sog', 'goal'):
             rec['sog'] += 1
-            rec['xg_sog'] += e['xg']
+            rec['xg_sog'] += xg
         if e['kind'] == 'goal':
             rec['goals'] += 1
 
@@ -367,6 +376,22 @@ def model(game, priors=None, use_form=False, lineup=None, situ=None):
                 rate, lam_game = rate * bd['ratio'], bd['final']
         rec.update(prior_pg=round(prior_pg, 3), shot_rate=s, shrunk_sh=sh, conv=conv, rate=rate, lam_game=round(lam_game, 4))
         team_rate[rec['team']] += rate
+    if coherent and ph == 'live':
+        # audit PP fix: the live PP share only re-splits a team's rate between its players; the team total is the one
+        # without the share (so PP scoring is added once, by SITUATION_MULT['PP'] below)
+        neutral = {t: 0.0 for t in teams}
+        for rec in players.values():
+            if rec['team'] in neutral and 'rate' in rec:
+                bd = rec.get('situ') or {}
+                r, rn = bd.get('ratio', 1.0), bd.get('ratio_neutral')
+                neutral[rec['team']] += rec['rate'] / r * rn if rn is not None and r > 0 else rec['rate']
+        for t in teams:
+            f = neutral[t] / team_rate[t] if team_rate[t] > 0 else 1.0
+            if f != 1.0:
+                for rec in players.values():
+                    if rec['team'] == t and 'rate' in rec:
+                        rec['rate'] *= f
+                team_rate[t] = neutral[t]
 
     mult = {t: situation_mult(game.get('situation'), t == teams[1]) if ph == 'live' else 1.0 for t in teams}
     if ph == 'live' and (game.get('ptype') == 'OT' or int(game.get('period') or 0) > 3):

@@ -79,6 +79,19 @@ def model_xg(secrets=None, environ=None):
     return MODEL_XG if v is None else v
 
 
+# Audit PP double-count fix (situational_v58 / live_nextgoal_v56; see MODEL_CARD.md 'Power play'). With it, a LIVE power
+# play is priced once (team SITUATION_MULT['PP']): the player's PP split is only a neutral share ratio and PP shots count
+# at EV xG. Pregame is unchanged. MODEL_PP_COHERENT = "false" (secrets) / =0 (env) restores the old stacking exactly.
+# Default set from the 2026-04-04 backtest (backtests/audit_pp_2026-04-04.json): ON only with no log-loss regression.
+MODEL_PP_COHERENT = True     # 2026-04-04 (situational on): log loss 3.4593 (off) -> 3.4284 (on), no regression
+
+
+def model_pp_coherent(secrets=None, environ=None):
+    v = _lookup('MODEL_PP_COHERENT', secrets, environ)
+    p = _parse(v) if v is not None else None
+    return MODEL_PP_COHERENT if p is None else p
+
+
 
 # V5.9 goalie weak-spot identifier on Home 'Matchup targets' (goalie_weak_v59; display only, never in the model).
 # On by default; FEATURE_GOALIE_WEAK = "false" (secrets) or FEATURE_GOALIE_WEAK=0 (env) hides it. Env wins over secrets.
