@@ -321,3 +321,18 @@
 .v55 .v58-gm.v59-pl .pl-s.demo{border-style:dashed}
 .v55 .v58-gm.v59-pl tr.pl-ch td{white-space:normal;line-height:1.9}
 .v55 .v58-gm.v59-pl .pl-c{display:inline-block;padding:1px 7px;border-radius:999px;border:1px solid rgba(192,139,255,.45);background:rgba(192,139,255,.1);color:var(--gem,#c08bff);font-weight:700;font-size:.7rem;line-height:1.5;white-space:nowrap;margin:0 4px 2px 0}
+.v55 .v58-gm.v59-al .gm th:nth-child(n+2),.v55 .v58-gm.v59-al .gm td:nth-child(n+2){width:46px;text-align:center;white-space:nowrap;padding-left:2px;padding-right:2px}
+.v55 .v58-gm.v59-al .gm-p b{overflow-wrap:normal;word-break:normal}
+.v55 .v58-gm.v59-al .pl-pos{color:var(--mut);font-weight:800;font-size:.72rem;letter-spacing:.04em}
+.v55 .v58-gm.v59-al tr.pl-ch td{white-space:normal;line-height:1.9}
+.v55 .v58-gm.v59-al .pl-c,.v55 .v58-gm.v59-al .al-x{display:inline-block;padding:1px 7px;border-radius:999px;border:1px solid rgba(192,139,255,.45);background:rgba(192,139,255,.1);color:var(--gem,#c08bff);font-weight:700;font-size:.7rem;line-height:1.5;white-space:nowrap;margin:0 4px 2px 0}
+.v55 .v58-gm.v59-al .pl-c.rv{border-color:rgba(56,225,255,.45);background:rgba(56,225,255,.08);color:var(--neon,#38e1ff)}
+.v55 .v58-gm.v59-al .al-x{border-color:rgba(255,176,32,.45);background:rgba(255,176,32,.08);color:#ffcf7a;white-space:normal}
+.v55 .v58-gm.v59-al .pl-s{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:999px;background:rgba(255,59,59,.14);border:1px solid rgba(255,59,59,.45);color:#ffb4b4;font-weight:800;font-size:.7rem}
+.v55 .v58-gm.v59-al .pl-s.demo{border-style:dashed}
+.v55 .v58-gm.v59-al .al-cl{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:14px}
+.v55 .v58-gm.v59-al .al-cl h4{margin:0 0 6px;color:var(--mut);font:800 .72rem var(--fd);letter-spacing:.1em;text-transform:uppercase}
+.v55 .v58-gm.v59-al .al-cl ul{margin:0;padding:0;list-style:none;max-height:360px;overflow-y:auto;overflow-x:hidden}
+.v55 .v58-gm.v59-al .al-cl li{padding:5px 0;border-top:1px solid var(--line);font-size:.8rem;line-height:1.6;overflow-wrap:anywhere}
+.v55 .v58-gm.v59-al .al-cl li:first-child{border-top:0}
+.v55 .v58-gm.v59-al .al-m{color:var(--mut);font-weight:700;font-size:.7rem;letter-spacing:.04em;margin-right:4px}

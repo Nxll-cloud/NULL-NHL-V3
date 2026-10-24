@@ -110,6 +110,11 @@
   .v55 .v58-gm.v59-pl .gm th{font-size:10px;letter-spacing:.02em}
   .v55 .v58-gm.v59-pl .pl-s{padding:1px 3px;font-size:10px}
   .v55 .v58-gm.v59-pl tr.pl-ch td{padding:0 6px 8px}
+  .v55 .v58-gm.v59-al .gm td,.v55 .v58-gm.v59-al .gm th{padding:6px 3px}
+  .v55 .v58-gm.v59-al .gm td.gm-p{padding-left:6px}
+  .v55 .v58-gm.v59-al .gm th:nth-child(n+2),.v55 .v58-gm.v59-al .gm td:nth-child(n+2){width:34px}
+  .v55 .v58-gm.v59-al .gm th{font-size:10px;letter-spacing:.02em}
+  .v55 .v58-gm.v59-al .al-cl{padding:8px}
 }
 
 /* ===== V5.9 goalie weakness by shooter position chip (goalie_pos_v59). Separate block. ===== */

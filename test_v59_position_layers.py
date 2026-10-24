@@ -110,7 +110,7 @@ def test_not_loaded_and_empty():
 
 def test_not_imported_by_scoring_modules():
     hits = [f.name for f in ROOT.rglob('*.py')
-            if not f.name.startswith('test_') and f.name != 'position_layers_v59.py' and f.parent.name != 'tabs'
+            if not f.name.startswith('test_') and f.name not in ('position_layers_v59.py', 'all_layers_v59.py') and f.parent.name != 'tabs'
             and re.search(r'position_layers_v59', f.read_text(errors='ignore'))]
     assert hits == []
 
@@ -121,7 +121,9 @@ def test_renders_once_in_expander_under_position_gematria():
     j = src.index("st.expander('Position + gematria layers · curiosity layer')")
     assert i < j and src.count("st.expander('Position + gematria layers · curiosity layer')") == 1
     between = src[i:j]
-    assert between.count('st.expander(') == 1 and between.count('_posgem.table_html()') == 1   # directly under, nothing in between
+    # order at the end of the tab: Position gematria -> All-layer matches -> Position + gematria layers
+    assert between.count('st.expander(') == 2 and between.count('_posgem.table_html()') == 1
+    assert "st.expander('All-layer matches · curiosity layer')" in between
     assert src.count('_poslay.table_html(') == 1 and src.count('_poslay.rows(') == 1
     assert 'expanded=True' not in src[j:]
 
