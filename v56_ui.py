@@ -112,7 +112,9 @@ def live_strip(items):
                      f'<span>{esc(it.get("label"), "")}</span><b>{esc(it.get("home_score"), "")}</b>{v5.logo(it["home"], "tl")}{who}{vn.tag(it.get("venue"))}</div>')
     n = sum(1 for it in items if it['phase'] == 'live')
     tag = f'<span class="live"><i class="pulse"></i>{n} live</span>' if n else '<span class="live pre">No game live</span>'
-    return f'<section class="sec"><div class="sh"><h3>Live next goal {tag}</h3><p>Score endpoint + play-by-play · next-goal leader per game · open the Live Next Goal tab for the full model</p></div><div class="lstrip">{"".join(cells)}</div></section>'
+    # V5.9: the whole strip (heading + chips) is one tap/Enter target that opens the Live Next Goal tab (assets/v55.js data-ngtab).
+    return (f'<section class="sec ngjump" data-ngtab="Live Next Goal" role="link" tabindex="0" aria-label="Open the Live Next Goal tab">'
+            f'<div class="sh"><h3>Live next goal {tag}</h3><p>Score endpoint + play-by-play · next-goal leader per game · tap to open the Live Next Goal tab for the full model</p></div><div class="lstrip">{"".join(cells)}</div></section>')
 
 
 def h2h_text(h):

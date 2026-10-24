@@ -48,4 +48,20 @@
       if (++tries !== 25) setTimeout(seek, 120); else tab.scrollIntoView({block: 'start'});
     })();
   });
+  // V5.9: Home Live next goal strip -> open the Live Next Goal tab (same native st.tabs button click as the threat badges).
+  function openTab(s){
+    var txt = s.dataset.ngtab || 'Live Next Goal', tab = null;
+    document.querySelectorAll('[data-testid=stTabs] [role=tab]').forEach(function(b){ if (!tab && b.textContent.indexOf(txt) !== -1) tab = b; });
+    if (!tab) return false;
+    tab.click(); setTimeout(function(){ tab.scrollIntoView({behavior: reduce ? 'auto' : 'smooth', block: 'start'}); }, 80); return true;
+  }
+  root.addEventListener('click', function(ev){
+    var t = ev.target, s = t && t.closest ? t.closest('[data-ngtab]') : null; if (!s || t.closest('a[data-ng]')) return;
+    if (openTab(s)) ev.preventDefault();
+  });
+  root.addEventListener('keydown', function(ev){
+    if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    var s = ev.target && ev.target.matches && ev.target.matches('[data-ngtab]') ? ev.target : null; if (!s) return;
+    if (openTab(s)) ev.preventDefault();
+  });
 })();
