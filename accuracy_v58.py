@@ -778,7 +778,11 @@ CSS = ('<style>.v55 .npacc{margin:14px 0 6px;padding:14px 16px;border-radius:18p
        '.v55 .npacc-t td:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0;width:100%}'
        '.v55 .npacc{display:block;width:100%;box-sizing:border-box;text-align:left;align-self:stretch}.v55 .npacc-tw,.v55 .npacc details{width:100%}.v55 .npacc-t td.n,.v55 .npacc-t td:nth-child(2){width:1%}'
        '.v55 .npacc,.v55 .npacc p{text-align:left}.v55 .npacc-tw{max-width:720px}'
-       '.v55 .npacc-tr{justify-content:flex-start}.v55 .npacc-t .sn{display:none}@media (max-width:600px){.v55 .npacc{padding:12px}.v55 .npacc-t th{letter-spacing:0;padding:4px 3px}.v55 .npacc-t td{padding:5px 3px}.v55 .npacc-t .fn{display:none}.v55 .npacc-t .sn{display:inline}}</style>')
+       '.v55 .npacc-tr{justify-content:flex-start}.v55 .npacc-t .sn{display:none}@media (max-width:600px){.v55 .npacc{padding:12px}.v55 .npacc-t th{letter-spacing:0;padding:4px 3px}.v55 .npacc-t td{padding:5px 3px}.v55 .npacc-t .fn{display:none}.v55 .npacc-t .sn{display:inline}}'
+       # V5.9 fix (scored-flag report): G column = that night's goals for EVERY row; legend says the cyan edge is the
+       # model's pre-game top 10 (it never meant 'scored').
+       '.v55 .npacc-t td.g{width:1%;white-space:nowrap;text-align:right;color:var(--ok);font-weight:800}.v55 .npacc-t th.g{text-align:right}'
+       '.v55 .npacc p.npacc-lg{margin:6px 0 0;font-size:.76rem}.v55 .npacc-lg i{display:inline-block;width:3px;height:.9em;margin:0 5px -1px 0;background:var(--neon);border-radius:2px}@media (max-width:600px){.v55 .npacc-t .gx{display:none}.v55 .npacc-t th.n{white-space:normal}.v55 .npacc-t td.g{padding-left:1px;font-size:.8rem}}@media (max-width:360px){.v55 .npacc-t td,.v55 .npacc-t th{padding-left:2px;padding-right:2px}}</style>')
 
 
 def _pct(p):
@@ -873,16 +877,22 @@ def card_html(v, max_rows=8, snap_root=SNAP_DIR):
         tip = f' title="NP statistical rank #{r["np_rank"]}"' if r.get('np_rank') else ''
         nm = r['name'] or ''
         short = (nm.split(' ', 1)[0][:1] + '. ' + nm.split(' ', 1)[1]) if ' ' in nm else nm
-        name = (f'<span class="fn">{esc(nm)}</span><span class="sn" title="{esc(nm)}">{esc(short)}</span>'
-                + pb.goalie_badge(pb.position_of(r))) + (f' ×{r["goals"]}' if r['goals'] > 1 else '')
+        # V5.9 fix: the full name uses &nbsp; so the page-wide 'scored tonight' name pass (scorers_tonight_v58.mark_html,
+        # keyed on the SELECTED slate) never badges these rows: the card is a past night, its own G column says who scored.
+        name = (f'<span class="fn">{esc(nm).replace(" ", "&nbsp;")}</span><span class="sn" title="{esc(nm)}">{esc(short)}</span>'
+                + pb.goalie_badge(pb.position_of(r)))
         flag = (f'<td class="n">{"<span class=ok>✓</span>" if r["flag"] else "·"}</td>') if flags_on else ''
-        return (f'<tr class="{"top" if r["pid"] in top else ""}"><td>{name}</td><td>{esc(r["team"])}</td><td class="n">{_pct(r["p"])}</td>'
+        return (f'<tr class="{"top" if r["pid"] in top else ""}"><td>{name}</td><td>{esc(r["team"])}</td>'
+                f'<td class="g" title="Scored {r["goals"]} goal{"s" if r["goals"] != 1 else ""} on {esc(short_day(shown["day"]))}">✓<span class="gx"> </span>{r["goals"]}G</td>'
+                f'<td class="n">{_pct(r["p"])}</td>'
                 f'<td class="n"{tip}>{rank}</td><td class="n">{"<span class=ok>✓</span>" if r["parlay"] else "·"}</td>{flag}</tr>')
-    th = ('<tr><th>Scorer</th><th>Team</th><th class="n">Model %</th><th class="n">Rank</th>'
+    th = ('<tr><th>Scorer</th><th>Team</th><th class="g" title="Goals that night">G</th><th class="n">Model %</th><th class="n">Rank</th>'
           f'<th class="n" title="{esc(PARLAY_NOTE)}">Parlay ✓</th>{"<th class=n>Flag</th>" if flags_on else ""}</tr>')
     body = ''.join(tr_(r) for r in rs[:max_rows])
     more = ''.join(tr_(r) for r in rs[max_rows:])
-    table = f'<div class="npacc-tw"><table class="npacc-t"><thead>{th}</thead><tbody>{body}</tbody></table></div>'
+    legend = (f'<p class="npacc-lg">Every row scored on {esc(short_day(shown["day"]))} (G = goals). '
+              f'<i aria-hidden="true"></i>Cyan edge = model pre-game top {s["top_n"]}, not a scored marker.</p>')
+    table = legend + f'<div class="npacc-tw"><table class="npacc-t"><thead>{th}</thead><tbody>{body}</tbody></table></div>'
     if more:
         table += (f'<details><summary>Show all {len(rs)} scorers</summary><div class="npacc-tw"><table class="npacc-t"><thead>{th}</thead>'
                   f'<tbody>{more}</tbody></table></div></details>')
