@@ -138,6 +138,17 @@
 .v55 section.pms{border-radius:var(--rad-l);box-shadow:var(--elev1);padding:var(--sp4)}
 .v55 section.pms .pmh{font-size:1.15rem;letter-spacing:.03em}
 @media (max-width:700px){.v55 .pm .pmc .pmk{min-height:0}}
+/* Four-across desktop: columns are narrow, so the full name gets its own line and position/team sit under it (no mid-name ellipsis). */
+@media (min-width:1181px){
+ .v55 .pm .pmr .nm{flex-wrap:wrap;column-gap:5px;row-gap:1px}
+ .v55 .pm .pmr .nm b{flex:1 0 100%;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word;line-height:1.2}
+}
+.v55 .pm .pmr .st{align-self:center}
+/* Model accuracy card (.npacc): tables use the card width like the other tables on the tab; summaries and table get breathing room. */
+.v55 .npacc .npacc-tw{max-width:none;overflow-x:auto}
+.v55 .npacc details[open]>summary{margin-bottom:var(--sp1)}
+.v55 .npacc .npacc-h span{min-width:0;overflow-wrap:break-word}
+.v55 .npacc-top .npacc-t td:first-child{padding-right:10px}
 
 /* ===== Banners (styling only; content untouched): tab heroes .th (incl. Odds Intelligence and Live Next Goal), Home .hero,
    live strip .lstrip, scorer ticker .npst. One premium family: layered glass, hairline top highlight, tone glow, calm motion. ===== */
