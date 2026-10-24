@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 import position_badge_v59 as pb   # V5.9: Home goalie pill
 import goalie_weak_v59 as gw   # V5.9: goalie weak-spot pill (display only)
 import goalie_pos_v59 as gpos   # V5.9: goalie weakness by shooter position chip (display only)
+import pos_tag_v59 as ptag   # V5.9: C/LW/RW/D tag after Matchup targets names (goalies keep the 'G' pill)
 import winprob_v59 as wp   # V5.9: board favorite pill (model estimate)
 import venue_v58 as vn
 
@@ -594,7 +595,7 @@ def target_row(season, i, p):
     badges = ''.join(chip(b, BADGE_TONES.get(b, 'odds' if str(b).startswith('Odds') else '')) for b in p.get('badges', []))
     matches = f" · {p['matches']} number matches" if p.get('matches') else ''
     return f'''<li class="tr{pb.goalie_row_class(p.get("position"))}" style="{team_vars(p.get("team"))}"><span class="rk">{i}</span>{mug(season, p.get("team"), p.get("player_id"), "tm")}
-<div class="tn"><b>{esc(p.get("player"))}{pb.goalie_badge(p.get("position"))}</b><small>#{esc(p.get("jersey"), "?")} · Stat rank #{esc(p.get("stat_rank"))}{esc(matches, "")}</small>
+<div class="tn"><b class="tnp"><span class="tnn">{esc(p.get("player"))}</span>{ptag.tag(p.get("position"))}</b><small>#{esc(p.get("jersey"), "?")} · Stat rank #{esc(p.get("stat_rank"))}{esc(matches, "")}</small>
 <div class="cats">{badges}</div></div>
 <div class="tf">{form_count(p.get("form_pct"), p.get("form_label"), "tnum")}<div class="fbar"><i style="--w:{min(bar, 100):.0f}%"></i></div></div>
 <div class="tt">{sparkline(p.get("log"), 120, 30, p.get("team"))}{heat_strip(p.get("log"))}</div>{gw.row_cell(p.get("goalie_weak"))}</li>'''

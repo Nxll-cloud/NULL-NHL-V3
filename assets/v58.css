@@ -309,6 +309,9 @@
 /* V5.9 position tag after player names (Numbers tab): small muted code, no border; goalies use .npg instead. */
 .npos{display:inline-block;margin-left:6px;padding:0 2px;font-weight:800;font-size:.66rem;line-height:1.4;font-family:var(--fb,inherit);letter-spacing:.08em;color:var(--mut);opacity:.9;white-space:nowrap;vertical-align:1px;flex:0 0 auto}
 .v58-num .npr-nl .npos,.v58-num .npr-nl .npg{margin-left:0}
+/* V5.9 Home Matchup targets: name truncates, position tag / G pill never clips. */
+.v55 .tn b.tnp{display:flex;align-items:baseline;min-width:0}.v55 .tn b.tnp .tnn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.v55 .tn b.tnp .npg{align-self:center}
+@media (max-width:420px){.v55 .tn b.tnp{display:block;white-space:normal;overflow:visible;line-height:1.15;overflow-wrap:break-word}.v55 .tn b.tnp .tnn{display:inline;white-space:normal;overflow:visible}}  /* phones: name wraps (tag follows) instead of "Jord…" */
 .v55 .v58-gm.v59-pl .gm th:nth-child(n+2),.v55 .v58-gm.v59-pl .gm td:nth-child(n+2){width:34px;text-align:center;white-space:nowrap;padding-left:2px;padding-right:2px}
 .v55 .v58-gm.v59-pl .gm th:nth-child(2),.v55 .v58-gm.v59-pl .gm td:nth-child(2){width:40px}
 .v55 .v58-gm.v59-pl .gm th:nth-child(8),.v55 .v58-gm.v59-pl .gm td:nth-child(8){width:44px}

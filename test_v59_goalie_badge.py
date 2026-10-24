@@ -55,7 +55,7 @@ def test_leader_cards_and_target_rows():
     for pos in ('C', None):
         assert 'class="npg"' not in v5.player_card('20262027', 'Test', 'stat', _p(pos), '', '', '')
         assert 'class="npg"' not in v5.target_row('20262027', 1, _p(pos))
-    assert 'Some Player<span class="npg"' in v5.target_row('20262027', 1, _p('G'))
+    assert 'Some Player</span><span class="npg"' in v5.target_row('20262027', 1, _p('G'))
 
 
 def test_goalie_card_and_duel():
