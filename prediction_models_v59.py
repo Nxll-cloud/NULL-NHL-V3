@@ -441,6 +441,11 @@ CSS = ('<style>.v55 .pm{display:grid;grid-template-columns:repeat(4,minmax(0,1fr
        '.v55 .pmr .ly{grid-column:2/4;margin-top:-2px;color:var(--mut);font-size:.72rem;overflow-wrap:anywhere}'
        '.v55 .pmr.sc .nm b{color:var(--ok)}'
        '.v55 .pmr .nm .npsc{flex:none;margin-left:0}'
+       '.v55 .pmlv{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0 0 8px;font-size:.74rem;color:var(--mut)}'
+       '.v55 .pmlv b.npk{padding:2px 8px;font-size:.7rem;font-weight:800;letter-spacing:.02em;color:var(--ink);font-variant-numeric:tabular-nums;'
+       'border:1px solid color-mix(in srgb,var(--pc,var(--neon)) 55%,transparent);background:color-mix(in srgb,var(--pc,var(--neon)) 12%,transparent)}'
+       '.v55 .pmlv.hit b.npk{color:#1a0710;border-color:transparent;background:linear-gradient(90deg,#ff5d5d,#ff3d7f)}'
+       '.v55 .pmlv small{font-size:.7rem;color:var(--dim)}'
        '.v55 .pmacc{margin-top:8px;padding-top:6px;border-top:1px solid var(--line);color:var(--mut);font-size:.78rem;line-height:1.5;overflow-wrap:anywhere}'
        '.v55 .pmacc b{color:var(--ink)}'
        '.v55 .pms{margin:8px 0;padding:12px 14px;border-radius:18px;border:1px solid color-mix(in srgb,var(--neon) 30%,transparent);'
@@ -518,10 +523,32 @@ def skipped_days(ns, today, n=TREND_N):
     return [d for d in ((d0 - timedelta(days=i)).isoformat() for i in range(n, 0, -1)) if d not in have]
 
 
-def column_html(sys_, rows_html, ns, sub, extra=''):
+def column_html(sys_, rows_html, ns, sub, extra='', live=''):
     x = '<span class="pmx">EXPERIMENTAL</span>' if sys_ == 'blend' else ''
     return (f'<div class="pmc" style="--pc:{TONE[sys_]}"><h3>{_e(LABEL[sys_].replace(" (experimental)", ""))}{x}</h3><p class="pmk">{_e(sub)}</p>'
-            f'{rows_html or "<p class=pmk>No ranking for this slate yet.</p>"}{acc_line(ns, sys_)}{extra}</div>')
+            f'{live}{rows_html or "<p class=pmk>No ranking for this slate yet.</p>"}{acc_line(ns, sys_)}{extra}</div>')
+
+
+def live_count(rows, record):
+    """V6.0 'Tonight (live)': (scored, listed) for one system's tonight top-N, player-ID match against tonight's scorer
+    record (scorers_tonight_v58). Display only: never saved, never part of the night-by-night record."""
+    ids = {int(p) for p in ((record or {}).get('players') or {})}
+    return sum(1 for r in rows if r.get('pid') is not None and int(r['pid']) in ids), len(rows)
+
+
+def live_html(rows, record):
+    """'Tonight (live) · X/10 scored · Y%' pill line ('' when the system has no list yet). Hint: 'no goals yet' while
+    nobody on the slate has scored, else 'live' (or 'DEMO replay' for the replay fixture)."""
+    if not rows:
+        return ''
+    x, n = live_count(rows, record)
+    pct = 100 * x / n
+    players = (record or {}).get('players') or {}
+    hint = 'DEMO replay' if players and record.get('demo') else ('live' if players else 'no goals yet')
+    of = f' ({n} listed)' if n != TOP_N else ''
+    return (f'<div class="pmlv{" hit" if x else ""}" role="status" aria-label="Tonight live: {x} of {n} scored, {pct:.0f} percent">'
+            f'<span class="npk pk2">Tonight (live)</span><b class="npk">{x}/{n} scored · {pct:.0f}%</b>'
+            f'<small>{_e(hint)}{_e(of)}</small></div>')
 
 
 def night_label(x):
@@ -604,7 +631,8 @@ def scored_badge(record, pid):
 
 def page_html(t, ns, scored=(), record=None):
     """The four columns (2 x 2 under 1180 px, stacked under 700 px). ``record`` (V6.0) is tonight's scorer record
-    (scorers_tonight_v58, from the live play-by-play): rows whose player ID scored get the shared 🚨 pill (🚨 nG for 2+)."""
+    (scorers_tonight_v58, from the live play-by-play): rows whose player ID scored get the shared 🚨 pill (🚨 nG for 2+)
+    and each card's header shows 'Tonight (live) · X/N scored · Y%' from the same record."""
     import pos_tag_v59 as pt
     sc = {int(x) for x in scored or ()} | {int(p) for p in ((record or {}).get('players') or {})}
     cols = []
@@ -612,7 +640,7 @@ def page_html(t, ns, scored=(), record=None):
         rows = ''.join(_row(r['rank'], r['name'], r['team'], pt.tag(r['pos']) if r.get('pos') else '', r['stat'], r.get('layers'),
                             int(r['pid']) in sc, scored_badge(record, r['pid'])) for r in t[s]['rows'])
         extra = f'<p class="pmf">{_e(__import__("books_picks_v59").COVERAGE_NOTE)}</p>' if s == 'books' else ''
-        cols.append(column_html(s, rows, ns, f'{SUBS[s]} · {t[s]["source"]}', extra))
+        cols.append(column_html(s, rows, ns, f'{SUBS[s]} · {t[s]["source"]}', extra, live_html(t[s]['rows'], record)))
     return f'{CSS}<div class="pm">{"".join(cols)}</div>'
 
 

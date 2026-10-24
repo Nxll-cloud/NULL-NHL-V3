@@ -103,3 +103,52 @@ def test_tab_reads_live_record_outside_long_caches_and_bypasses_name_pass():
     assert "v5.html_block(getattr(st, '_st', st), pmv.page_html(_pm_t, _pm_ns, _pm_scored, _pm_sc_rec))" in src
     cached = re.findall(r'@st\.cache_data\([^)]*\)\ndef (\w+)\(([^)]*)\):\n((?:    .*\n|\n)*?)(?=\n\S|@)', src)
     assert cached and not any('sctn' in body or 'STATE_KEY' in body for _, _, body in cached)
+
+
+# ------------------------------------------------------------------ V6.0 'Tonight (live)' accuracy stat
+def _live(col):
+    m = re.search(r'<b class="npk">(\d+)/(\d+) scored · (\d+)%</b><small>([^<]*)</small>', col)
+    return (int(m[1]), int(m[2]), int(m[3]), m[4]) if m else None
+
+
+def _t10():
+    t = _t()
+    t['model']['rows'] = _rows([1, 2, 3, 4, 13, 14, 15, 16, 17, 18], 'Model')
+    t['np']['rows'] = _rows([5, 1, 6, 7, 19, 20, 21, 22, 23, 24], 'Np')
+    t['blend']['rows'] = _rows([2, 8, 1, 9, 13, 25, 26, 27, 28, 29], 'Blend')
+    t['books']['rows'] = _rows([10, 11, 1, 12, 30, 31, 32], 'Books')     # only 7 priced
+    return t
+
+
+def test_live_stat_counts_and_percent_across_all_four_systems():
+    h = pm.page_html(_t10(), [], record=_rec({1: 1, 8: 2, 13: 1, 99: 3}))
+    got = [_live(c) for c in _cols(h)]
+    assert got == [(2, 10, 20, 'live'), (1, 10, 10, 'live'), (3, 10, 30, 'live'), (1, 7, 14, 'live (7 listed)')]
+    assert h.count('Tonight (live)') == 4 and h.count('class="pmlv hit"') == 4
+
+
+def test_live_stat_zero_before_goals_and_after_unrelated_goals():
+    for rec, hint in ((None, 'no goals yet'), (_rec({}), 'no goals yet'), (_rec({99: 1}), 'live')):
+        cols = _cols(pm.page_html(_t10(), [], record=rec))
+        assert [_live(c) for c in cols] == [(0, 10, 0, hint)] * 3 + [(0, 7, 0, hint + ' (7 listed)')]
+        assert 'pmlv hit' not in ''.join(cols)
+    assert _live(_cols(pm.page_html(_t10(), [], record=_rec({1: 1}, demo=True)))[0])[3] == 'DEMO replay'
+
+
+def test_live_stat_matches_by_id_not_name_and_skips_empty_lists():
+    t = _t10()
+    t['model']['rows'][1]['name'] = 'Player 1'                           # scorer's name on a non-scorer id
+    assert pm.live_count(t['model']['rows'], _rec({1: 1})) == (1, 10)
+    assert pm.live_count([{'pid': '1'}], _rec({1: 1})) == (1, 1) and pm.live_count([{'pid': None}], _rec({1: 1})) == (0, 1)
+    assert pm.live_html([], _rec({1: 1})) == ''
+    t['books']['rows'] = []
+    assert 'Tonight (live)' not in _cols(pm.page_html(t, [], record=_rec({1: 1})))[3]
+
+
+def test_live_stat_leaves_night_record_and_frozen_logs_unchanged():
+    ns = [{'day': '2026-10-23', 'kind': 'saved', 'saved': True, 'model': 3, 'np': 4, 'blend': 4, 'books': None, 'top_n': 10}]
+    lines = {s: pm.acc_line(ns, s) for s in pm.SYSTEMS}
+    h = pm.page_html(_t10(), ns, record=_rec({1: 1, 8: 1}))
+    for s, col in zip(pm.SYSTEMS, _cols(h)):
+        assert lines[s] in col and col.index('Tonight (live)') < col.index('class="pmacc"')
+    assert pm.nights_table(ns) == pm.nights_table(ns) and 'Tonight' not in pm.nights_table(ns) and 'Tonight' not in pm.summary_html(ns)
