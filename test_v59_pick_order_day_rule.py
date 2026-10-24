@@ -1,5 +1,5 @@
 """V5.9: TOP PICK tie-break order (threat points -> model chance -> form -> shot rate -> raw English total -> player id,
-never alphabetical) and the restored day rule (English OR Reverse digit equal to the universal day is a day match)."""
+never alphabetical) and the day rule (only the English digit, == Reduction, equal to the universal day is a day match; Reverse never counts)."""
 import pandas as pd
 
 import gem_match_v58 as gmx
@@ -59,23 +59,25 @@ def test_target_rows_carry_form_and_shot_rate():
     assert (by['3']['form_known'], by['3']['shot_rate']) == (False, None)
 
 
-def test_reverse_day_match_restored_everywhere():
-    assert DAY_METHODS == (('ordinal_root', 'English'), ('reverse_root', 'Reverse'))
+def test_day_match_is_english_only_everywhere():
+    """fbcef82 rule re-applied: only the English digit (== Reduction) can match the day; a Reverse digit equal to the day
+    is a different English digit (9 - d) and does not count on the boards, the date & arena table, or the log."""
+    assert DAY_METHODS == (('ordinal_root', 'English'),)
     v = gematria('Cale Makar')
     assert (v['ordinal_root'], v['reverse_root']) == (2, 7)
     rows = pd.DataFrame([{'Player': 'Cale Makar', 'Team': 'COL', 'Player ID': 8480069, 'V3.2 Adjusted Index': 50}])
     t = target_rows(rows, 'COL', 'Colorado Avalanche', 'Ball Arena', '2026-10-23')[0]          # universal day 7
-    assert t['day'] == ['Reverse']
-    assert gmx.player_rows('Cale Makar', 7, None) == [('date', 7)]
+    assert t['day'] == []
+    assert ('date', 7) not in gmx.player_rows('Cale Makar', 7, None)
+    assert gmx.player_rows('Cale Makar', 2, None) == [('date', 2)]                              # English 2 = day 2 still counts
     table, _ = gmx.match_table([{'game': {'arena': 'Ball Arena'}, 'away_targets': [t], 'home_targets': []}], 7)
-    date_rows = [r for r in table if r['Match type'] == 'date']
-    assert date_rows and gmx.rev_only(date_rows[0])
+    assert not [r for r in table if r['Match type'] == 'date']
     h = gmx.table_html(table, [], 7)
-    assert 'class="gm-rev"' in h and 'REV = Reverse cipher only' in h
+    assert 'gm-rev' not in h and not hasattr(gmx, 'rev_only') and 'Rev never ticks for the date' in h
 
 
-def test_gematria_log_follows_the_restored_rule(monkeypatch):
+def test_gematria_log_follows_the_english_only_rule(monkeypatch):
     import player_targets_v49 as pt
     h = gl.method_hash()
-    monkeypatch.setattr(pt, 'DAY_METHODS', (('ordinal_root', 'English'),))      # the narrowed rule hashes differently
+    monkeypatch.setattr(pt, 'DAY_METHODS', (('ordinal_root', 'English'), ('reverse_root', 'Reverse')))   # the wider rule hashes differently
     assert gl.method_hash() != h

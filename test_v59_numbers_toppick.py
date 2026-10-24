@@ -69,7 +69,7 @@ def test_ties_inside_equal_points_go_to_higher_model_chance():
     assert by[ANDERSON]['threat_raw'] == by[NEWHOOK]['threat_raw'] and by[ANDERSON]['day'] == by[NEWHOOK]['day'] == ['English']
     assert numv58.pick_order(by[ANDERSON], mp) < numv58.pick_order(by[NEWHOOK], mp)
     assert numv58.pick_order(by[ANDERSON], {}) < numv58.pick_order(by[NEWHOOK], {})   # without model P: form decides, not the name
-    # Nazar vs Del Mastro, constructed at equal points.
+    # Nazar vs Del Mastro, constructed at equal points (their real points differ now that Reverse no longer counts).
     tie = [{**by[DEL_MASTRO], 'threat_raw': 3}, {**by[NAZAR], 'threat_raw': 3}]
     assert sorted(tie, key=lambda p: numv58.pick_order(p, mp))[0]['player_id'] == by[NAZAR]['player_id']
 

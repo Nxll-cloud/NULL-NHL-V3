@@ -2,6 +2,18 @@
 
 Newest first. Model details: [MODEL_CARD.md](MODEL_CARD.md). Older release notes: [docs/notes/](docs/notes/).
 
+## Numbers: English-only day match re-applied (2026-10-24)
+
+* Re-applied the day-match rule from fbcef82 at the owner's request: a day match counts only when the player's English
+  digit (== Reduction) equals the universal day. A Reverse digit equal to the day is a different English digit (9 − d),
+  so counting it doubled the day-match odds (2/9 instead of 1/9) and over-filled the hot tier. `DAY_METHODS` = English;
+  the date & arena table never ticks Rev for the date (no REV tag); Player Matches view, legend and captions say so.
+* The TOP PICK tie-break from 1a9745d is unchanged (score → model chance → form → shot rate → English total → id).
+  Arena and team matching are unchanged.
+* Tonight (2026-10-23, universal day 7, all 76 players): day matches 21 → 11, hot tier 21 → 11, blaze 0 → 0, date &
+  arena table 30 → 20 rows (date 21 → 11, arena 9 → 9). This equals the gematria history record frozen for 2026-10-23
+  (date 11, arena 9); saved history files are not rewritten. New records carry method hash c4a53fff43ea.
+
 ## Projected scorers from sportsbook odds (2026-10-23)
 
 - New **Projected scorers (odds)** section (`odds_scorers_v59.py`): anytime-goal prices → implied chance → no-vig chance (fixed 0.86 margin, measured on 4,958 real DraftKings props, because the market only posts "Yes" prices) → consensus (median) across books, best price + book, every book's price. Odds only, no model numbers.

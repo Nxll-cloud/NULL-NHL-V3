@@ -34,7 +34,7 @@ def test_each_target_counts_once_and_raw_totals_carried():
     assert mtl['Lane Hutson']['arena_matches'] == ['English'] and mtl['Lane Hutson']['day'] == []   # Reverse mirror not recounted
     assert (mtl['Alex Newhook']['eng_total'], mtl['Alex Newhook']['rev_total'], mtl['Alex Newhook']['letters']) == (133, 164, 11)
     chi = target_rows(rows, 'CHI', 'Chicago Blackhawks', 'United Center', '2026-10-23')[0]
-    assert chi['day'] == ['Reverse'] and chi['team_matches'] == ['English'] and chi['matches'] == 2   # English 2 -> Reverse 7 = day
+    assert chi['day'] == [] and chi['team_matches'] == ['English'] and chi['matches'] == 1   # English 2 (Reverse 7 = day no longer counts)
     for t in list(mtl.values()) + [chi]:
         assert all(len(t[k]) <= 1 for k in ('day', 'team_matches', 'arena_matches'))
 
