@@ -441,6 +441,7 @@ CSS = ('<style>.v55 .pm{display:grid;grid-template-columns:repeat(4,minmax(0,1fr
        '.v55 .pmr .ly{grid-column:2/4;margin-top:-2px;color:var(--mut);font-size:.72rem;overflow-wrap:anywhere}'
        '.v55 .pmr.sc .nm b{color:var(--ok)}'
        '.v55 .pmr .nm .npsc{flex:none;margin-left:0}'
+       '.v55 .pmr.sc .nm{flex-wrap:wrap;column-gap:5px;row-gap:2px}.v55 .pmr.sc .nm b{flex:1 0 100%}'
        '.v55 .pmlv{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0 0 8px;font-size:.74rem;color:var(--mut)}'
        '.v55 .pmlv b.npk{padding:2px 8px;font-size:.7rem;font-weight:800;letter-spacing:.02em;color:var(--ink);font-variant-numeric:tabular-nums;'
        'border:1px solid color-mix(in srgb,var(--pc,var(--neon)) 55%,transparent);background:color-mix(in srgb,var(--pc,var(--neon)) 12%,transparent)}'
