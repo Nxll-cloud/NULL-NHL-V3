@@ -248,6 +248,51 @@ def _baseline_summary(e, sids):
             'beats_baseline': (mod['log_loss'] <= cal['log_loss']) if cal and mod else None}
 
 
+def np_top_ids(entry, snapshot=None):
+    """The NP statistical leaderboard's top TOP_N (Statistical rank 1..TOP_N, V3.2 Adjusted Index) by player ID, or None.
+    From the entry's own frozen np_rank (players p[5]) when all ranks 1..TOP_N are there; else from the saved slate
+    snapshot's rankings; else None (never guessed)."""
+    want = set(range(1, TOP_N + 1))
+    if not entry.get('compacted'):
+        got = {}
+        for p in entry.get('players') or []:
+            r = p[5] if len(p) > 5 else None
+            if isinstance(r, (int, float)) and not (isinstance(r, float) and math.isnan(r)) and int(r) in want:
+                got.setdefault(int(r), p[0])
+        if set(got) == want:
+            return [got[r] for r in sorted(got)]
+    got = {}
+    for row in (snapshot or {}).get('rankings') or []:
+        try:
+            r, pid = int(float(row.get('Statistical rank'))), int(float(row.get('Player ID')))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if r in want:
+            got.setdefault(r, pid)
+    return [got[r] for r in sorted(got)] if set(got) == want else None
+
+
+def _np_summary(e, sids, snapshot=None):
+    """{'np_top_hits', 'np_top_n'}: NP leaderboard top-TOP_N hits against the same real scorers (None when unknown)."""
+    top = np_top_ids(e, snapshot)
+    return {'np_top_hits': sum(1 for p in top if p in sids) if top else None, 'np_top_n': len(top) if top else None}
+
+
+def attach_np(entry, snapshot_fn=None):
+    """Scored entries saved before the NP stat existed: add it to the summary on read (summary is outside
+    content_hash, frozen fields untouched). ``snapshot_fn(day)`` is only called when the entry alone is not enough."""
+    if not entry or not entry.get('summary') or not entry.get('results') or 'np_top_n' in entry['summary']:
+        return entry
+    sids = {s[0] for s in entry['results']['scorers']}
+    np_ = _np_summary(entry, sids)
+    if np_['np_top_n'] is None and snapshot_fn:
+        try:
+            np_ = _np_summary(entry, sids, snapshot_fn(entry['day']))
+        except Exception:
+            pass
+    return dict(entry, summary=dict(entry['summary'], **np_))
+
+
 def predictions(snapshot, out_ids=(), source='snapshot', now=None, injuries_note=None, situ=None):
     """Saved pre-game slate snapshot -> frozen prediction entry (no network). Every skater the model prices is kept.
     ``situ``: the situational layer (situ_for), the same one the app's surfaces use; None = the V5.6 model."""
@@ -441,6 +486,7 @@ def score(entry, results, now=None, compact=False):
     full = not e.get('compacted')
     e['summary']['calibration'] = calibration((p[3], p[0] in sids) for p in pred.values()) if full else None
     e['summary'].update(_baseline_summary(e, sids))
+    e['summary'].update(_np_summary(e, sids))
     if compact:   # rolling compaction: keep only what the card can show
         keep = sids | set(top) | set(legs) | flagged
         e['players'] = [p for p in e.get('players') or [] if p[0] in keep]
@@ -474,8 +520,10 @@ def trend(entries, n=TREND_N):
                'rate': e['summary']['top_hits'] / e['summary']['top_n'] if e['summary']['top_n'] else None,
                'avg_p_scorers': e['summary']['avg_p_scorers'], 'mean_p': e['summary']['mean_p'],
                'realized': e['summary']['realized'], 'calibration': e['summary'].get('calibration'),
-               'baseline': e['summary'].get('baseline')} for e in done]
+               'baseline': e['summary'].get('baseline'),
+               'np_top_hits': e['summary'].get('np_top_hits'), 'np_top_n': e['summary'].get('np_top_n')} for e in done]
     hits, tot = sum(x['top_hits'] for x in nights), sum(x['top_n'] for x in nights)
+    npn = [x for x in nights if x.get('np_top_n')]   # nights where the NP leaderboard top 10 is known
     bn = [x for x in nights if x.get('baseline') and x.get('calibration')]   # nights where model AND baseline are scored
     def avg(k):
         v = [x[k] for x in nights if x[k] is not None]
@@ -483,6 +531,8 @@ def trend(entries, n=TREND_N):
     return {'nights': nights, 'top_hits': hits, 'top_n': tot, 'top_rate': hits / tot if tot else None,
             'avg_p_scorers': avg('avg_p_scorers'), 'mean_p': avg('mean_p'), 'realized': avg('realized'),
             'calibration': pooled_calibration(nights),
+            'np': {'top_hits': sum(x['np_top_hits'] for x in npn), 'top_n': sum(x['np_top_n'] for x in npn),
+                   'nights': len(npn)} if npn else None,
             'baseline': {'top_hits': sum(x['baseline']['top_hits'] for x in bn), 'top_n': sum(x['baseline']['top_n'] for x in bn),
                          'calibration': pooled_calibration([{'calibration': x['baseline']['calibration']} for x in bn]),
                          'model_calibration': pooled_calibration(bn)} if bn else None}
@@ -718,12 +768,14 @@ def view(now=None, getter=None, root=LOG_DIR, snap_root=SNAP_DIR, lookback=7):
                 entries[d] = attach_baseline(entries[d], _load_snap(d, snap_root))
             except Exception:
                 pass
+    for d in sorted(entries)[-(TREND_N + lookback):]:   # V5.9: NP leaderboard top-10 for entries scored before it existed
+        entries[d] = attach_np(entries[d], lambda day: _load_snap(day, snap_root))
     notes = []
 
     def resolve(day):
         e = entries.get(day)
         if e and e.get('summary'):
-            return e, None
+            return attach_np(e, lambda day: _load_snap(day, snap_root)), None
         if e:   # frozen, results not stored yet (workflow has not run since the games ended)
             try:
                 res = fetch_results(day, getter)
@@ -868,6 +920,7 @@ def card_html(v, max_rows=8, snap_root=SNAP_DIR):
     sb = s.get('baseline') or {}
     head = (f'{short_day(shown["day"])} · {s["n_scorers"]} scorers · model top-{s["top_n"]} hit {s["top_hits"]}/{s["top_n"]}'
             + (f' (shots-share {sb["top_hits"]}/{sb["top_n"]})' if sb.get('top_n') else '')
+            + (f' · NP leaderboard top-{s["np_top_n"]} hit {s["np_top_hits"]}/{s["np_top_n"]}' if s.get('np_top_n') else '')
             + (f' · parlay {s["parlay_hits"]}/{s["parlay_legs"]} legs' if s['parlay_legs'] else ''))
     rs = rows(shown, snapshot_positions(shown['day'], snap_root))
     top = {p[0] for p in sorted(shown.get('players') or [], key=lambda p: p[4])[:TOP_N]}
@@ -899,9 +952,13 @@ def card_html(v, max_rows=8, snap_root=SNAP_DIR):
     n = tr.get('nights') or []
     trend_line = ''
     tb = tr.get('baseline') or {}
+    tnp = tr.get('np')
     if n:
         trend_line = (f'<div class="npacc-tr"><span>Last {len(n)} night{"s" if len(n) != 1 else ""}: top-10 hit <b>{tr["top_hits"]}/{tr["top_n"]}</b>'
                       f' ({_pct(tr["top_rate"])})'
+                      + (f' · NP leaderboard <b>{tnp["top_hits"]}/{tnp["top_n"]}</b>'
+                         + (f' ({tnp["nights"]} night{"s" if tnp["nights"] != 1 else ""})' if tnp['nights'] != len(n) else '')
+                         if tnp else '')
                       + (f' · shots-share baseline <b>{tb["top_hits"]}/{tb["top_n"]}</b>' if tb.get('top_n') else '')
                       + f'</span>{spark(n)}<span>scorers averaged <b>{_pct(tr["avg_p_scorers"])}</b> model chance vs '
                       f'<b>{_pct(tr["mean_p"])}</b> slate average · <b>{_pct(tr["realized"])}</b> of priced skaters scored</span></div>')

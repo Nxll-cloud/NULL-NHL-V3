@@ -171,7 +171,7 @@ def test_view_shows_yesterday_from_the_log(tmp_path):
     v = acc.view(NOW, getter_for({}), tmp_path / 'log', tmp_path / 'snaps')
     assert v['shown']['day'] == '2026-10-22' and not v['notes']
     html = acc.card_html(v)
-    assert 'Oct 22 · 22 scorers · model top-10 hit 4/10 (shots-share 2/10) · parlay 2/4 legs' in html and 'D. Pastrnak</span>' in html and '>David&nbsp;Pastrnak<' in html and '✓<span class="gx"> </span>2G' in html
+    assert 'Oct 22 · 22 scorers · model top-10 hit 4/10 (shots-share 2/10) · NP leaderboard top-10 hit 3/10 · parlay 2/4 legs' in html and 'D. Pastrnak</span>' in html and '>David&nbsp;Pastrnak<' in html and '✓<span class="gx"> </span>2G' in html
 
 
 def test_view_falls_back_to_latest_completed_slate(tmp_path):
