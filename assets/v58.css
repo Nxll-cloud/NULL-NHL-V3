@@ -292,3 +292,9 @@
 .v55 .tile.feat:before{position:static;display:block;margin:0 0 7px;padding:0;line-height:1.2;text-align:right}.v55 .tile .st{flex-wrap:wrap;row-gap:3px;min-width:0}.v55 .tile .st .clk{white-space:nowrap}
 /* V5.9: Home Live next goal strip opens the Live Next Goal tab */
 .v55 .ngjump{cursor:pointer;border-radius:16px}.v55 .ngjump:focus-visible{outline:2px solid var(--neon);outline-offset:4px}.v55 .ngjump .ls{transition:border-color .2s,box-shadow .2s}.v55 .ngjump:hover .ls{border-color:color-mix(in srgb,var(--neon) 55%,transparent)}
+/* V5.9 Position gematria (Numbers tab curiosity table): reuses .v58-gm; four columns, no horizontal scroll. */
+.v55 .v58-gm.v59-pg .gm-w{max-height:none}
+.v55 .v58-gm.v59-pg .gm th:nth-child(n+2),.v55 .v58-gm.v59-pg .gm td:nth-child(n+2){width:22%;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.v55 .v58-gm.v59-pg .gm td.gm-n{font-size:.9rem}
+.v55 .v58-gm.v59-pg .gm-p b{overflow-wrap:normal;word-break:normal}
+.v55 .v58-gm.v59-pg .gm-p .pg-sp{display:block;color:var(--mut);font:700 .7rem/1.3 var(--fb);letter-spacing:.04em}

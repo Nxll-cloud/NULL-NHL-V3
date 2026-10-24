@@ -141,3 +141,7 @@ else:
     else:
         st.metric('Day-number alignments',sum(len(r['matches']) for r in _analyses))
         st.write('Alignments count exact digit-root matches across team and arena names. A higher count does not imply a better scoring chance.')
+# V5.9: Position gematria curiosity layer (self-contained, collapsed; computed at render time; feeds no score, rank, tier, TOP PICK or match table).
+import position_gematria_v59 as _posgem
+with st.expander('Position gematria · curiosity layer'):
+    v5.html_block(st,_posgem.table_html(),extra_class='v58-num')

@@ -95,3 +95,10 @@
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
+@media (max-width:420px){
+  .v55 .v58-gm.v59-pg .gm td,.v55 .v58-gm.v59-pg .gm th{padding:6px 5px}
+  .v55 .v58-gm.v59-pg .gm th:nth-child(n+2),.v55 .v58-gm.v59-pg .gm td:nth-child(n+2){width:21%}
+  .v55 .v58-gm.v59-pg .gm-p b{font-size:12.5px}
+  .v55 .v58-gm.v59-pg .gm td.gm-n{font-size:12px}
+  .v55 .v58-gm.v59-pg .gm th{font-size:10px;letter-spacing:.04em}
+}
