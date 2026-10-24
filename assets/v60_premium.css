@@ -48,6 +48,7 @@
  .v55 .sh{gap:6px;padding-bottom:10px}
  .v55 .sh h3{font-size:1.55rem}
  .v55 .sh p{flex-basis:auto}
+ .v55 .sec:has(> .board)>.sh{align-items:flex-start} /* Tonight's board header: the base .sh flex-end above pushed the column-stacked title to the right edge on phones */
  .v55 .th .kicker,.v55 .kicker{white-space:normal;overflow-wrap:break-word}
 }
 
