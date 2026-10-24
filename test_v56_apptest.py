@@ -72,7 +72,13 @@ def test_live_game_from_real_pbp(live):
     tab = _tab(live, 'nextgoal')
     first = ([h.value for h in tab.get('html')] or [''])[0]
     sec = first.split('<script', 1)[0]       # the shared v55.js handler text mentions data-ngtab; check the strip markup only
-    assert 'class="lstrip' in sec and 'data-ngtab' not in sec and 'ngjump' not in sec   # ... to the top of Live Next Goal, no tap-jump
+    assert 'class="lstrip' in sec and 'data-ngtab' not in sec and 'ngjump' not in sec   # ... to Live Next Goal, no tap-jump
+    # order on the tab: the 'Live Next Goal' banner first, then the strip (tab children in render order)
+    kids = [tab.children[k] for k in sorted(tab.children)]
+    vals = [getattr(c, 'value', '') or '' for c in kids]
+    i_banner = next(i for i, v in enumerate(vals) if isinstance(v, str) and 'NULL’S PLAYBOOK · LIVE' in v)
+    i_strip = next(i for i, v in enumerate(vals) if isinstance(v, str) and 'class="lstrip' in v)
+    assert i_banner == 0 and i_strip == 1, (i_banner, i_strip)
 
 
 def test_final_game(live):

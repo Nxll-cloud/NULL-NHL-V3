@@ -4,10 +4,10 @@ Real games: official PBP polled per game (30 s live, slower pregame, stops when 
 fetchers; the body is a Streamlit fragment with run_every when a game is live (guarded), else a Refresh button.
 DEMO replay: real past PBP fixture (test_fixtures_v56/pbp_2026020162.json), stepped event by event, labelled DEMO."""
 
-if _v56_results:  # V5.9: live strip moved here from Home (first block, above the header); no tap-to-jump on its own tab
-    v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results),jump=False))
 st.markdown(v5.tab_head('NULL’S PLAYBOOK · LIVE','Live Next Goal','Who scores the next goal · official NHL play-by-play · xG + shrunk shooting % + pace blend · competing risk',
     chips=[(f'{_v56_live_n} live','hot' if _v56_live_n else 'muted'),('30 s live cadence','odds'),('Model estimate · uncalibrated','warn')],tone='hot'),unsafe_allow_html=True)
+if _v56_results:  # V5.9: live strip moved here from Home (directly below the tab header); no tap-to-jump on its own tab
+    v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results),jump=False))
 _ng_c1,_ng_c2,_ng_c3,_ng_c4=st.columns([2,2,2,1])
 with _ng_c1:
     _ng_filter=st.segmented_control('Show',['All','Live','Pregame','Final'],default='All',key='v56_ng_filter') if hasattr(st,'segmented_control') else st.radio('Show',['All','Live','Pregame','Final'],horizontal=True,key='v56_ng_filter')

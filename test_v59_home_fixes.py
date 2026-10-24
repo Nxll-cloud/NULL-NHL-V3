@@ -38,12 +38,13 @@ def test_strip_without_jump_has_no_tap_affordance_and_same_data():
     assert v56.live_strip([], jump=False) == ''
 
 
-def test_strip_moved_from_home_to_top_of_live_next_goal_tab():
+def test_strip_moved_from_home_to_live_next_goal_tab_below_banner():
     home = (ROOT / 'tabs' / 'home.py').read_text()
     assert 'live_strip' not in home                   # gone from Home entirely
     ng = (ROOT / 'tabs' / 'nextgoal.py').read_text()
     body = ng.split('"""', 2)[2]                      # code after the module docstring
     code = [l for l in body.splitlines() if l.strip() and not l.lstrip().startswith('#')]
-    assert code[0].startswith('if _v56_results:')
-    assert code[1].strip() == 'v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results),jump=False))'
-    assert ng.index('live_strip(') < ng.index('v5.tab_head(')  # above the tab header
+    assert code[0].startswith("st.markdown(v5.tab_head('NULL’S PLAYBOOK · LIVE','Live Next Goal'")   # banner first
+    assert code[2].startswith('if _v56_results:')                                                     # strip second
+    assert code[3].strip() == 'v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results),jump=False))'
+    assert ng.index('v5.tab_head(') < ng.index('live_strip(')  # strip directly below the tab header
