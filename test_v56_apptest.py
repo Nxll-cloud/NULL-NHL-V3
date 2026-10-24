@@ -68,7 +68,11 @@ def test_live_game_from_real_pbp(live):
     assert 'UTA' in ng and 'SEA' in ng and 'LIVE' in ng and 'P2' in ng
     assert 'vs pregame prior' in ng          # first sight of a live game compares with the pregame prior
     home = _md(_tab(live, 'home'))
-    assert 'lstrip' in home                  # Home live strip
+    assert 'lstrip' not in home              # V5.9: live strip moved off Home ...
+    tab = _tab(live, 'nextgoal')
+    first = ([h.value for h in tab.get('html')] or [''])[0]
+    sec = first.split('<script', 1)[0]       # the shared v55.js handler text mentions data-ngtab; check the strip markup only
+    assert 'class="lstrip' in sec and 'data-ngtab' not in sec and 'ngjump' not in sec   # ... to the top of Live Next Goal, no tap-jump
 
 
 def test_final_game(live):

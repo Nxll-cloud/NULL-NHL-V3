@@ -1,4 +1,4 @@
-"""V5.9 Home fixes: featured board tile spacing + Live next goal strip opens the Live Next Goal tab."""
+"""V5.9 Home fixes: featured board tile spacing + Live next goal strip (now on the Live Next Goal tab, no tap-jump there; opens the tab elsewhere)."""
 import pathlib
 import v56_ui as v56
 import v55_ui as v5
@@ -28,3 +28,22 @@ def test_featured_label_has_its_own_line():
     assert '.v55 .tile.feat:before{position:static;display:block' in css
     assert '.v55 .ngjump{cursor:pointer' in css
     v5.check_sanitizer_safe('css', v5.design_css('dark'))
+
+
+def test_strip_without_jump_has_no_tap_affordance_and_same_data():
+    h = v56.live_strip(ITEMS, jump=False)
+    for bad in ('data-ngtab', 'ngjump', 'role="link"', 'tabindex', 'aria-label="Open', 'tap to open'):
+        assert bad not in h, bad
+    assert 'class="lstrip"' in h and 'next: Xyz 15%' in h and 'Live next goal' in h
+    assert v56.live_strip([], jump=False) == ''
+
+
+def test_strip_moved_from_home_to_top_of_live_next_goal_tab():
+    home = (ROOT / 'tabs' / 'home.py').read_text()
+    assert 'live_strip' not in home                   # gone from Home entirely
+    ng = (ROOT / 'tabs' / 'nextgoal.py').read_text()
+    body = ng.split('"""', 2)[2]                      # code after the module docstring
+    code = [l for l in body.splitlines() if l.strip() and not l.lstrip().startswith('#')]
+    assert code[0].startswith('if _v56_results:')
+    assert code[1].strip() == 'v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results),jump=False))'
+    assert ng.index('live_strip(') < ng.index('v5.tab_head(')  # above the tab header

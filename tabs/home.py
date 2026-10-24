@@ -1,8 +1,6 @@
 """Null's Playbook V5.6 · home tab. Executed by tabs.run_tab() inside the app's namespace (split from app.py, unchanged logic)."""
 
 import html as _np_html
-if _v56_results:  # V5.6: Home live strip (score + current next-goal leader per game) · V5.9: first block on Home
-    v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results)))
 if np_snapshot is not None:
     st.caption('🟢 Saved rankings updated: '+str(np_snapshot['updated_at'])[:19].replace('T',' ')+' UTC · '+str(len(np_snapshot['rankings']))+' players · auto slate snapshots, 30-minute updates')
     if np_snapshot.get('errors'):

@@ -25,11 +25,9 @@ def test_home_fragment_is_st_html_with_js(app):
     assert not app.exception
     hs = _html(app)
     assert hs, 'Home must render through st.html'
-    # V5.9: the Live next goal strip (when games exist) is now the first Home block; the designed fragment follows it.
+    # V5.9: the Live next goal strip moved off Home to the top of the Live Next Goal tab (test_v59_home_fixes.py).
     main = [i for i, h in enumerate(hs) if 'class="hero' in h.value]
     assert main, 'Home designed fragment missing'
-    strip = [i for i, h in enumerate(hs) if 'class="lstrip' in h.value]
-    assert not strip or strip[0] < main[0], 'Live next goal strip must be above the Home fragment'
     home = hs[main[0]]
     assert home.proto.unsafe_allow_javascript
     body = home.value

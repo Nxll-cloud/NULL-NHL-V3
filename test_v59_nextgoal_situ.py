@@ -79,10 +79,11 @@ def test_next_goal_tab_matches_matchup_center_with_layer_on(on):
     assert {k: tab[k] for k in mcx} == mcx   # MC shows the top 8; every one is identical on the Next Goal tab
 
 
-def test_home_strip_leader_matches_next_goal_tab(on):
-    home = _html(on, 'home')
+def test_live_strip_leader_matches_next_goal_tab(on):
+    # V5.9: the live strip moved from Home to the top of the Live Next Goal tab
+    home = _html(on, 'nextgoal')
     lead = re.search(r'<div class="ls live">.*?<small>next: (\S+) ([\d.]+%)</small>', home, re.S)
-    assert lead, 'Home live strip shows the live game leader'
+    assert lead, 'Live Next Goal tab live strip shows the live game leader'
     (name, team), p = next(iter(panel(on, 'nextgoal', 'UTA @ SEA').items()))
     assert name.split(' ')[-1] == html.unescape(lead.group(1))
     # same number at two display precisions (tab 1 dp, strip 0 dp): compare within rounding, not round(round(x))

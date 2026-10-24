@@ -98,8 +98,9 @@ def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, ti
             f'<p class="ngnote">{esc(note, "")} Horizon {result["remaining"]:.1f} min · pace weight {result["pace_weight"]:.2f} · model estimate, uncalibrated, not betting advice.</p></section>')
 
 
-def live_strip(items):
-    """Compact Home strip: one chip per game with score/state and the model's current next-goal leader."""
+def live_strip(items, jump=True):
+    """Compact live strip: one chip per game with score/state and the model's current next-goal leader.
+    jump=False (V5.9: the strip on the Live Next Goal tab itself) renders it without the tap-to-open-tab affordance."""
     if not items:
         return ''
     cells = []
@@ -113,8 +114,14 @@ def live_strip(items):
     n = sum(1 for it in items if it['phase'] == 'live')
     tag = f'<span class="live"><i class="pulse"></i>{n} live</span>' if n else '<span class="live pre">No game live</span>'
     # V5.9: the whole strip (heading + chips) is one tap/Enter target that opens the Live Next Goal tab (assets/v55.js data-ngtab).
-    return (f'<section class="sec ngjump" data-ngtab="Live Next Goal" role="link" tabindex="0" aria-label="Open the Live Next Goal tab">'
-            f'<div class="sh"><h3>Live next goal {tag}</h3><p>Score endpoint + play-by-play · next-goal leader per game · tap to open the Live Next Goal tab for the full model</p></div><div class="lstrip">{"".join(cells)}</div></section>')
+    # jump=False: plain section (no data-ngtab / ngjump class / role / tabindex), so no click handler, pointer or hover affordance.
+    if jump:
+        head = '<section class="sec ngjump" data-ngtab="Live Next Goal" role="link" tabindex="0" aria-label="Open the Live Next Goal tab">'
+        sub = 'Score endpoint + play-by-play · next-goal leader per game · tap to open the Live Next Goal tab for the full model'
+    else:
+        head = '<section class="sec">'
+        sub = 'Score endpoint + play-by-play · next-goal leader per game'
+    return (f'{head}<div class="sh"><h3>Live next goal {tag}</h3><p>{sub}</p></div><div class="lstrip">{"".join(cells)}</div></section>')
 
 
 def h2h_text(h):
