@@ -1,6 +1,7 @@
 """V5.9 Projected scorers (odds): maths, sources, empty state, flag, and placement on the Odds tab + Home."""
 import math
 import re
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -243,18 +244,33 @@ def fake_espn():
     return routes, rows
 
 
-def test_odds_tab_renders_projected_scorers_first_and_rest_unchanged(monkeypatch, tmp_path, fake_espn):
+def _odds_scorers_block(at):
+    """The Odds tab's Projected scorers block (V5.9 t141u: second, directly under the Odds Intelligence banner)."""
+    return next(v for _, v in _flat(_tab(at, '⚡ Odds')) if 'v59-os' in v)
+
+
+def test_odds_tab_renders_banner_then_projected_scorers_and_rest_unchanged(monkeypatch, tmp_path, fake_espn):
     routes, rows = fake_espn
     at = run_app(monkeypatch, tmp_path, routes=routes)
     on = _flat(_tab(at, '⚡ Odds'))
-    assert 'Projected scorers (odds)' in on[0][1] and 'ESPN (DraftKings)' in on[0][1]
-    assert rows[0]['player'] in on[0][1] and f"DK +{rows[0]['american']}" in on[0][1]
+    assert 'ODDS INTELLIGENCE' in on[0][1] and 'Odds Intelligence' in on[0][1]          # the banner is first
+    assert 'Projected scorers (odds)' in on[1][1] and 'ESPN (DraftKings)' in on[1][1]   # projected scorers directly under it
+    assert rows[0]['player'] in on[1][1] and f"DK +{rows[0]['american']}" in on[1][1]
     assert sum('Projected scorers (odds)' in v for _, v in on) == 1
     monkeypatch.setenv('FEATURE_ODDS_SCORERS', '0')
     off = _flat(_tab(run_app(monkeypatch, tmp_path, routes=routes), '⚡ Odds'))
-    assert not any('Projected scorers' in v for _, v in off)
+    assert not any('Projected scorers' in v for _, v in off) and 'ODDS INTELLIGENCE' in off[0][1]
     ts = re.compile(r'\d{1,2}:\d{2}(:\d{2})?|\d{4}-\d{2}-\d{2}T[\d:.+Z-]+')
-    assert [(t, ts.sub('', v)) for t, v in on[1:]] == [(t, ts.sub('', v)) for t, v in off]   # everything else, same order
+    assert [(t, ts.sub('', v)) for t, v in on[:1] + on[2:]] == [(t, ts.sub('', v)) for t, v in off]   # everything else, same order
+
+
+def test_odds_tab_banner_before_projected_scorers_source_order():
+    """t141u: layout-only move - the banner call precedes the projected-scorers call in tabs/odds.py, each exactly once."""
+    src = (Path(__file__).resolve().parent / 'tabs' / 'odds.py').read_text()
+    ban = "st.markdown(v5.tab_head('NULL’S PLAYBOOK · ODDS INTELLIGENCE'"
+    sc = "v5.html_block(st,oddsc.section_html(_np_odds_scorers,limit=10,per_game=True),extra_class='v59-osw')"
+    assert src.count(ban) == 1 and src.count(sc) == 1 and src.index(ban) < src.index(sc)
+    assert src.index(sc) < src.index('api_df=_np_live_quotes')   # still above the rest of the tab
 
 
 def test_home_section_directly_above_matchup_targets(monkeypatch, tmp_path, fake_espn):
@@ -266,7 +282,7 @@ def test_home_section_directly_above_matchup_targets(monkeypatch, tmp_path, fake
     assert between.count('class="os-r"') == 5 and '⚡ Odds tab' in between and '<details' not in between
     for above in ('Leaders', 'parlay'):
         assert above.lower() in home[:i].lower()  # the rest of Home stays above, unmoved
-    odds = _flat(_tab(at, '⚡ Odds'))[0][1]
+    odds = _odds_scorers_block(at)
     first = re.search(r'<li class="os-r">.*?</li>', between).group(0)
     assert first in odds                            # same renderer + same data as the Odds tab
 
@@ -274,7 +290,7 @@ def test_home_section_directly_above_matchup_targets(monkeypatch, tmp_path, fake
 def test_home_and_odds_without_source_show_empty_state_not_demo(monkeypatch, tmp_path):
     at = run_app(monkeypatch, tmp_path)   # testkit: no key, ESPN props unreachable
     home = ' '.join(v for _, v in _flat(_tab(at, '🏠 Home')))
-    odds = _flat(_tab(at, '⚡ Odds'))[0][1]
+    odds = _odds_scorers_block(at)
     for h in (home, odds):
         assert 'No sportsbook anytime-goal prices' in h and 'os-r' not in h.split('v59-os')[1].split('</section>')[0]
     assert home.index('v59-os') < home.index('Matchup targets')

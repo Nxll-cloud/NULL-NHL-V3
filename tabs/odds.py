@@ -1,10 +1,10 @@
 """Null's Playbook V5.6 · odds tab. Executed by tabs.run_tab() inside the app's namespace (split from app.py, unchanged logic)."""
 import html as _odds_html
-if _np_odds_scorers is not None:  # V5.9: Projected scorers (odds) - the very first thing on the Odds tab (odds only)
-    v5.html_block(st,oddsc.section_html(_np_odds_scorers,limit=10,per_game=True),extra_class='v59-osw')
 _odds_src_now=st.session_state.get('v46_source','Automatic API')
 st.markdown(v5.tab_head('NULL’S PLAYBOOK · ODDS INTELLIGENCE','Odds Intelligence','Find the strongest prices. Compare the market. Follow your model.',
     chips=[(f'Source · {_odds_src_now}','odds'),('API connected' if _np_key else 'No API key · CSV import available','ok' if _np_key else 'warn'),('Anytime goal scorer','muted')],tone='odds'),unsafe_allow_html=True)
+if _np_odds_scorers is not None:  # V5.9: Projected scorers (odds) - directly under the Odds Intelligence banner (odds only)
+    v5.html_block(st,oddsc.section_html(_np_odds_scorers,limit=10,per_game=True),extra_class='v59-osw')
 api_df=_np_live_quotes
 if _np_live_error:
     st.warning(f'Live prices unavailable: {_np_live_error}')
