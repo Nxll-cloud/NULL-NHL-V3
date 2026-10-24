@@ -1,6 +1,8 @@
 """Null's Playbook V5.6 · home tab. Executed by tabs.run_tab() inside the app's namespace (split from app.py, unchanged logic)."""
 
 import html as _np_html
+if _v56_results:  # V5.6: Home live strip (score + current next-goal leader per game) · V5.9: first block on Home
+    v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results)))
 if np_snapshot is not None:
     st.caption('🟢 Saved rankings updated: '+str(np_snapshot['updated_at'])[:19].replace('T',' ')+' UTC · '+str(len(np_snapshot['rankings']))+' players · auto slate snapshots, 30-minute updates')
     if np_snapshot.get('errors'):
@@ -120,8 +122,6 @@ _v5_state['odds_scorers_html']=(oddsc.section_html(_np_odds_scorers,limit=5,per_
                                 if _np_odds_scorers is not None else '')  # V5.9: directly above Matchup targets (same data as the Odds tab)
 _v5_state['longshot_html']+=__import__('accuracy_v58').home_html()   # V5.8: daily accuracy card (yesterday's real scorers vs frozen pre-game predictions), under the long shot
 v5.html_block(st,v5.render_home(_v5_state,datetime.now(timezone.utc)))
-if _v56_results:  # V5.6: Home live strip (score + current next-goal leader per game)
-    v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results)))
 # V5.4: auto-save today's/future predictions (idempotent; never touches a locked slate).
 if _trk_conn is not None and np_ready and np_day>=np_eastern_today().isoformat():
     try:
