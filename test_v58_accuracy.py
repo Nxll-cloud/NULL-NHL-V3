@@ -252,9 +252,12 @@ def test_committed_log_files_are_valid_and_small():
         assert e['flags']['available'] is False or e['flags']['flagged'] is not None
 
 
-def test_home_calls_the_card_once_below_the_long_shot():
+def test_card_lives_on_prediction_models_not_home():
+    """V5.9: the card moved off Home (no call, no leftover wrapper) onto the Prediction Models tab, called once."""
     src = (HERE / 'tabs' / 'home.py').read_text()
-    assert src.count("__import__('accuracy_v58').home_html()") == 1
-    assert src.index('longshot.pair_html') < src.index('accuracy_v58') < src.index('v5.render_home')   # audit P1.6: the two-option long shot
+    assert 'accuracy_v58' not in src and 'home_html' not in src and 'npacc' not in src
+    assert "_v5_state['longshot_html']=longshot.pair_html(" in src and "_v5_state['longshot_html']+=" not in src
+    pm = (HERE / 'tabs' / 'predmodels.py').read_text()
+    assert pm.count('pmv.acc.home_html()') == 1 and pm.index('pmv.page_html(') < pm.index('v5.html_block(st, _pm_card(') < pm.index("'Night by night'")
     wf = (HERE / '.github' / 'workflows' / 'precompute.yml').read_text()
     assert 'python accuracy_v58.py update' in wf and wf.index('accuracy_v58') < wf.index('git add -f -A snapshots/')

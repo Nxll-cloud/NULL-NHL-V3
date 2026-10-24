@@ -124,7 +124,7 @@ _ls_picks=longshot.picks(parlay.candidates(_v56_results,_v56_rows,_pl_out,_pl_sc
 _v5_state['longshot_html']=longshot.pair_html(_ls_picks,_pl_scored,record=_pl_rec)
 _v5_state['odds_scorers_html']=(oddsc.section_html(_np_odds_scorers,limit=5,per_game=False,hint='Full list, every book and each game: ⚡ Odds tab')
                                 if _np_odds_scorers is not None else '')  # V5.9: directly above Matchup targets (same data as the Odds tab)
-_v5_state['longshot_html']+=__import__('accuracy_v58').home_html()   # V5.8: daily accuracy card (yesterday's real scorers vs frozen pre-game predictions), under the long shot
+# V5.9: the Model accuracy card moved to the 🧠 Prediction Models tab (all accuracy tracking in one place).
 v5.html_block(st,v5.render_home(_v5_state,datetime.now(timezone.utc)))
 # V5.4: auto-save today's/future predictions (idempotent; never touches a locked slate).
 if _trk_conn is not None and np_ready and np_day>=np_eastern_today().isoformat():

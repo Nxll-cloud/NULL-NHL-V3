@@ -110,7 +110,7 @@ def test_not_loaded_and_empty():
 
 def test_not_imported_by_scoring_modules():
     hits = [f.name for f in ROOT.rglob('*.py')
-            if not f.name.startswith('test_') and f.name not in ('position_layers_v59.py', 'all_layers_v59.py') and f.parent.name != 'tabs'
+            if not f.name.startswith('test_') and f.name not in ('position_layers_v59.py', 'all_layers_v59.py', 'prediction_models_v59.py') and f.parent.name != 'tabs'
             and re.search(r'position_layers_v59', f.read_text(errors='ignore'))]
     assert hits == []
 

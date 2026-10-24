@@ -834,7 +834,10 @@ CSS = ('<style>.v55 .npacc{margin:14px 0 6px;padding:14px 16px;border-radius:18p
        # V5.9 fix (scored-flag report): G column = that night's goals for EVERY row; legend says the cyan edge is the
        # model's pre-game top 10 (it never meant 'scored').
        '.v55 .npacc-t td.g{width:1%;white-space:nowrap;text-align:right;color:var(--ok);font-weight:800}.v55 .npacc-t th.g{text-align:right}'
-       '.v55 .npacc p.npacc-lg{margin:6px 0 0;font-size:.76rem}.v55 .npacc-lg i{display:inline-block;width:3px;height:.9em;margin:0 5px -1px 0;background:var(--neon);border-radius:2px}@media (max-width:600px){.v55 .npacc-t .gx{display:none}.v55 .npacc-t th.n{white-space:normal}.v55 .npacc-t td.g{padding-left:1px;font-size:.8rem}}@media (max-width:360px){.v55 .npacc-t td,.v55 .npacc-t th{padding-left:2px;padding-right:2px}}</style>')
+       '.v55 .npacc p.npacc-lg{margin:6px 0 0;font-size:.76rem}.v55 .npacc-lg i{display:inline-block;width:3px;height:.9em;margin:0 5px -1px 0;background:var(--neon);border-radius:2px}@media (max-width:600px){.v55 .npacc-t .gx{display:none}.v55 .npacc-t th.n{white-space:normal}.v55 .npacc-t td.g{padding-left:1px;font-size:.8rem}}@media (max-width:360px){.v55 .npacc-t td,.v55 .npacc-t th{padding-left:2px;padding-right:2px}}'
+       # V5.9: 'Model top 10 (pre-game)' list - rank column narrow, the name column takes the width and ellipsizes
+       '.v55 .npacc-top .npacc-t td:first-child{max-width:none;width:1%;overflow:visible}'
+       '.v55 .npacc-top .npacc-t td:nth-child(2){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0;width:100%}</style>')
 
 
 def _pct(p):
@@ -902,6 +905,33 @@ def _baseline_line(night, pooled, base):
     return f'Shots-share baseline: {" · ".join(bits)}{tag} (rule: model log loss ≤ baseline)'
 
 
+def top10_html(shown):
+    """V5.9: collapsed 'Model top 10 (pre-game)' list: the frozen pre-game model-rank 1..TOP_N picks with rank, name,
+    team, Model % and a check on those who scored (player-id match, the same rule as the top-10 hit count). Rows carry
+    no class (the scorer-table rows keep theirs) and names use &nbsp; like the scorer table, so the page-wide
+    scored-tonight pass never badges this past night."""
+    import v55_ui as v5
+    esc = v5.esc
+    top = sorted((p for p in shown.get('players') or [] if p[4] is not None), key=lambda p: p[4])[:TOP_N]
+    if not top:
+        return ''
+    goals = {int(x[0]): int(x[3]) for x in ((shown.get('results') or {}).get('scorers') or [])}
+    hit = sum(1 for p in top if int(p[0]) in goals)
+
+    def tr_(p):
+        nm = str(p[1] or '')
+        short = (nm.split(' ', 1)[0][:1] + '. ' + nm.split(' ', 1)[1]) if ' ' in nm else nm
+        g = goals.get(int(p[0]))
+        mark = (f'<span class="ok" title="Scored {g} goal{"s" if g != 1 else ""}">✓</span>' if g
+                else '<span class="dim" title="Did not score">·</span>')
+        return (f'<tr><td class="n">#{p[4]}</td><td><span class="fn">{esc(nm).replace(" ", "&nbsp;")}</span>'
+                f'<span class="sn" title="{esc(nm)}">{esc(short)}</span></td><td>{esc(p[2])}</td>'
+                f'<td class="n">{_pct(p[3])}</td><td class="n">{mark}</td></tr>')
+    return (f'<details class="npacc-top"><summary>Model top {len(top)} (pre-game) · {hit} scored</summary><div class="npacc-tw">'
+            '<table class="npacc-t"><thead><tr><th class="n">Rank</th><th>Player</th><th>Team</th><th class="n">Model %</th>'
+            f'<th class="n" title="Scored that night">Scored</th></tr></thead><tbody>{"".join(tr_(p) for p in top)}</tbody></table></div></details>')
+
+
 def card_html(v, max_rows=8, snap_root=SNAP_DIR):
     import position_badge_v59 as pb
     import v55_ui as v5
@@ -949,6 +979,7 @@ def card_html(v, max_rows=8, snap_root=SNAP_DIR):
     if more:
         table += (f'<details><summary>Show all {len(rs)} scorers</summary><div class="npacc-tw"><table class="npacc-t"><thead>{th}</thead>'
                   f'<tbody>{more}</tbody></table></div></details>')
+    table += top10_html(shown)
     n = tr.get('nights') or []
     trend_line = ''
     tb = tr.get('baseline') or {}
@@ -975,7 +1006,8 @@ def card_html(v, max_rows=8, snap_root=SNAP_DIR):
 
 
 def home_html(now=None, getter=None):
-    """Home entry point (never raises)."""
+    """Card entry point (never raises). V5.9: shown on the Prediction Models tab (tabs/predmodels.py), no longer on
+    Home; the name is kept so existing callers and tests stay valid."""
     try:
         return card_html(view(now, getter))
     except Exception as exc:

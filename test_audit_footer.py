@@ -55,7 +55,7 @@ def test_every_tab_shows_footer_in_apptest(mp, tmp_path_factory):
     mp.setenv('FEATURE_TRACK_RECORD', '1')
     at = run_app(mp, tmp_path_factory.mktemp('footer'))
     assert not at.exception
-    assert len(at.tabs) == 10
+    assert len(at.tabs) == 11   # V5.9: + Prediction Models
     for tab in at.tabs:
         caps = [c.value for c in tab.caption]
         assert caps.count(app_footer.footer_md()) == 1, tab.label

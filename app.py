@@ -419,11 +419,12 @@ if np_flags.show_odds_scorers(st.secrets):
 _np_scorer_slot=st.container()  # V5.8: 'Scored tonight' header chip (filled after the live state below)
 # V5.8: Track Record is hidden behind one feature flag (feature_flags_v58); its tracker/DB/auto-save keep running.
 np_show_track=np_flags.show_track_record(st.secrets)
-_np_tab_labels=['🏠 Home','🎯 Matchup Center','⚡ Odds','📊 Research','🔮 Numbers']+(['📈 Track Record'] if np_show_track else [])+['🧪 EdgeLab','⏱ Live Next Goal','🚩 Edge Flags','📰 Storylines']
+_np_tab_labels=['🏠 Home','🎯 Matchup Center','⚡ Odds','📊 Research','🔮 Numbers']+(['📈 Track Record'] if np_show_track else [])+['🧪 EdgeLab','⏱ Live Next Goal','🚩 Edge Flags','📰 Storylines','🧠 Prediction Models']
 _np_tab_map=dict(zip(_np_tab_labels,st.tabs(_np_tab_labels)))
 np_home_tab,np_mc_tab,np_odds_tab,np_research_tab,np_numbers_tab=(_np_tab_map[k] for k in _np_tab_labels[:5])
 np_track_tab=_np_tab_map.get('📈 Track Record')
-np_edgelab_tab,np_nextgoal_tab,np_edgeflags_tab,np_storylines_tab=(_np_tab_map[k] for k in _np_tab_labels[-4:])
+np_edgelab_tab,np_nextgoal_tab,np_edgeflags_tab,np_storylines_tab,np_predmodels_tab=(_np_tab_map[k] for k in
+    ('🧪 EdgeLab','⏱ Live Next Goal','🚩 Edge Flags','📰 Storylines','🧠 Prediction Models'))
 # V5.8: rankings 'Starting goalie' / 'Goalie adjustment' read the same starter source as the model
 if st.session_state.get('signals_day')==np_day and 'signals_ranked' in st.session_state:
     st.session_state['signals_ranked']=np_goalie_columns(st.session_state['signals_ranked'],np_day,
@@ -517,5 +518,9 @@ with np_edgeflags_tab:
 
 with np_storylines_tab:
     run_tab('storylines', globals())
+    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+
+with np_predmodels_tab:  # V5.9: model vs NP leaderboard vs experimental blend (prediction_models_v59)
+    run_tab('predmodels', globals())
     app_footer.render(st)  # audit P1.7d: shared footer on every tab
 
