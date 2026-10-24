@@ -1,0 +1,9 @@
+/* ===== V6.0 dark-only depth layer: keeps the V5.6 neon cyan/violet theme, adds layered surfaces and a crisper hairline. Dark theme only. ===== */
+.stApp{--v5-line:rgba(148,170,255,.15);--v5-glass:rgba(14,20,40,.66);--v5-glass2:rgba(20,28,56,.82)}
+.v55{--line:rgba(148,170,255,.13)}
+.stApp [data-testid="stTabs"] [role="tablist"]{background:linear-gradient(180deg,rgba(20,28,56,.72),rgba(10,15,31,.72));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.v55 .gtc,.v55 .gc,.v58-num .ngb{background-image:linear-gradient(180deg,rgba(255,255,255,.025),transparent 40%)}
+.stApp [data-testid="stMetric"]{background:linear-gradient(160deg,rgba(56,225,255,.06),rgba(14,20,40,.7) 45%,rgba(178,107,255,.06))}
+.stApp [data-testid="stExpander"] details{background:linear-gradient(180deg,rgba(20,28,56,.7),rgba(14,20,40,.6))!important}
+@media (max-width:760px){.stApp [data-testid="stTabs"] [role="tablist"]{backdrop-filter:none;-webkit-backdrop-filter:none}}
+/* ===== end V6.0 dark-only depth layer ===== */

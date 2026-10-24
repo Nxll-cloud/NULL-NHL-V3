@@ -113,6 +113,7 @@ def design_css(theme_name=None):
     css = fonts_css() + _asset_text('v55.css') + _asset_text('v55_app.css') + _asset_text('v56.css')
     css += _asset_text(f'v55_app_{t}.css') if t != 'dark' else ''
     css += _asset_text('v58.css') + _asset_text('mobile.css')   # V5.8: components + mobile layer (media queries only)
+    css += _asset_text('v60_premium.css') + (_asset_text('v60_premium_dark.css') if t == 'dark' else '')   # V6.0: premium polish layer (CSS only, loaded last)
     return check_sanitizer_safe('css', css)
 
 

@@ -1,0 +1,125 @@
+/* ===== V6.0 premium polish layer (CSS only). Loaded LAST so it wins over older layers without !important where possible.
+   Theme-agnostic: geometry, rhythm and states only; colours come from the themed --v5-* / --neon / --line variables.
+   No data, logic or copy changes. Old selectors in earlier files are kept on purpose (tests pin some of them). ===== */
+
+/* --- 1. Tokens: one spacing scale, one radius scale, one elevation scale --- */
+.stApp,.v55{--sp1:4px;--sp2:8px;--sp3:12px;--sp4:16px;--sp5:24px;--sp6:32px;--sp7:48px;
+ --rad-s:10px;--rad-m:14px;--rad-l:20px;--rad-pill:999px;
+ --elev1:0 1px 0 rgba(255,255,255,.04) inset,0 8px 24px -16px rgba(0,0,0,.7);
+ --elev2:0 1px 0 rgba(255,255,255,.06) inset,0 18px 40px -22px rgba(0,0,0,.85);
+ --ease:cubic-bezier(.2,.8,.2,1)}
+
+/* --- 2. Tab bar (Streamlit 1.66 react-aria DOM). Pill segmented bar, scrolls sideways on phones, never wraps. --- */
+.stApp [data-testid="stTabs"] [role="tablist"]{display:flex;flex-wrap:nowrap;gap:4px;padding:5px;margin:0 0 var(--sp4);
+ overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;
+ border:1px solid var(--v5-line);border-radius:var(--rad-m);background:var(--v5-glass);box-shadow:var(--elev1)}
+.stApp [data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar{display:none}
+.stApp [data-testid="stTabs"] [role="tablist"]::after{display:none}
+.stApp [data-testid="stTabs"] [role="tab"]{position:relative;flex:0 0 auto;scroll-snap-align:start;min-height:38px;padding:0 14px;margin:0;
+ display:flex;align-items:center;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--v5-mut);
+ cursor:pointer;transition:background .2s var(--ease),color .2s var(--ease),border-color .2s var(--ease)}
+.stApp [data-testid="stTabs"] [role="tab"] p{margin:0;font:600 .86rem/1 var(--font);letter-spacing:.01em;white-space:nowrap;color:inherit}
+.stApp [data-testid="stTabs"] [role="tab"]:hover{color:var(--v5-ink);background:color-mix(in srgb,var(--v5-neon) 7%,transparent)}
+.stApp [data-testid="stTabs"] [role="tab"][aria-selected="true"]{color:var(--v5-ink);
+ background:linear-gradient(135deg,color-mix(in srgb,var(--v5-neon) 18%,transparent),color-mix(in srgb,var(--v5-neon2) 16%,transparent));
+ border-color:color-mix(in srgb,var(--v5-neon) 40%,transparent);box-shadow:0 0 18px -8px var(--v5-neon)}
+.stApp [data-testid="stTabs"] [role="tab"][aria-selected="true"] p{font-weight:700}
+.stApp [data-testid="stTabs"] [role="tab"]:focus-visible{outline:2px solid var(--v5-neon);outline-offset:1px}
+.stApp [data-testid="stTabs"] .react-aria-SelectionIndicator{left:30%!important;right:30%!important;width:auto!important;height:2px;bottom:3px;border-radius:2px;
+ background:linear-gradient(90deg,var(--v5-neon),var(--v5-neon2))}
+@media (max-width:760px){
+ .stApp [data-testid="stTabs"] [role="tablist"]{margin-left:-2px;margin-right:-2px;padding:4px}
+ .stApp [data-testid="stTabs"] [role="tab"]{min-height:44px;padding:0 12px}
+ .stApp [data-testid="stTabs"] [role="tab"] p{font-size:.84rem}
+}
+
+/* --- 3. Header hierarchy: tab hero > section header > mini header. One display scale. --- */
+.v55 .th-title{font-size:clamp(1.9rem,1.2rem + 2.6vw,3.2rem);letter-spacing:.005em;text-wrap:balance}
+.v55 .th-sub{line-height:1.5;text-wrap:pretty}
+.v55 .th .kicker{letter-spacing:.18em}
+.v55 .sh{align-items:flex-end;gap:var(--sp4) var(--sp5);margin-bottom:var(--sp4);padding-bottom:var(--sp3);
+ border-bottom:1px solid var(--line);flex-wrap:wrap}
+.v55 .sh h3{font-size:clamp(1.55rem,1.1rem + 1.4vw,2.1rem);line-height:1.02;text-wrap:balance;min-width:0}
+.v55 .sh p{font-size:.9rem;line-height:1.5;flex:1 1 260px;text-wrap:pretty}
+.v55 .sh.mini{margin:var(--sp5) 0 var(--sp3);padding-bottom:var(--sp2)}
+.v55 .sh.mini h3{font-size:clamp(1.2rem,1rem + .6vw,1.45rem)}
+.v55 .sec{scroll-margin-top:72px}
+@media (max-width:760px){
+ .v55 .sh{gap:6px;padding-bottom:10px}
+ .v55 .sh h3{font-size:1.55rem}
+ .v55 .sh p{flex-basis:auto}
+ .v55 .th .kicker,.v55 .kicker{white-space:normal;overflow-wrap:break-word}
+}
+
+/* --- 4. One pill system: shared height, padding, radius, weight. Semantic colours are unchanged. --- */
+.v55 .chip,.v55 .npsc,.v55 .npk,.v58-num .mc,.v55 .v58-gm .pl-s,.v55 .v58-gm .pl-c,.v55 .v58-gm .al-x,.v55 .gtr .ttop{
+ box-sizing:border-box;line-height:1.25;vertical-align:middle;max-width:100%}
+.v55 .chip{min-height:24px;padding:3px 10px;font-weight:650;letter-spacing:.015em;border-radius:var(--rad-pill)}
+.v58-num .mc{border-radius:var(--rad-pill);padding:3px 9px;min-height:22px}
+.v55 .npk.pk2{padding:2px 8px}
+.v55 .v58-gm .pl-s{padding:1px 7px}
+.v55 .chip.leak,.v55 .chip.warn{white-space:normal;text-align:left}
+@media (max-width:760px){.v55 .chip{min-height:26px}}
+
+/* --- 5. Card tiers. Tier 1 (feature): hero, leaders, matchup columns. Tier 2: grids. Tier 3: rows. --- */
+.v55 .pc,.v55 .mcol,.v55 .trk{box-shadow:var(--elev2)}
+.v55 .gtc,.v55 .gc,.v58-num .ngb,.v55 .tile{box-shadow:var(--elev1)}
+.v55 .gtc,.v55 .gc{transition:border-color .25s var(--ease),box-shadow .25s var(--ease),transform .25s var(--ease)}
+@media (hover:hover){.v55 .gtc:hover{border-color:color-mix(in srgb,var(--tc,var(--neon)) 45%,var(--line));transform:translateY(-1px)}}
+.v55 .tr{border-radius:var(--rad-m)}
+
+/* --- 6. Streamlit widgets: consistent radii, quiet surfaces, readable alerts. --- */
+.stApp [data-testid="stAlert"]{border-radius:var(--rad-m);border:1px solid var(--v5-line)}
+.stApp [data-testid="stAlert"] [data-testid="stMarkdownContainer"] p{line-height:1.5}
+.stApp [data-testid="stExpander"] summary{padding-top:10px;padding-bottom:10px}
+.stApp [data-testid="stExpander"] summary p{font-weight:600}
+.stApp [data-testid="stMetric"]{padding:var(--sp3) var(--sp4);border:1px solid var(--v5-line);border-radius:var(--rad-m);background:var(--v5-glass);box-shadow:var(--elev1)}
+.stApp [data-testid="stMetricLabel"] p{white-space:normal;overflow-wrap:break-word;line-height:1.3}
+.stApp [data-testid="stMetricLabel"]>div{overflow:visible}
+.stApp [data-testid="stMetricValue"]{line-height:1.05}
+.stApp [data-testid="stMetricValue"]>div{overflow:visible;text-overflow:clip}
+.stApp [data-testid="stCaptionContainer"]{line-height:1.5}
+.stApp [data-testid="stDataFrame"],.stApp [data-testid="stTable"]{box-shadow:var(--elev1)}
+.stApp hr{border-color:var(--v5-line)!important;opacity:.7}
+
+/* --- 7. Numbers everywhere: tabular figures so columns line up. --- */
+.v55 .npr-s strong,.v55 .rnum,.v55 .mega,.v55 .big,.v55 td,.v55 .mc b,.stApp [data-testid="stMetricValue"]{font-variant-numeric:tabular-nums}
+
+/* ===== Page polish ===== */
+
+/* Home: leader cards breathe as 5 across on wide screens, names truncate cleanly instead of breaking mid-word. */
+@media (min-width:1280px){.v55 .prow:has(> :nth-child(5):last-child){grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}}
+.np-trow-info b{overflow-wrap:break-word;word-break:normal;hyphens:manual}
+.v55 .gcb{min-width:0}
+.v55 .gcb .chip{white-space:normal;line-height:1.3}
+.v55 .gcb b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (min-width:761px){.v55 .tr{grid-template-columns:22px 52px minmax(0,1fr) minmax(96px,130px) minmax(96px,124px)}}
+@media (max-width:760px){.v55 .side h2{font-size:clamp(1.15rem,5.6vw,1.6rem);overflow-wrap:break-word}}
+
+/* Matchup Center: grid fills the row (no orphan gap), labels align across cards, goalie cards same height. */
+.v55 .gtgrid{grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:var(--sp3)}
+.np-intel-label{min-height:2.6em;display:flex;align-items:flex-end}
+.np-gk-grid{align-items:stretch}.np-gk{height:100%;box-sizing:border-box}
+
+/* Numbers: desktop rows give the stat column its natural width so "LAST 5 PTS" never collides with chips. */
+@media (min-width:761px){
+ .v58-num .npr{grid-template-columns:38px minmax(0,1fr) auto minmax(52px,max-content)}
+ .v58-num .npr-m{max-width:220px}
+}
+@media (max-width:760px){.v58-num .npr-name{overflow-wrap:break-word}}
+
+/* Track ring: centred with flex so the number never drifts off-centre. */
+.v55 .ring .rc{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+
+/* Edge Flags / All layers / Picks layers: one scorer marker per row (keep the 🚨 column, hide the duplicate inline badge). */
+.v55 .v58-gm.v59-al .gm .npsc,.v55 .v58-gm.v59-pl .gm .npsc{display:none}
+.v55 .v58-gm.v59-al .al-cl li{overflow-wrap:break-word}
+
+/* Storylines: tags stay compact and never stretch the row. */
+.v58-sl .sl-tag{max-width:100%;white-space:normal;line-height:1.3}
+
+/* --- Motion: respect reduced-motion everywhere (not only phones). --- */
+@media (prefers-reduced-motion:reduce){
+ .stApp *,.stApp *::before,.stApp *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
+/* ===== end V6.0 premium polish layer ===== */
