@@ -128,7 +128,8 @@ def h2h_text(h):
     if not h:
         return '<small class="h2h none">no H2H shots</small>'
     cls = 'hit' if h['goals'] else ''
-    return f'<small class="h2h {cls}">H2H {h["goals"]} G / {h["sog"]} SOG · {h["games"]} gp</small>'
+    # V5.9: two no-wrap chunks so the text wraps between them inside the fixed H2H column (keeps the % column aligned)
+    return f'<small class="h2h {cls}"><span>H2H {h["goals"]} G / {h["sog"]} SOG</span> <span>· {h["games"]} gp</span></small>'
 
 
 def goalie_threats(goalie, team, threats, season, coverage, top=5):

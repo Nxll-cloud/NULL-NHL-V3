@@ -32,6 +32,8 @@
 .v55 .ngp em{color:var(--neon);font-size:1.2rem}
 .v55 .ngp i{position:absolute;left:0;bottom:-3px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--neon),var(--neon2));animation:v55bar 1s ease-out both}
 .v55 .ngp.mini em{font-size:.95rem}
+/* V5.9: the generic logo rule .v55 .mini{width:22px;height:22px} (v55.css) also hit "ngp mini", shrinking the % box to 22px so the % spilled left over the name */
+.v55 .ngp.mini{width:auto;height:auto}
 .v55 .ngnote{margin:10px 0 0;color:var(--dim);font:500 .74rem var(--fb)}
 .v55 .ngempty{color:var(--mut);padding:10px}
 .v55 .lstrip{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
@@ -51,12 +53,15 @@
 .v55 .gth b{display:block;color:var(--ink);font:800 1.05rem var(--fd)}
 .v55 .gth small,.v55 .gtf,.v55 .gtk{color:var(--dim);font:600 .72rem var(--fb)}
 .v55 .gtk{margin:8px 0 4px;text-transform:uppercase;letter-spacing:.08em}
-.v55 .gtr{display:grid;grid-template-columns:20px 32px minmax(0,1fr) 54px auto;gap:6px;align-items:center;padding:4px 0;border-top:1px solid var(--line)}
+.v55 .gtr{display:grid;grid-template-columns:20px 32px minmax(0,1fr) 54px 96px;gap:6px;align-items:center;padding:4px 0;border-top:1px solid var(--line)}
 .v55 .gtr .ngm{width:32px;height:32px}
 .v55 .gtr b{color:var(--ink);font:700 .85rem var(--fb);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .v55 .h2h{font:700 .68rem var(--fb);color:var(--mut);white-space:nowrap}
 .v55 .h2h.hit{color:var(--warn)}
 .v55 .h2h.none{color:var(--dim);font-weight:500}
+/* V5.9: fixed H2H column on goalie-threat rows (was auto per row, so the % column jumped ~48px between "no H2H shots" and "H2H x G / y SOG" rows) */
+.v55 .gtr .h2h{white-space:normal;line-height:1.25;min-width:0}
+.v55 .gtr .h2h span{white-space:nowrap}
 .v55 .rvw{display:grid;gap:4px}
 .v55 .rvr{display:grid;grid-template-columns:32px minmax(0,1.2fr) 44px 20px minmax(0,1fr) minmax(0,1.4fr);gap:8px;align-items:center;padding:5px 8px;border-radius:10px;border:1px solid var(--line);background:var(--glass)}
 .v55 .rvr .ngm{width:32px;height:32px}
