@@ -68,12 +68,16 @@ try:
         _pm_lay = _pm_layers(np_day, (len(_pm_rows), len(_pm_games)), _pm_rows, _pm_games)
     _pm_t = pmv.tonight(np_day, _pm_rows, _pm_games, _pm_entry, _pm_rec, _pm_cands, _pm_lay,
                         next((r for r in _pm_books if r.get('day') == np_day), None), globals().get('_np_odds_scorers'))
-    _pm_scored = [int(p) for p in ((st.session_state.get(sctn.STATE_KEY) or {}).get('players') or {})]
+    # V6.0: tonight's scorer record (scorers_tonight_v58), refreshed from the live play-by-play every run (25 s PBP cache,
+    # 45 s watcher while a game is live) and never inside the 10-minute caches above; badges match by player ID.
+    _pm_sc_rec = sctn.active(st.session_state, np_day)
+    _pm_scored = [int(p) for p in ((_pm_sc_rec or {}).get('players') or {})]
     v5.html_block(st, pmv.summary_html(_pm_ns))
     st.markdown(v5.sec_head(f'Tonight’s top 10 · {pmv.acc.short_day(np_day)}',
                             'Model = goal chance · NP = statistical rank (Form %) · Blend = boosted chance + layers hit · Books = no-vig consensus'),
                 unsafe_allow_html=True)
-    v5.html_block(st, pmv.page_html(_pm_t, _pm_ns, _pm_scored))
+    # Rendered with the plain streamlit module: the badges are placed by ID here, so the page-wide name pass must not add its own.
+    v5.html_block(getattr(st, '_st', st), pmv.page_html(_pm_t, _pm_ns, _pm_scored, _pm_sc_rec))
     st.markdown(v5.sec_head('Model accuracy · detailed record',
                             'The Model column’s full scoring for the last completed slate: every scorer, ranks, trend'),
                 unsafe_allow_html=True)

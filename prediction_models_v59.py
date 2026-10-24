@@ -440,6 +440,7 @@ CSS = ('<style>.v55 .pm{display:grid;grid-template-columns:repeat(4,minmax(0,1fr
        '.v55 .pmr .st{text-align:right;white-space:nowrap;font-weight:800;color:var(--pc,var(--neon));font-variant-numeric:tabular-nums}'
        '.v55 .pmr .ly{grid-column:2/4;margin-top:-2px;color:var(--mut);font-size:.72rem;overflow-wrap:anywhere}'
        '.v55 .pmr.sc .nm b{color:var(--ok)}'
+       '.v55 .pmr .nm .npsc{flex:none;margin-left:0}'
        '.v55 .pmacc{margin-top:8px;padding-top:6px;border-top:1px solid var(--line);color:var(--mut);font-size:.78rem;line-height:1.5;overflow-wrap:anywhere}'
        '.v55 .pmacc b{color:var(--ink)}'
        '.v55 .pms{margin:8px 0;padding:12px 14px;border-radius:18px;border:1px solid color-mix(in srgb,var(--neon) 30%,transparent);'
@@ -485,10 +486,12 @@ def summary_html(ns, n=TREND_N):
             f'few hits is noise.{insample}{books} {_e(EXPERIMENTAL_NOTE)}</p></section>')
 
 
-def _row(rank, name, team, pos_html, stat, layers='', scored=False):
+def _row(rank, name, team, pos_html, stat, layers='', scored=False, badge=''):
+    """One top-10 row. ``badge`` (V6.0) is the scored-tonight pill html (scorers_tonight_v58.badge), placed right after
+    the name; '' when he has not scored."""
     ly = f'<span class="ly">{_e(layers)}</span>' if layers else ''
     return (f'<div class="pmr{" sc" if scored else ""}"><span class="rk">{rank}</span><span class="nm"><b title="{_e(name)}">{_e(name)}</b>'
-            f'{pos_html}<small>{_e(team)}</small></span><span class="st">{_e(stat)}</span>{ly}</div>')
+            f'{badge}{pos_html}<small>{_e(team)}</small></span><span class="st">{_e(stat)}</span>{ly}</div>')
 
 
 def rebuilt_for(x, sys_):
@@ -591,14 +594,23 @@ SUBS = {'model': 'Ranked by goal chance, 1 − e^(−λ) for tonight’s game',
         'books': 'Median no-vig anytime-goal chance across books (odds only)'}
 
 
-def page_html(t, ns, scored=()):
-    """The four columns (2 x 2 under 1180 px, stacked under 700 px)."""
+def scored_badge(record, pid):
+    """V6.0: the shared scored-tonight pill (scorers_tonight_v58) for one listed player, matched by NHL player ID only
+    (never by name); '' when there is no record or he has not scored. Display only."""
+    import scorers_tonight_v58 as sctn
+    rec = sctn.lookup(record, pid=pid) if record and sctn._pid(pid) is not None else None
+    return sctn.badge(rec, bool(record.get('demo'))) if rec else ''
+
+
+def page_html(t, ns, scored=(), record=None):
+    """The four columns (2 x 2 under 1180 px, stacked under 700 px). ``record`` (V6.0) is tonight's scorer record
+    (scorers_tonight_v58, from the live play-by-play): rows whose player ID scored get the shared 🚨 pill (🚨 nG for 2+)."""
     import pos_tag_v59 as pt
-    sc = {int(x) for x in scored or ()}
+    sc = {int(x) for x in scored or ()} | {int(p) for p in ((record or {}).get('players') or {})}
     cols = []
     for s in SYSTEMS:
         rows = ''.join(_row(r['rank'], r['name'], r['team'], pt.tag(r['pos']) if r.get('pos') else '', r['stat'], r.get('layers'),
-                            int(r['pid']) in sc) for r in t[s]['rows'])
+                            int(r['pid']) in sc, scored_badge(record, r['pid'])) for r in t[s]['rows'])
         extra = f'<p class="pmf">{_e(__import__("books_picks_v59").COVERAGE_NOTE)}</p>' if s == 'books' else ''
         cols.append(column_html(s, rows, ns, f'{SUBS[s]} · {t[s]["source"]}', extra))
     return f'{CSS}<div class="pm">{"".join(cols)}</div>'
