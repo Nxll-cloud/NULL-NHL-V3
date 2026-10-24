@@ -5,6 +5,7 @@ same threat score formula, same tiers and colours, same per-game grouping, sort 
 cue: each tier also has an icon and a word, and each match chip says what it matched (DAY / ARENA / TEAM), which
 number, and by which cipher.
 """
+import pos_tag_v59 as _pos   # V5.9: position tag after names (display only)
 import math
 from datetime import date
 
@@ -196,19 +197,19 @@ def pick_badge(rank):
     return f'<span class="npk {cls}" title="{text.title()} for this team (threat, then model chance, form, shot rate, English total)">{icon} {text}</span>'
 
 
-def player_row(p, rank=None):
+def player_row(p, rank=None, pos_tag=''):
     v = p.get('values') or {}
     roots = ' · '.join(f'{short} {v.get(field, "—")}' for _, field, short in METHOD_FIELD)
     pk = f' {PICK_LABEL[rank][2]}' if rank in PICK_LABEL else ''
     return (f'<li class="npr t-{p["tier"]}{pk}" style="--c:{p["colour"]}"><span class="npr-ring" style="--to:{p["threat"] * 3.6:.0f}deg" title="Threat {p["threat"]}/100">'
             f'<span>{TIER_ICON.get(p["tier"], "")}</span></span>'
-            f'<div class="npr-id"><span class="npr-nl"><b class="npr-name">{esc(p["player"])}</b>{pick_badge(rank)}</span><small>{esc(p["team"])} · <span class="tn">{esc(roots)}</span></small></div>'
+            f'<div class="npr-id"><span class="npr-nl"><b class="npr-name">{esc(p["player"])}</b>{pos_tag}{pick_badge(rank)}</span><small>{esc(p["team"])} · <span class="tn">{esc(roots)}</span></small></div>'
             f'<div class="npr-m">{match_chips(p)}</div>'
             f'<div class="npr-s"><strong class="tn">{p["threat"]}</strong><small>{TIER_ICON.get(p["tier"], "")} {p["tier"]}'
             + (f' · Eng {int(p["eng_total"])}' if p.get('eng_total') is not None else '') + '</small></div></li>')
 
 
-def game_board(board, day_num, ranks=None, pin=True):
+def game_board(board, day_num, ranks=None, pin=True, pmap=None):
     g = board['game']
     a, h = g['away'], g['home']
     when = v5.et_time(g.get('start')) if g.get('start') else ''
@@ -224,14 +225,14 @@ def game_board(board, day_num, ranks=None, pin=True):
         arena_html = f'<span class="nga">🏟 {arena} <b>= {root}</b><em>no arena match</em></span>'
     ranks = ranks or {}
     players = pin_board(board['players'], board.get('all_players'), ranks, pin) if ranks else board['players']
-    rows = ''.join(player_row(p, ranks.get(_pkey(p))) for p in players) or '<li class="npr none">No ranked players.</li>'
+    rows = ''.join(player_row(p, ranks.get(_pkey(p)), _pos.tag_for(pmap, p.get('player_id'), p.get('team'), p.get('player'), p) if pmap is not None else '') for p in players) or '<li class="npr none">No ranked players.</li>'
     return (f'<section class="sec ngb{" ahit" if board["arena_hit"] else ""}"><header class="ngb-h">{v5.logo(a, "tl")}<h4>{esc(a)} <span>@</span> {esc(h)}</h4>{v5.logo(h, "tl")}'
             f'<span class="ngb-c" title="Players with a threat score above 0">⚑ {board["badge"]} threat{"s" if board["badge"] != 1 else ""}</span></header>'
             f'<div class="ngb-m">{f"<span>🕒 {esc(when)}</span>" if when else ""}<span>Day <b>{esc(day_num)}</b></span>{arena_html}</div>'
             f'<ol class="ngb-l">{rows}</ol></section>')
 
 
-def boards_html(boards, day_num, model_p=None, pin=True):
+def boards_html(boards, day_num, model_p=None, pin=True, pmap=None):
     """Legend + every game board. Each team's TOP PICK / RUNNER-UP comes from all lists on the page (every board)."""
     ranks = pick_ranks(top_picks_per_team([b.get('all_players') or b['players'] for b in boards], model_p))
-    return legend() + '<div class="nbgrid ngrid">' + ''.join(game_board(b, day_num, ranks, pin) for b in boards) + '</div>'
+    return legend() + '<div class="nbgrid ngrid">' + ''.join(game_board(b, day_num, ranks, pin, pmap) for b in boards) + '</div>'

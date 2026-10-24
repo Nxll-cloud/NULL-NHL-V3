@@ -15,14 +15,16 @@ _nb_ranked=st.session_state.get('signals_ranked')
 _nb_ok=isinstance(_nb_ranked,pd.DataFrame) and st.session_state.get('signals_day')==np_day
 _gm_targets=num_slate_targets(_analyses,_nb_ranked,np_day) if (_nb_ok and _analyses) else None
 _nb_all=numboard.slate_boards(_gm_targets) if _gm_targets is not None else None
+import pos_tag_v59 as _postag
+_num_pmap=_postag.pos_map(_nb_ranked) if _nb_ok else None  # V5.9: real NHL positionCode from rankings -> compact tag after names (display only)
 v5.html_block(st,numv58.tonight_strip(np_day,_day_num,_analyses,_nb_all),extra_class='v58-num')
 if _analyses:  # V5.8: Player | Match type (date / arena) | Number
     if np_flags.show_gem_history(st.secrets):  # V5.9: saved-history strip (last 3 nights' arena-match scorers); hidden on any error
         try:
-            v5.html_block(st,gemlog.strip_html(gemlog.last_n_days(3,'arena',np_day)),extra_class='v58-num')
+            v5.html_block(st,gemlog.strip_html(gemlog.last_n_days(3,'arena',np_day),pmap=_num_pmap),extra_class='v58-num')
         except Exception:
             pass
-    v5.html_block(st,gmx.table_html(*gmx.match_table(_gm_targets,_day_num),_day_num,loaded=_gm_targets is not None),extra_class='v58-num')
+    v5.html_block(st,gmx.table_html(*gmx.match_table(_gm_targets,_day_num),_day_num,loaded=_gm_targets is not None,pmap=_num_pmap),extra_class='v58-num')
 with st.expander('ⓘ How numbers are calculated'):
     st.write('Universal day: sum every digit of YYYY-MM-DD and reduce to one digit. English ordinal: A=1 through Z=26. Full reduction: reduce each letter to a single digit, sum, and reduce again. Reverse ordinal: A=26 through Z=1. Punctuation and spaces are ignored. Arena names come from the game schedule.')
 if not _analyses:
@@ -46,7 +48,7 @@ else:
             if _nb_sort:
                 _nb_boards=sorted(_nb_boards,key=lambda b:-b['badge'])
             _nb_mp=numv58.model_p_from_results(_v56_results)  # model P (pid -> p_anytime(lam_game)) for the TOP PICK tie-break only
-            v5.html_block(st,numv58.boards_html(_nb_boards,_day_num,_nb_mp),extra_class='v58-num')
+            v5.html_block(st,numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap),extra_class='v58-num')
             st.caption('Threat score = round(100 × (3·D + 2·A + 1·T) / 6): D = day-number match, A = arena match, T = team match, each counted once (0 or 1). '
                        'The three ciphers are not independent: reduction always gives the same digit as English, and reverse mirrors English (the two always add up to 9), so each name has one number, and the day match uses the English digit only. '
                        'Tiers by raw points: 5–6 blaze · 3–4 hot · 2 warm · 1 mild · 0 cool. Eng = the full name’s English total before reducing, used to order equal scores. Arena glows when any player in the game matches it. Badge = players with a score above 0. '
@@ -91,8 +93,9 @@ else:
                 ordered=_v50_sort(targets)
                 st.markdown(ui.team_head(code,name,f'{len(ordered)} roster players shown in ranking'),unsafe_allow_html=True)
                 for ix,t in enumerate(ordered[:_limit],1):
-                    st.markdown(ui.target_row(ix,t['player'],code,t['player_id'],t['matches'],t['form'],len(t['day']),len(t['team_matches']),len(t['arena_matches']),season=SEASON),unsafe_allow_html=True)
-                    with st.expander(f'Why {t["player"]}? · {code}',expanded=False):
+                    st.markdown(ui.target_row(ix,t['player'],code,t['player_id'],t['matches'],t['form'],len(t['day']),len(t['team_matches']),len(t['arena_matches']),season=SEASON,pos_tag=_postag.tag_for(_num_pmap,t['player_id'],code,t['player'])),unsafe_allow_html=True)
+                    _wpc=_postag.lookup(_num_pmap,t['player_id'],code,t['player'])
+                    with st.expander(f'Why {t["player"]}{" ("+_wpc+")" if _wpc else ""}? · {code}',expanded=False):
                         st.caption(f'Player full-name roots: English {t["values"]["ordinal_root"]}, reduction {t["values"]["reduction_root"]}, reverse {t["values"]["reverse_root"]}.')
                         st.write(f'Day {_day_num}: {", ".join(t["day"]) or "no match"}')
                         st.write(f'Team: {", ".join(t["team_matches"]) or "no match"}')
@@ -101,7 +104,8 @@ else:
                 if len(ordered)>_limit:
                     with st.expander(f'See {len(ordered)-_limit} more · {code}'):
                         for t in ordered[_limit:]:
-                            st.write(f'{t["player"]} · {t["matches"]} matches · Form {ui.format_form_pct(t["form"])}')
+                            _pc=_postag.lookup(_num_pmap,t['player_id'],code,t['player'])
+                            st.write(f'{t["player"]}{" ("+_pc+")" if _pc else ""} · {t["matches"]} matches · Form {ui.format_form_pct(t["form"])}')
             for item in _targets:
                 r=item['game']; away,home=r['away'],r['home']
                 st.markdown(ui.matchup_bar(away,home,format_game_time(r['start']),r['arena']),unsafe_allow_html=True)
@@ -133,8 +137,8 @@ else:
                 v=num_gematria(player.get('Player',''))
                 methods=[k.replace('_root','').replace('_',' ') for k in ('ordinal_root','reduction_root') if v[k]==_day_num]  # English only (== reduction); Reverse never counts for the day
                 if methods:
-                    matched.append({'Player':player['Player'],'Team':player.get('Team',''),'Matching methods':', '.join(methods)})
-            st.dataframe(pd.DataFrame(matched,columns=['Player','Team','Matching methods']),hide_index=True,use_container_width=True)
+                    matched.append({'Player':player['Player'],'Pos':_postag.code(player.get('Position')) or '','Team':player.get('Team',''),'Matching methods':', '.join(methods)})
+            st.dataframe(pd.DataFrame(matched,columns=['Player','Pos','Team','Matching methods']),hide_index=True,use_container_width=True)
             st.caption('Number matches only, not goal-scoring recommendations.')
         else:
             st.info('Player names will appear after rankings for this date are loaded.')

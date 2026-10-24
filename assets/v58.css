@@ -306,3 +306,6 @@
 .v55 .gpos i{font-style:normal;font-weight:800;letter-spacing:.08em;color:var(--neon);font-size:.92em}
 .v55 .gpos em{font-style:normal;color:var(--mut);font-weight:600;white-space:nowrap}
 /* ===== end V5.9 goalie position chip ===== */
+/* V5.9 position tag after player names (Numbers tab): small muted code, no border; goalies use .npg instead. */
+.npos{display:inline-block;margin-left:6px;padding:0 2px;font-weight:800;font-size:.66rem;line-height:1.4;font-family:var(--fb,inherit);letter-spacing:.08em;color:var(--mut);opacity:.9;white-space:nowrap;vertical-align:1px;flex:0 0 auto}
+.v58-num .npr-nl .npos,.v58-num .npr-nl .npg{margin-left:0}

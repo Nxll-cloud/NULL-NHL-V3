@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import html
 
+import pos_tag_v59 as _pos   # V5.9: position tag after names (display only)
 from numerology_v48 import gematria
 from player_targets_v49 import METHODS
 import venue_v58 as vn
@@ -109,7 +110,7 @@ def match_table(slate_targets, day_num):
     return rows, missing
 
 
-def table_html(rows, missing, day_num, loaded=True):
+def table_html(rows, missing, day_num, loaded=True, pmap=None):
     """Compact three-column table (Player | Match type | Number) for st.html; scrolls vertically, never horizontally."""
     e = html.escape
     head = (f'<div class="sh"><h3>Date &amp; arena matches</h3><p>Players whose name number equals tonight’s universal day '
@@ -119,7 +120,8 @@ def table_html(rows, missing, day_num, loaded=True):
     elif not rows:
         body = '<div class="gm-empty">No player matches tonight’s date or arena numbers.</div>'
     else:
-        trs = ''.join(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(r["Player"]))}</b>'
+        ptag = (lambda r: _pos.tag_for(pmap, r.get('player_id'), r.get('team'), r.get('Player'))) if pmap is not None else (lambda r: '')
+        trs = ''.join(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(r["Player"]))}</b>{ptag(r)}'
                       + f'</td><td><span class="gm-t {r["Match type"]}">{r["Match type"]}</span></td>'
                       f'<td class="gm-n">{int(r["Number"])}</td></tr>'
                       + (f'<tr class="gm-c"><td colspan="3" title="{e(calc_title(r))}">{e(calc_line(r))}</td></tr>' if r.get('calc') else '')

@@ -242,9 +242,9 @@ def gem_card(rank, player, team, pid, matches, form, day=0, team_m=0, arena_m=0,
             f'<em>Form {format_form_pct(form)}</em></div>{method_chips(day, team_m, arena_m)}</div></div>')
 
 
-def target_row(rank, player, team, pid, matches, form, day=0, team_m=0, arena_m=0, season=NHL_SEASON_DEFAULT):
+def target_row(rank, player, team, pid, matches, form, day=0, team_m=0, arena_m=0, season=NHL_SEASON_DEFAULT, pos_tag=''):
     return (f'<div class="np-trow"><span class="np-trow-rank">{int(rank)}</span>{avatar(mug_url(team, pid, season), "sm")}'
-            f'<div class="np-trow-info"><b>{esc(player)}</b><small>{int(matches)} matches · Form {format_form_pct(form)}</small></div>'
+            f'<div class="np-trow-info"><b>{esc(player)}{pos_tag}</b><small>{int(matches)} matches · Form {format_form_pct(form)}</small></div>'
             f'{method_chips(day, team_m, arena_m)}</div>')
 
 

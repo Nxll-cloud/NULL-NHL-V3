@@ -258,7 +258,7 @@ def test_flag_and_numbers_page_wiring(dirs):
     assert gl.update(PRE, _getter({}), snaps, root, log=lambda *_: None, environ={'FEATURE_GEM_HISTORY': '0'}) == []
     assert not list(root.iterdir())
     src = (HERE / 'tabs' / 'numbers.py').read_text()
-    i, j = src.index("gemlog.strip_html(gemlog.last_n_days(3,'arena',np_day))"), src.index('gmx.table_html(')
+    i, j = src.index("gemlog.strip_html(gemlog.last_n_days(3,'arena',np_day)"), src.index('gmx.table_html(')
     assert src.index('np_flags.show_gem_history(st.secrets)') < i < j and 'except Exception:' in src[i:j]
     assert src.count('gemlog.') == 2
 

@@ -340,7 +340,7 @@ def average(nights):
 EST_NOTE = 'est. = rebuilt after the fact from NHL feeds, not frozen before puck drop.'
 
 
-def strip_html(nights, kind_label='Arena-match scorers'):
+def strip_html(nights, kind_label='Arena-match scorers', pmap=None):
     """One slim row for the Numbers page: last-N-night chips (tap a chip for who) + average over nights with results."""
     import html as h
     e = h.escape
@@ -352,7 +352,8 @@ def strip_html(nights, kind_label='Arena-match scorers'):
         est = '<em class="gh-est" title="Reconstructed record">est.</em>' if x.get('reconstructed') else ''
         lab = f'<small>{e(x["label"])}{est}</small>'
         if x['status'] == 'ok':
-            who = (' · '.join(f'{e(n)} <span>{e(t)}</span>' + (f' ×{g}' if g > 1 else '') for n, t, g in x['who'])
+            ptag = (lambda n, t: __import__('pos_tag_v59').tag_for(pmap, team=t, name=n)) if pmap is not None else (lambda n, t: '')
+            who = (' · '.join(f'{e(n)}{ptag(n, t)} <span>{e(t)}</span>' + (f' ×{g}' if g > 1 else '') for n, t, g in x['who'])
                    or 'No arena-match player scored')
             chips.append(f'<details class="gh-c ok" name="gh"><summary title="{e(x["day"])}: {x["count"]} of {x["of"]} arena-match players scored">'
                          f'{lab}<b>{x["count"]}</b><i>of {x["of"]}</i></summary><div class="gh-who"><strong>{e(x["label"])}</strong> {who}</div></details>')
