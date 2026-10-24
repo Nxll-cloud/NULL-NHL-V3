@@ -118,6 +118,58 @@
 /* Storylines: tags stay compact and never stretch the row. */
 .v58-sl .sl-tag{max-width:100%;white-space:normal;line-height:1.3}
 
+/* Section sub-headers (v5.sec_head = .sh.mini): the old logo rule ".v55 .mini{width:22px;height:22px}" (v55.css) also hit .sh.mini,
+   squeezing every sub-header to a 22px box so the title stacked one letter per line and its caption spilled over the cards below
+   (worst on Prediction Models). Restore natural size, and tame Streamlit's heading wrapper inside it. */
+.v55 .sh.mini{width:auto;height:auto;max-width:100%;box-sizing:border-box}
+.v55 .sh>[data-testid="stHeadingWithActionElements"]{min-width:0;max-width:100%;flex:0 1 auto}
+.v55 .sh [data-testid="stHeadingWithActionElements"] h3{padding:0;margin:0}
+.v55 .sh.mini p{text-align:left;flex:1 1 280px;min-width:0;max-width:640px;overflow-wrap:break-word}
+@media (min-width:761px){.v55 .sh.mini{align-items:baseline}.v55 .sh.mini p{text-align:right;margin-left:auto}}
+@media (max-width:760px){.v55 .sh.mini{flex-direction:column;align-items:flex-start}.v55 .sh.mini p{flex:none;max-width:100%}}
+
+/* Prediction Models: four systems read as one family - same card tier, a thin system-colour accent, aligned headers. */
+.v55 .pm .pmc{border-radius:var(--rad-l);box-shadow:inset 0 2px 0 color-mix(in srgb,var(--pc,var(--neon)) 70%,transparent),var(--elev1);display:flex;flex-direction:column}
+.v55 .pm .pmc h3{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:1rem;line-height:1.15;color:var(--pc,var(--ink))}
+.v55 .pm .pmc .pmx{margin-left:0}
+.v55 .pm .pmc .pmk{min-height:2.8em}
+.v55 .pm .pmc .pmacc{margin-top:auto;padding-top:var(--sp2)}
+.v55 .pm .pmr .ly,.v55 .pm .pmacc{overflow-wrap:break-word}
+.v55 section.pms{border-radius:var(--rad-l);box-shadow:var(--elev1);padding:var(--sp4)}
+.v55 section.pms .pmh{font-size:1.15rem;letter-spacing:.03em}
+@media (max-width:700px){.v55 .pm .pmc .pmk{min-height:0}}
+
+/* ===== Banners (styling only; content untouched): tab heroes .th (incl. Odds Intelligence and Live Next Goal), Home .hero,
+   live strip .lstrip, scorer ticker .npst. One premium family: layered glass, hairline top highlight, tone glow, calm motion. ===== */
+.v55 .th{border-radius:var(--rad-l);padding:var(--sp5) clamp(16px,3vw,32px) var(--sp4);margin:2px 0 var(--sp5);
+ border:1px solid color-mix(in srgb,var(--pa,var(--neon)) 26%,var(--line));
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 0 0 1px rgba(0,0,0,.25),0 24px 48px -28px color-mix(in srgb,var(--pa,var(--neon)) 55%,transparent),var(--elev2)}
+.v55 .th::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;pointer-events:none;
+ background:linear-gradient(90deg,transparent,var(--pa,var(--neon)) 25%,var(--pb,var(--neon2)) 75%,transparent);opacity:.85}
+.v55 .th::after{content:"";position:absolute;right:-80px;top:-90px;width:260px;height:260px;border-radius:50%;pointer-events:none;
+ background:radial-gradient(circle,color-mix(in srgb,var(--pb,var(--neon2)) 22%,transparent),transparent 70%)}
+.v55 .th>*{position:relative;z-index:1}
+.v55 .th .th-beam{position:absolute;z-index:0}
+.v55 .th .th-top{gap:var(--sp2);flex-wrap:wrap}
+.v55 .th .kicker{font:800 .72rem/1.3 var(--fd);letter-spacing:.2em;text-transform:uppercase}
+.v55 .th-title{margin:var(--sp2) 0 6px}
+.v55 .th-sub{margin:0 0 var(--sp3);font-size:.95rem;max-width:72ch}
+.v55 .th .cats{display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--sp2)}
+.v55 .th .cats .chip{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.v55 .hero{border-radius:calc(var(--rad-l) + 6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 30px 60px -30px rgba(0,0,0,.9),0 0 0 1px var(--line)}
+.v55 .hero::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;z-index:2;pointer-events:none;
+ background:linear-gradient(90deg,transparent,var(--neon) 30%,var(--neon2) 70%,transparent);opacity:.8}
+.v55 .lstrip{gap:var(--sp2)}
+.v55 .ls{border-radius:var(--rad-m);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),var(--elev1)}
+.v55 .ls.live{box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 22px -10px var(--hot)}
+.v55 .npst{border-radius:var(--rad-m);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),var(--elev1)}
+@media (max-width:760px){
+ .v55 .th{padding:18px 16px 14px;border-radius:18px;margin-bottom:var(--sp4)}
+ .v55 .th::after{width:180px;height:180px;right:-70px;top:-70px}
+ .v55 .th .cats .chip{backdrop-filter:none;-webkit-backdrop-filter:none}
+ .v55 .hero{border-radius:22px}
+}
+
 /* --- Motion: respect reduced-motion everywhere (not only phones). --- */
 @media (prefers-reduced-motion:reduce){
  .stApp *,.stApp *::before,.stApp *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
