@@ -101,6 +101,15 @@
   .v55 .v58-gm.v59-pg .gm-p b{font-size:12.5px}
   .v55 .v58-gm.v59-pg .gm td.gm-n{font-size:12px}
   .v55 .v58-gm.v59-pg .gm th{font-size:10px;letter-spacing:.04em}
+  .v55 .v58-gm.v59-pl .gm td,.v55 .v58-gm.v59-pl .gm th{padding:6px 2px}
+  .v55 .v58-gm.v59-pl .gm td.gm-p{padding-left:6px}
+  .v55 .v58-gm.v59-pl .gm th:nth-child(n+2),.v55 .v58-gm.v59-pl .gm td:nth-child(n+2){width:20px}
+  .v55 .v58-gm.v59-pl .gm th:nth-child(2),.v55 .v58-gm.v59-pl .gm td:nth-child(2){width:28px}
+  .v55 .v58-gm.v59-pl .gm th:nth-child(8),.v55 .v58-gm.v59-pl .gm td:nth-child(8){width:34px}
+  .v55 .v58-gm.v59-pl .gm-p b{font-size:12.5px}
+  .v55 .v58-gm.v59-pl .gm th{font-size:10px;letter-spacing:.02em}
+  .v55 .v58-gm.v59-pl .pl-s{padding:1px 3px;font-size:10px}
+  .v55 .v58-gm.v59-pl tr.pl-ch td{padding:0 6px 8px}
 }
 
 /* ===== V5.9 goalie weakness by shooter position chip (goalie_pos_v59). Separate block. ===== */

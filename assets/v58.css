@@ -309,3 +309,15 @@
 /* V5.9 position tag after player names (Numbers tab): small muted code, no border; goalies use .npg instead. */
 .npos{display:inline-block;margin-left:6px;padding:0 2px;font-weight:800;font-size:.66rem;line-height:1.4;font-family:var(--fb,inherit);letter-spacing:.08em;color:var(--mut);opacity:.9;white-space:nowrap;vertical-align:1px;flex:0 0 auto}
 .v58-num .npr-nl .npos,.v58-num .npr-nl .npg{margin-left:0}
+.v55 .v58-gm.v59-pl .gm th:nth-child(n+2),.v55 .v58-gm.v59-pl .gm td:nth-child(n+2){width:34px;text-align:center;white-space:nowrap;padding-left:2px;padding-right:2px}
+.v55 .v58-gm.v59-pl .gm th:nth-child(2),.v55 .v58-gm.v59-pl .gm td:nth-child(2){width:40px}
+.v55 .v58-gm.v59-pl .gm th:nth-child(8),.v55 .v58-gm.v59-pl .gm td:nth-child(8){width:44px}
+.v55 .v58-gm.v59-pl .gm-p b{overflow-wrap:normal;word-break:normal}
+.v55 .v58-gm.v59-pl .gm-p .pl-tm{display:block;color:var(--mut);font-weight:700;font-size:.66rem;letter-spacing:.08em}
+.v55 .v58-gm.v59-pl .pl-pos{color:var(--mut);font-weight:800;font-size:.72rem;letter-spacing:.06em}
+.v55 .v58-gm.v59-pl .pl-y{color:var(--overlap,#35f0c0);font-weight:800}
+.v55 .v58-gm.v59-pl .pl-n{color:var(--dim,#5d6886)}
+.v55 .v58-gm.v59-pl .pl-s{display:inline-block;padding:1px 5px;border-radius:999px;background:rgba(255,59,59,.14);border:1px solid rgba(255,59,59,.45);color:#ffb4b4;font-weight:800;font-size:.7rem}
+.v55 .v58-gm.v59-pl .pl-s.demo{border-style:dashed}
+.v55 .v58-gm.v59-pl tr.pl-ch td{white-space:normal;line-height:1.9}
+.v55 .v58-gm.v59-pl .pl-c{display:inline-block;padding:1px 7px;border-radius:999px;border:1px solid rgba(192,139,255,.45);background:rgba(192,139,255,.1);color:var(--gem,#c08bff);font-weight:700;font-size:.7rem;line-height:1.5;white-space:nowrap;margin:0 4px 2px 0}

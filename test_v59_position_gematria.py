@@ -56,7 +56,7 @@ def test_numbers_tab_renders_it_once_in_expander():
 def test_not_imported_by_scoring_modules():
     hits = []
     for f in ROOT.rglob('*.py'):
-        if f.name.startswith('test_') or f.name == 'position_gematria_v59.py' or f.parent.name == 'tabs':
+        if f.name.startswith('test_') or f.name in ('position_gematria_v59.py', 'position_layers_v59.py') or f.parent.name == 'tabs':
             continue
         if re.search(r'position_gematria_v59', f.read_text(errors='ignore')):
             hits.append(f.name)

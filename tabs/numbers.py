@@ -149,3 +149,9 @@ else:
 import position_gematria_v59 as _posgem
 with st.expander('Position gematria · curiosity layer'):
     v5.html_block(st,_posgem.table_html(),extra_class='v58-num')
+# V5.9: Position + gematria layers (curiosity layer, collapsed; display only — reuses tonight's targets and the scorers record; feeds nothing back).
+import position_layers_v59 as _poslay, scorers_tonight_v58 as _pl_sc
+with st.expander('Position + gematria layers · curiosity layer'):
+    _pl_rec=_pl_sc.active(st.session_state,np_day)
+    _pl_rows,_pl_none=_poslay.rows(_gm_targets,_day_num,_num_pmap,_pl_rec,numv58.model_p_from_results(_v56_results)) if _gm_targets is not None else ([],0)
+    v5.html_block(st,_poslay.table_html(_pl_rows,_pl_none,_day_num,loaded=_gm_targets is not None,demo=bool((_pl_rec or {}).get('demo'))),extra_class='v58-num')
