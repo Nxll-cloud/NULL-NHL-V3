@@ -51,6 +51,12 @@ if np_flags.show_goalie_weak(st.secrets):
         _gw_stat=gweak.home_markers(_v5_state,_v5_gk,lambda _gid,_t:v59_goalie_weak_cached(_gid,_t,np_day,SEASON))
     except Exception as _gw_exc:   # the identifier must never break Home
         _gw_stat={'errors':[f'goalie weak-spot: {type(_gw_exc).__name__}']}
+# V5.9: goalie weakness by shooter position chip on the Home goalie rows (hero duel + Matchup targets goalie cards).
+if np_flags.show_goalie_pos(st.secrets):
+    try:
+        _gp_stat=gpos.home_marks(_v5_state,lambda _gid:v59_goalie_pos_cached(_gid,np_day,SEASON))
+    except Exception as _gp_exc:   # the chip must never break Home
+        _gp_stat={'errors':[f'goalie position split: {type(_gp_exc).__name__}']}
 # V5.9: top-threat badge per game (the #1 of the shared next-goal ranking _v56_results; jersey from PBP roster, else NHL roster feed).
 if np_flags.show_threat_badges(st.secrets):
     try:

@@ -102,3 +102,10 @@
   .v55 .v58-gm.v59-pg .gm td.gm-n{font-size:12px}
   .v55 .v58-gm.v59-pg .gm th{font-size:10px;letter-spacing:.04em}
 }
+
+/* ===== V5.9 goalie weakness by shooter position chip (goalie_pos_v59). Separate block. ===== */
+@media (max-width:1023.98px){
+  .v55 .gpos{font-size:12px;padding:1px 7px;margin-top:4px}
+  .v55 .duel-g .gpos b,.v55 .gcb .gpos b,.v55 .gpos b{font-size:12px}
+}
+/* ===== end V5.9 goalie position chip ===== */

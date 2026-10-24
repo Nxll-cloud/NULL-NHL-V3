@@ -115,6 +115,14 @@ SHOW_GOALIE_WEAK = True
 def show_goalie_weak(secrets=None, environ=None):
     return _flag('FEATURE_GOALIE_WEAK', SHOW_GOALIE_WEAK, secrets, environ)
 
+# V5.9: goalie weakness by shooter position chip on Home goalie rows (goalie_pos_v59; display only).
+# On by default; FEATURE_GOALIE_POS = "false" (secrets) or FEATURE_GOALIE_POS=0 (env) hides it. Env wins over secrets.
+SHOW_GOALIE_POS = True
+
+
+def show_goalie_pos(secrets=None, environ=None):
+    return _flag('FEATURE_GOALIE_POS', SHOW_GOALIE_POS, secrets, environ)
+
 # V5.9: top-threat mini badges under Home's top-target card. FEATURE_THREAT_BADGES = "false" / =0 hides them.
 SHOW_THREAT_BADGES = True
 

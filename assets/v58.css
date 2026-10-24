@@ -298,3 +298,11 @@
 .v55 .v58-gm.v59-pg .gm td.gm-n{font-size:.9rem}
 .v55 .v58-gm.v59-pg .gm-p b{overflow-wrap:normal;word-break:normal}
 .v55 .v58-gm.v59-pg .gm-p .pg-sp{display:block;color:var(--mut);font:700 .7rem/1.3 var(--fb);letter-spacing:.04em}
+
+/* ===== V5.9 goalie weakness by shooter position chip (goalie_pos_v59) - Home duel + goalie cards. Separate block. ===== */
+.v55 .gpos{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 6px;margin:6px 0 0;padding:1px 8px;max-width:100%;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--neon2) 45%,transparent);border-radius:10px;background:linear-gradient(90deg,color-mix(in srgb,var(--neon2) 10%,transparent),color-mix(in srgb,var(--neon) 8%,transparent));color:var(--ink);font:600 .7rem/1.5 var(--fb);letter-spacing:.01em;white-space:normal;cursor:help;overflow-wrap:anywhere}
+.v55 .gpos.weak{border-color:color-mix(in srgb,var(--neon) 60%,transparent)}
+.v55 .duel-g .gpos b,.v55 .gcb .gpos b,.v55 .gpos b{display:inline;margin:0;font:700 .7rem/1.5 var(--fb);letter-spacing:.01em;white-space:nowrap}
+.v55 .gpos i{font-style:normal;font-weight:800;letter-spacing:.08em;color:var(--neon);font-size:.92em}
+.v55 .gpos em{font-style:normal;color:var(--mut);font-weight:600;white-space:nowrap}
+/* ===== end V5.9 goalie position chip ===== */

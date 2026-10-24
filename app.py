@@ -114,6 +114,7 @@ import gem_match_v58 as gmx
 import gematria_log_v59 as gemlog
 import odds_scorers_v59 as oddsc
 import goalie_weak_v59 as gweak
+import goalie_pos_v59 as gpos   # V5.9: goalie weakness by shooter position (display only)
 import threat_badges_v59 as threat
 import winprob_v59 as winprob
 import parlay_tracker_v59 as ptrack
@@ -319,6 +320,12 @@ def v56_h2h_cached(matchups, day, season):
 def v59_goalie_weak_cached(goalie_id, team, day, season):
     """V5.9: REAL goalie game logs + PBP of his games vs ``team`` (goalie_weak_v59; disk cache). Never raises."""
     return gweak.load(goalie_id, team, day, season, requests.get)
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def v59_goalie_pos_cached(goalie_id, day, season):
+    """V5.9: REAL goalie game logs + PBP of his games, goals/shots by shooter position (goalie_pos_v59; disk cache)."""
+    return gpos.load(goalie_id, day, season, requests.get)
 
 def format_game_time(raw):
     try:

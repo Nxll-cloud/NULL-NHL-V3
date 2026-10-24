@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 
 import position_badge_v59 as pb   # V5.9: Home goalie pill
 import goalie_weak_v59 as gw   # V5.9: goalie weak-spot pill (display only)
+import goalie_pos_v59 as gpos   # V5.9: goalie weakness by shooter position chip (display only)
 import winprob_v59 as wp   # V5.9: board favorite pill (model estimate)
 import venue_v58 as vn
 
@@ -440,7 +441,7 @@ def hero(data, now):
         gb = pb.goalie_badge(pb.position_of(s) or pb.position_of(g.get('starter')))   # V5.9: 'G' pill from feed position data
         return f'''<div class="duel-g" style="{team_vars(t)}">{mug(season, t, s.get("Player ID"), "gmug")}
 <div><span class="chip {tone}">{esc(lab)}</span><b>{esc(name)}{gb}</b>
-<div class="gl"><span>{count(s.get("GAA"), "", 2, "gnum")}<small>GAA</small></span><span><em class="gnum">{_goalie_line(s)}</em><small>SV%</small></span><span>{count(s.get("GP"), "", 0, "gnum")}<small>GP</small></span></div></div></div>'''
+<div class="gl"><span>{count(s.get("GAA"), "", 2, "gnum")}<small>GAA</small></span><span><em class="gnum">{_goalie_line(s)}</em><small>SV%</small></span><span>{count(s.get("GP"), "", 0, "gnum")}<small>GP</small></span></div>{gpos.row_chip(g, s)}</div></div>'''
 
     if lead:
         cats = [p['label'].title() for p in (data.get('picks') or {}).values() if p and pid_str(p.get('player_id')) == pid_str(lead.get('player_id'))]
@@ -582,7 +583,7 @@ def goalie_card(season, team, g, kind):
             return '<div class="gc unknown"><span class="chip">No team goalie stats</span></div>'
         head = '<span class="chip leak">Team stats · leakiest by GAA</span><small>not necessarily tonight’s starter</small>'
     return f'''<div class="gc {kind}" style="{team_vars(team)}">{mug(season, team, s.get("Player ID"), "gcm")}<div class="gcb">{head}<b>{esc(s.get("Goalie"))}{pb.goalie_badge(pb.position_of(s))}</b>
-<div class="gl"><span>{count(s.get("GA"), "", 0, "gnum")}<small>GA</small></span><span>{count(s.get("GAA"), "", 2, "gnum")}<small>GAA</small></span><span><em class="gnum">{_goalie_line(s)}</em><small>SV%</small></span><span>{count(s.get("GP"), "", 0, "gnum")}<small>GP</small></span></div></div></div>'''
+<div class="gl"><span>{count(s.get("GA"), "", 0, "gnum")}<small>GA</small></span><span>{count(s.get("GAA"), "", 2, "gnum")}<small>GAA</small></span><span><em class="gnum">{_goalie_line(s)}</em><small>SV%</small></span><span>{count(s.get("GP"), "", 0, "gnum")}<small>GP</small></span></div>{gpos.row_chip(g, s)}</div></div>'''
 
 
 BADGE_TONES = {'Stats': 'stat', 'Numbers': 'gem', 'Overlap': 'overlap', 'Intel pick': 'neon'}
