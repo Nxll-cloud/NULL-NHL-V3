@@ -62,6 +62,10 @@
 /* V5.9: fixed H2H column on goalie-threat rows (was auto per row, so the % column jumped ~48px between "no H2H shots" and "H2H x G / y SOG" rows) */
 .v55 .gtr .h2h{white-space:normal;line-height:1.25;min-width:0}
 .v55 .gtr .h2h span{white-space:nowrap}
+/* V5.9 TOP THREAT (top_threat_v59): neon edge on the row + badge on its own grid line under name/%/H2H, so the columns never move */
+.v55 .gtr.top{box-shadow:inset 3px 0 0 var(--neon);background:linear-gradient(90deg,color-mix(in srgb,var(--neon) 10%,transparent),transparent 70%);border-radius:0 8px 8px 0}
+.v55 .gtr .ttop{grid-column:3/-1;justify-self:start;margin:-2px 0 2px;padding:0 7px;border:1px solid color-mix(in srgb,var(--neon) 60%,transparent);border-radius:999px;background:color-mix(in srgb,var(--neon) 12%,transparent);color:var(--neon);font:800 .62rem/1.6 var(--fb);letter-spacing:.08em;white-space:nowrap;cursor:help}
+.v55 .gth .gpos{margin-top:4px}
 .v55 .rvw{display:grid;gap:4px}
 .v55 .rvr{display:grid;grid-template-columns:32px minmax(0,1.2fr) 44px 20px minmax(0,1fr) minmax(0,1.4fr);gap:8px;align-items:center;padding:5px 8px;border-radius:10px;border:1px solid var(--line);background:var(--glass)}
 .v55 .rvr .ngm{width:32px;height:32px}

@@ -4,6 +4,8 @@ from __future__ import annotations
 import v55_ui as v5
 import scorers_tonight_v58 as sctn
 import venue_v58 as vn
+import goalie_pos_v59 as gpos   # V5.9: 'most G' chip on Matchup Center goalie cards (display only)
+import top_threat_v59 as ttop   # V5.9: TOP THREAT row marker (display only)
 from v55_ui import esc
 
 ARROWS = {'up': ('▲', 'up'), 'down': ('▼', 'dn'), 'same': ('•', 'eq'), 'new': ('NEW', 'nw')}
@@ -132,13 +134,17 @@ def h2h_text(h):
     return f'<small class="h2h {cls}"><span>H2H {h["goals"]} G / {h["sog"]} SOG</span> <span>· {h["games"]} gp</span></small>'
 
 
-def goalie_threats(goalie, team, threats, season, coverage, top=5):
-    rows = ''.join(f'<div class="gtr"><span class="rk">{t.get("rank", i)}</span>{_headshot(t, season)}<b>{esc(t["name"])}</b>'
-                   f'<span class="ngp mini"><em>{pct(t.get("p_next"))}</em></span>{h2h_text(t.get("h2h"))}</div>'
-                   for i, t in enumerate(threats[:top], 1))
+def goalie_threats(goalie, team, threats, season, coverage, top=5, pos_mark=None):
+    """``pos_mark``: goalie_pos_v59.marker() for this goalie (V5.9) -> 'most G' chip + TOP THREAT row(s); None -> neither."""
+    shown = threats[:top]
+    top_i = set(ttop.marked(shown, pos_mark))
+    rows = ''.join(f'<div class="gtr{" top" if i - 1 in top_i else ""}"><span class="rk">{t.get("rank", i)}</span>{_headshot(t, season)}<b>{esc(t["name"])}</b>'
+                   f'<span class="ngp mini"><em>{pct(t.get("p_next"))}</em></span>{h2h_text(t.get("h2h"))}'
+                   f'{ttop.badge(pos_mark) if i - 1 in top_i else ""}</div>'
+                   for i, t in enumerate(shown, 1))
     status = esc(goalie.get('status') or 'season stats')
     return (f'<div class="gtc" style="--tc:{v5.colors(team)[0]}"><div class="gth">{v5.logo(team, "tl")}<div><b>{esc(goalie.get("name"))}</b>'
-            f'<small>{esc(team)} goalie · {status} · SV% {esc(goalie.get("sv"), "—")} · GAA {esc(goalie.get("gaa"), "—")}</small></div></div>'
+            f'<small>{esc(team)} goalie · {status} · SV% {esc(goalie.get("sv"), "—")} · GAA {esc(goalie.get("gaa"), "—")}</small>{gpos.chip(pos_mark, goalie.get("name") or "")}</div></div>'
             f'<p class="gtk">Opposing threats by V5.6 next-goal %</p>{rows or "<p>No opposing skaters.</p>"}'
             f'<p class="gtf">H2H {esc(coverage)}</p></div>')
 

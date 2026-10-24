@@ -18,6 +18,15 @@ def _mc_back():
     st.session_state['v54_mc_select'] = '—'
     _mc_set_query(None)
 
+def _v59_pmark(_gl):
+    """V5.9: goalie_pos_v59 marker for a Matchup Center goalie card ('most G' chip + TOP THREAT row); None = show neither."""
+    if not np_flags.show_goalie_pos(st.secrets) or not (_gl or {}).get('id'):
+        return None
+    try:
+        return gpos.marker(v59_goalie_pos_cached(_gl['id'],np_day,SEASON))
+    except Exception:   # the marker must never break the tab
+        return None
+
 def _mc_pick():
     _sel = st.session_state.get('v54_mc_select')
     st.session_state['v54_mc_game'] = None if _sel in (None, '—') else _sel
@@ -105,7 +114,7 @@ elif _game is None:
         for _g,_v in mcg.sort_games(_v56_views,_v56_sort):
             _gl=f'{_g["away"]} @ {_g["home"]}'
             _d=_v56_h2h.get((_g['away'],_g['home'])) or {}
-            _cards=''.join(v56.goalie_threats(_v['goalies'][_t],_t,_v['threats'][_t],SEASON,h2h.coverage_label(SEASON,games=_d.get('games',0)))
+            _cards=''.join(v56.goalie_threats(_v['goalies'][_t],_t,_v['threats'][_t],SEASON,h2h.coverage_label(SEASON,games=_d.get('games',0)),pos_mark=_v59_pmark(_v['goalies'][_t]))
                            for _t in (_g['away'],_g['home']) if _v['goalies'].get(_t))
             v5.html_block(st,f'<section class="sec"><div class="sh"><h3>{v5.esc(_gl)} {"🚩"*len(_v["flags"])}{vn.tag(_g.get("venue"))}</h3><p>Threats ranked by {v5.esc(_v["basis"])}</p></div>'
                           +v56.h2h_flag(_v['flags'],_gl)+f'<div class="gtgrid">{_cards or "<p>No goalie data for this game.</p>"}</div></section>')
@@ -154,7 +163,7 @@ else:
         _v56_c=h2h.coverage_label(SEASON,games=_v56_h.get('games',0))
         st.markdown(ui.section('Goalies vs threats','Opposing shooters by next-goal % · real H2H '+_v56_c,'🧤','warn'),unsafe_allow_html=True)
         v5.html_block(st,v56.h2h_flag(_v56_v['flags'],f'{_game["away"]} @ {_game["home"]}')+'<div class="gtgrid">'
-                      +''.join(v56.goalie_threats(_v56_v['goalies'][_t],_t,_v56_v['threats'][_t],SEASON,_v56_c) for _t in (_game['away'],_game['home']) if _v56_v['goalies'].get(_t))+'</div>'
+                      +''.join(v56.goalie_threats(_v56_v['goalies'][_t],_t,_v56_v['threats'][_t],SEASON,_v56_c,pos_mark=_v59_pmark(_v56_v['goalies'][_t])) for _t in (_game['away'],_game['home']) if _v56_v['goalies'].get(_t))+'</div>'
                       +'<h4 class="np-rv-h">Reverse view · each shooter’s hardest goalie</h4>'+v56.reverse_view(_v56_v['reverse'],SEASON))
     st.caption('Starter status comes only from the feeds (NHL boxscore starter flag once a game begins; ESPN probables pregame), cached 5 min. '
                'The leakiest-goalie card is team season stats and is never labelled the starter. Badges: Stats = top-20 Form; Numbers = ≥2 symbolic matches; '
