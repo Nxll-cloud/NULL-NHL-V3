@@ -113,6 +113,7 @@ import venue_v58 as vn
 import gem_match_v58 as gmx
 import gematria_log_v59 as gemlog
 import odds_scorers_v59 as oddsc
+import firstgoal_v60 as fgv
 import goalie_weak_v59 as gweak
 import goalie_pos_v59 as gpos   # V5.9: goalie weakness by shooter position (display only)
 import threat_badges_v59 as threat
@@ -416,6 +417,24 @@ if np_flags.show_odds_scorers(st.secrets):
                                     _np_live_quotes,np_espn_scorer_quotes)
     except Exception:  # never break Home / Odds
         _np_odds_scorers=None
+# V6.0: First Goal Intelligence (firstgoal_v60) - separate market board for Prediction Models + Research. Only with
+# ODDS_API_KEY; tonight's events only; cached 30 min like the anytime feed (~2 credits per game per refresh).
+@st.cache_data(ttl=1800,show_spinner=False)
+def np_firstgoal_cached(api_key, day, _games, _rankings, sig):
+    return fgv.fetch_board(api_key, day, _games, _rankings)
+
+_np_firstgoal=None
+_np_firstgoal_error=None
+if _np_key:
+    try:
+        _np_firstgoal=np_firstgoal_cached(_np_key,np_day,(np_snapshot or {}).get('games') or [],(np_snapshot or {}).get('rankings') or [],
+                                          len((np_snapshot or {}).get('games') or []))
+    except (OddsFeedError,ValueError,KeyError,TypeError) as _exc:
+        _np_firstgoal_error=str(_exc)
+    except Exception as _exc:  # never break the app
+        _np_firstgoal_error=type(_exc).__name__
+else:
+    _np_firstgoal_error='No ODDS_API_KEY in Streamlit secrets: first-goal prices are not loaded (no demo prices are shown).'
 _np_scorer_slot=st.container()  # V5.8: 'Scored tonight' header chip (filled after the live state below)
 # V5.8: Track Record is hidden behind one feature flag (feature_flags_v58); its tracker/DB/auto-save keep running.
 np_show_track=np_flags.show_track_record(st.secrets)

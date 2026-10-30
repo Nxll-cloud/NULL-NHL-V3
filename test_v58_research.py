@@ -6,7 +6,8 @@ import pytest
 import feature_flags_v58 as flags
 from v54_testkit import HERE, run_app
 
-VISIBLE = ['Top 10 Statistical', 'Top 10 Storylines', 'Top 10 Overlap', 'Top 10 Statistical Sleepers']
+VISIBLE = ['Top 10 Statistical', 'Top 10 Storylines', 'Top 10 Overlap', 'Top 10 Statistical Sleepers',
+           '🥅 First Goal Intelligence']   # V6.0: always-visible first-goal board follows Sleepers
 HIDDEN = ['Full NHL Slate', 'Player Statistics Explorer', 'V3.2 Goal-Scorer Rankings', 'V3.3 Historical Backtesting',
           'V3.5 Auto Storyline, Numerology & Gematria', 'V3.8 Opponent History & Season Milestone Evidence',
           'V3.8.2 Data Integrity Audit', 'V3.8.2 Opponent, Milestone & Birthday Diagnostics',
@@ -51,7 +52,7 @@ def test_sleepers_is_the_last_research_section_by_default(research_off):
     assert not at.exception
     tab = _research(at)
     heads = _heads(tab)
-    assert heads == VISIBLE, heads                         # Sleepers renders and nothing follows it
+    assert heads == VISIBLE, heads                         # Sleepers, then only the V6.0 First Goal board
     assert not set(HIDDEN) & set(heads)
     text = _text(tab)
     assert 'Player Intelligence' in text and 'Historical Data Coverage' in text

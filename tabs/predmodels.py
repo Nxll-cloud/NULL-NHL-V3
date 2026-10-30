@@ -7,6 +7,7 @@ accuracy_blend/, accuracy_books/) through short caches and reuses the app's alre
 history, no extra odds call and no network work at page load.
 Nothing here feeds the model, the NP ranks, the parlay or the accuracy card."""
 import prediction_models_v59 as pmv
+import firstgoal_v60 as fgv
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -78,6 +79,12 @@ try:
                 unsafe_allow_html=True)
     # Rendered with the plain streamlit module: the badges are placed by ID here, so the page-wide name pass must not add its own.
     v5.html_block(getattr(st, '_st', st), pmv.page_html(_pm_t, _pm_ns, _pm_scored, _pm_sc_rec))
+    # V6.0: First Goal - a SEPARATE board (not a fifth SYSTEMS column; no effect on Model/NP/Blend/Books math or logs).
+    st.markdown(v5.sec_head('First goal · separate market board', 'Who scores the first goal of each game · '
+                            'median implied % across books (market reference, not a calibrated prediction)'), unsafe_allow_html=True)
+    _fg_recs = fgv.load_all()
+    _fg_src, _fg_rows = fgv.tonight_board(np_day, next((r for r in _fg_recs if r.get('day') == np_day), None), globals().get('_np_firstgoal'))
+    v5.html_block(getattr(st, '_st', st), fgv.section_html(_fg_src, _fg_rows, _fg_recs, _pm_scored, globals().get('_np_firstgoal_error') or ''))
     st.markdown(v5.sec_head('Model accuracy · detailed record',
                             'The Model column’s full scoring for the last completed slate: every scorer, ranks, trend'),
                 unsafe_allow_html=True)

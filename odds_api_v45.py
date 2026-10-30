@@ -20,10 +20,11 @@ def _valid_price(price):
     if not math.isfinite(price): return False
     return price>=100 or price<=-100
 
-def fetch_odds(api_key, *, regions="us", markets=DEFAULT_MARKETS, timeout=12, session=None):
+def fetch_odds(api_key, *, regions="us", markets=DEFAULT_MARKETS, timeout=12, session=None, keep_event=None):
     """Fetch available NHL event-level player props, retaining source event IDs and timestamps.
 
     Provider coverage depends on subscription, region, market availability, and supported bookmakers.
+    keep_event(event) -> bool (V6.0, optional): skip events before their odds call (saves credits).
     """
     if not api_key or not str(api_key).strip():
         raise OddsFeedError("No API key configured. Add ODDS_API_KEY to Streamlit secrets or upload CSV.")
@@ -52,6 +53,7 @@ def fetch_odds(api_key, *, regions="us", markets=DEFAULT_MARKETS, timeout=12, se
         if not isinstance(event,dict): continue
         eid=event.get('id')
         if not eid: continue
+        if keep_event is not None and not keep_event(event): continue
         try:
             data=get(f'/sports/icehockey_nhl/events/{eid}/odds',{'regions':regions,'markets':markets,'oddsFormat':'american','dateFormat':'iso'})
         except OddsFeedError as exc:

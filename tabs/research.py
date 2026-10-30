@@ -336,6 +336,25 @@ if _intel is not None:
                 _t10=ui.with_form_pct(frame[[c for c in cols+['Player ID'] if c in frame]])  # V5.9: scored-tonight badge by id
                 st.dataframe(sctn.mark_frame_by_id(_t10,sctn.active(st.session_state,day),'Player ID'),hide_index=True,use_container_width=True,column_config=ui.form_pct_config(st))
                 st.download_button('Download '+title+' CSV',ui.with_form_pct(frame).to_csv(index=False),file_name=f'null-v387-{key}-{day}.csv',mime='text/csv',key=f'v387_{key}')
+        # V6.0: First Goal Intelligence (firstgoal_v60) - always visible (not behind FEATURE_RESEARCH_EXTRAS); separate from the rankings.
+        st.subheader('🥅 First Goal Intelligence')
+        import firstgoal_v60 as fgv
+        st.warning(fgv.CAVEAT)
+        _fg_recs=fgv.load_all()
+        _fg_src,_fg_board=fgv.tonight_board(day,next((r for r in _fg_recs if r.get('day')==day),None),globals().get('_np_firstgoal'))
+        st.caption((_fg_src or 'No first-goal prices loaded')+' · '+fgv.accuracy_line(_fg_recs))
+        if not _fg_board:
+            st.info(globals().get('_np_firstgoal_error') or 'No verified first-goal prices returned for today. The provider may not cover this market or games yet.')
+        else:
+            _fg_c1,_fg_c2=st.columns(2)
+            _fg_min=_fg_c1.slider('Minimum unique sportsbooks',1,5,1,key='fg_min_books')
+            _fg_long=_fg_c2.checkbox('Only +2000 or longer',False,key='fg_longshots')
+            _fg_f=fgv.filter_board(_fg_board,_fg_min,_fg_long)
+            _fg_t1,_fg_t2,_fg_t3=st.tabs(['Cross-book leaders','Best price gaps','Raw quotes'])
+            with _fg_t1: st.dataframe(fgv.table_rows(sorted(_fg_f,key=lambda r:(r['books'],r['gap_pp']),reverse=True)),hide_index=True,use_container_width=True)
+            with _fg_t2: st.dataframe(fgv.table_rows(sorted(_fg_f,key=lambda r:r['gap_pp'],reverse=True)),hide_index=True,use_container_width=True)
+            with _fg_t3: st.dataframe((globals().get('_np_firstgoal') or {}).get('quotes') or [],hide_index=True,use_container_width=True)
+        st.caption(fgv.COVERAGE_NOTE)
     if _rx:
         st.download_button('Download top 10 storyline watchlist CSV', ui.with_form_pct(top_stories).to_csv(index=False), file_name=f'null-v381-top10-{day}.csv', mime='text/csv')
         st.subheader('V3.8.2 Data Integrity Audit')

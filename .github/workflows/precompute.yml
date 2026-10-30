@@ -40,6 +40,10 @@ jobs:
         run: python prediction_models_v59.py update || echo "blend log update skipped"
       - name: Freeze the books top picks (V5.9; free ESPN DraftKings props, no odds key, no Odds API credits)
         run: python books_picks_v59.py update || echo "books log update skipped"
+      - name: First goal market log (V6.0; snapshots/accuracy_firstgoal/; freezes only if the ODDS_API_KEY repo secret is set, ~2 credits/game)
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python firstgoal_v60.py update || echo "first-goal log update skipped"
       - name: Prune old snapshots (V5.5, keeps the last 60 days)
         run: python snapshot_store.py prune --keep-days 60
       - name: Prune old gematria history (V5.9, keeps the last 90 days; snapshots/gematria/ only)
@@ -48,6 +52,8 @@ jobs:
         run: python prediction_models_v59.py prune --keep-days 90 || echo "blend prune skipped"
       - name: Prune old books top-picks log (V5.9, keeps the last 90 days; snapshots/accuracy_books/ only)
         run: python books_picks_v59.py prune --keep-days 90 || echo "books prune skipped"
+      - name: Prune old first-goal log (V6.0, keeps the last 90 days; snapshots/accuracy_firstgoal/ only)
+        run: python firstgoal_v60.py prune --keep-days 90 || echo "first-goal prune skipped"
       - name: Repo size check (V5.5; fails on any file GitHub would reject)
         run: python check_repo_size.py --top 15 --max-file-kb 100
       - name: Commit updated snapshots
@@ -56,7 +62,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # snapshots/*.json is in .gitignore (keeps manual uploads small), so the bot force-adds them;
           # -A stages pruned (deleted) snapshots too.
-          git add -f -A snapshots/   # includes snapshots/accuracy/, snapshots/gematria/, snapshots/accuracy_blend/ and snapshots/accuracy_books/
+          git add -f -A snapshots/   # includes snapshots/accuracy/, snapshots/gematria/, snapshots/accuracy_blend/ and snapshots/accuracy_books/ and snapshots/accuracy_firstgoal/
           if ! git diff --cached --quiet; then
             git commit -m "Update NHL slate snapshots"
             git push
