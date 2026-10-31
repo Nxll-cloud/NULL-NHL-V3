@@ -89,11 +89,14 @@ def test_trend_counts_only_nights_with_np():
     assert acc.trend([b])['np'] is None
 
 
-def test_card_header_and_trend_for_oct23():
-    html = acc.card_html(acc.view(NOW, _no_net, HERE / 'snapshots' / 'accuracy', HERE / 'snapshots'))
+def test_card_header_and_trend_for_oct23(tmp_path):
+    # The trend sums every scored night in the log dir; the nightly workflow keeps adding nights after Oct 23,
+    # so pin the log to the Oct 23 entry alone (real file, real numbers) instead of the live snapshots/accuracy/.
+    (tmp_path / f'{DAY}.json').write_text((HERE / 'snapshots' / 'accuracy' / f'{DAY}.json').read_text())
+    html = acc.card_html(acc.view(NOW, _no_net, tmp_path, HERE / 'snapshots'))
     head, tr = _head_and_trend(html)
     assert 'model top-10 hit 3/10 (shots-share 3/10) · NP leaderboard top-10 hit 4/10 · parlay 1/4 legs' in head
-    assert 'top-10 hit 3/10' in tr and 'NP leaderboard 4/10' in tr
+    assert 'Last 1 night: top-10 hit 3/10' in tr and 'NP leaderboard 4/10' in tr
 
 
 def test_card_without_np_shows_no_np_text():
