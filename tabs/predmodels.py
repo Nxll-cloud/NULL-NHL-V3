@@ -8,6 +8,7 @@ history, no extra odds call and no network work at page load.
 Nothing here feeds the model, the NP ranks, the parlay or the accuracy card."""
 import prediction_models_v59 as pmv
 import firstgoal_v60 as fgv
+import overall_accuracy_v60 as oav
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -31,6 +32,11 @@ def _pm_sig():
         except OSError:
             pass
     return tuple(out)
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _pm_overall_extras(sig):
+    return fgv.load_all(), oav.gematria_records()
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -105,6 +111,11 @@ try:
                   + '<p class="pmf">Saved = the Home accuracy card’s own frozen pre-game entry. Rebuilt = recomputed after the night '
                     'from the latest pre-game slate snapshot (no starters / injuries at freeze time), never a live freeze. Books nights are '
                     'only the ones frozen pre-game by the workflow (no odds were saved before its log started).</p></section>')
+    # Cumulative companion, directly under the original night table; neither view is hidden/replaced.
+    _oa_firstgoal, _oa_gematria = _pm_overall_extras(oav.log_signature())
+    v5.html_block(st, oav.section_html(oav.aggregate(_pm_accs, _pm_recs, _pm_books,
+                                                   _oa_firstgoal, _oa_gematria, pmv.acc.eastern_today().isoformat(),
+                                                   model_top_ids=pmv.model_top_ids)))
     st.caption('🧪 ' + pmv.EXPERIMENTAL_NOTE)
     st.caption('Weights: ' + pmv.WEIGHT_NOTE)
 except Exception as _pm_exc:  # never break the app
