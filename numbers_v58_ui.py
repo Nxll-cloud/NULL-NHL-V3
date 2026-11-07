@@ -55,7 +55,7 @@ def reference_patterns_html():
 .num-pattern-ref .nprf-group{min-width:0;padding:10px 12px;border:1px solid rgba(155,92,255,.18);border-radius:10px}
 .num-pattern-ref h4{font-size:.78rem;letter-spacing:.07em;text-transform:uppercase;margin:0 0 6px;color:#c9b6ff}
 .num-pattern-ref p,.num-pattern-ref ul{margin:0;line-height:1.6}.num-pattern-ref ul{list-style:none;padding:0}
-.num-pattern-ref .nprf-primary{border-color:rgba(0,229,255,.3)}.num-pattern-ref .nprf-primary p{font-size:1.12rem;font-weight:700;color:#d9caff}
+.num-pattern-ref .nprf-additional{grid-column:1/-1}.num-pattern-ref .nprf-primary{border-color:rgba(0,229,255,.3)}.num-pattern-ref .nprf-primary p{font-size:1.12rem;font-weight:700;color:#d9caff}
 .num-pattern-ref u{text-decoration-line:underline;text-decoration-thickness:2px;text-underline-offset:.22em}
 .num-pattern-ref .nprf-note{font-size:.78rem;margin-top:10px;opacity:.8}
 @media(max-width:600px){.num-pattern-ref .nprf-grid{grid-template-columns:1fr;gap:8px}.num-pattern-ref .nprf-group{padding:8px 10px}}
@@ -65,7 +65,10 @@ def reference_patterns_html():
             '<div class="nprf-grid">'
             '<div class="nprf-group nprf-primary"><h4>Primary pattern</h4><p>9, <u>91</u>, <u>92</u>, <u>93</u>, <u>19</u></p></div>'
             '<div class="nprf-group"><h4>Secondary patterns</h4><ul><li>2-21, 22, 20</li><li>7, 27, 37, 17</li><li>4, 43, 44, 49</li></ul></div>'
-            '<div class="nprf-group"><h4>Honorary numbers</h4><p>81, 18, 11, 13</p></div></div>'
+            '<div class="nprf-group"><h4>Honorary numbers</h4><p>81, 18, 11, 13</p></div>'
+            '<div class="nprf-group nprf-additional"><h4>Additional pattern</h4><p>4, 10, 0, 9, 3, 6</p>'
+            '<p class="nprf-note">Possible date mapping: October 9th, 36.</p>'
+            '<p class="nprf-note">User-supplied possible mapping; reference only.</p></div></div>'
             '<p class="nprf-note">Display reference only. Existing cipher rules, matches, scores and sorting are unchanged.</p></section>')
 
 
@@ -220,19 +223,62 @@ def pick_badge(rank):
     return f'<span class="npk {cls}" title="{text.title()} for this team (threat, then model chance, form, shot rate, English total)">{icon} {text}</span>'
 
 
-def player_row(p, rank=None, pos_tag=''):
+
+# Optional exact-match DISPLAY overlay. These literal values never feed scoring or ciphers.
+FOLLOW_PATTERN = (4, 10, 0, 9, 3, 6)
+OVERLAY_RULE = ('Exact match of the player’s already-computed English root (values.ordinal_root) to '
+                '4, 10, 0, 9, 3, 6. No Reverse matches, digit transforms or date mapping. '
+                '10 is kept literally, not reduced to 1; a normal name root is 1–9. '
+                'An explicit 0 can match; missing/unknown values cannot.')
+OVERLAY_STYLE = ('<style>.v58-num .npr-overlay{display:block;margin-top:4px;color:#c9b6ff;'
+                 'font-size:.76rem;overflow-wrap:anywhere}.v58-num .npr-overlay-summary{'
+                 'font-size:.85rem;color:#c9b6ff;margin:6px 0}</style>')
+
+
+def overlay_key(day):
+    return 'v60_number_overlay:' + str(day)
+
+
+def overlay_match(p):
+    """English-only equality on the existing computed field; never coerce unknown to zero."""
+    value = (p.get('values') or {}).get('ordinal_root')
+    if value is None or isinstance(value, bool):
+        return None
+    number = _num(value)
+    if number is None or not number.is_integer() or number not in FOLLOW_PATTERN:
+        return None
+    return f'English root = {int(number)}'
+
+
+def _board_ranks(boards, model_p=None):
+    return pick_ranks(top_picks_per_team([b.get('all_players') or b['players'] for b in boards], model_p))
+
+
+def _shown_players(board, ranks, pin=True):
+    return pin_board(board['players'], board.get('all_players'), ranks, pin) if ranks else board['players']
+
+
+def overlay_counts(boards, model_p=None, pin=True):
+    """Count the SAME already-selected displayed rows (after limits/pinning), not a fresh candidate pool."""
+    ranks = _board_ranks(boards, model_p)
+    rows = [p for b in boards for p in _shown_players(b, ranks, pin)]
+    return len(rows), sum(overlay_match(p) is not None for p in rows)
+
+
+def player_row(p, rank=None, pos_tag='', overlay_reason=None):
     v = p.get('values') or {}
     roots = ' · '.join(f'{short} {v.get(field, "—")}' for _, field, short in METHOD_FIELD)
     pk = f' {PICK_LABEL[rank][2]}' if rank in PICK_LABEL else ''
     return (f'<li class="npr t-{p["tier"]}{pk}" style="--c:{p["colour"]}"><span class="npr-ring" style="--to:{p["threat"] * 3.6:.0f}deg" title="Threat {p["threat"]}/100">'
             f'<span>{TIER_ICON.get(p["tier"], "")}</span></span>'
-            f'<div class="npr-id"><span class="npr-nl"><b class="npr-name">{esc(p["player"])}</b>{pos_tag}{pick_badge(rank)}</span><small>{esc(p["team"])} · <span class="tn">{esc(roots)}</span></small></div>'
+            f'<div class="npr-id"><span class="npr-nl"><b class="npr-name">{esc(p["player"])}</b>{pos_tag}{pick_badge(rank)}</span><small>{esc(p["team"])} · <span class="tn">{esc(roots)}</span></small>'
+            + (f'<small class="npr-overlay">Overlay match · {esc(overlay_reason)}</small>' if overlay_reason else '') + '</div>'
             f'<div class="npr-m">{match_chips(p)}</div>'
             f'<div class="npr-s"><strong class="tn">{p["threat"]}</strong><small>{TIER_ICON.get(p["tier"], "")} {p["tier"]}'
             + (f' · Eng {int(p["eng_total"])}' if p.get('eng_total') is not None else '') + '</small></div></li>')
 
 
-def game_board(board, day_num, ranks=None, pin=True, pmap=None):
+def game_board(board, day_num, ranks=None, pin=True, pmap=None, overlay=False):
     g = board['game']
     a, h = g['away'], g['home']
     when = v5.et_time(g.get('start')) if g.get('start') else ''
@@ -247,15 +293,21 @@ def game_board(board, day_num, ranks=None, pin=True, pmap=None):
     else:
         arena_html = f'<span class="nga">🏟 {arena} <b>= {root}</b><em>no arena match</em></span>'
     ranks = ranks or {}
-    players = pin_board(board['players'], board.get('all_players'), ranks, pin) if ranks else board['players']
-    rows = ''.join(player_row(p, ranks.get(_pkey(p)), _pos.tag_for(pmap, p.get('player_id'), p.get('team'), p.get('player'), p) if pmap is not None else '') for p in players) or '<li class="npr none">No ranked players.</li>'
+    players = _shown_players(board, ranks, pin)
+    baseline_count = len(players)
+    if overlay:
+        players = [p for p in players if overlay_match(p) is not None]
+    rows = ''.join(player_row(p, ranks.get(_pkey(p)), _pos.tag_for(pmap, p.get('player_id'), p.get('team'), p.get('player'), p) if pmap is not None else '',
+                              overlay_match(p) if overlay else None) for p in players)
+    rows = rows or ('<li class="npr none">0 overlay matches in the current selection.</li>' if overlay else '<li class="npr none">No ranked players.</li>')
+    effect = (f'<p class="npr-overlay-summary">Overlay ON · {len(players)} of {baseline_count} current selections shown</p>' if overlay else '')
     return (f'<section class="sec ngb{" ahit" if board["arena_hit"] else ""}"><header class="ngb-h">{v5.logo(a, "tl")}<h4>{esc(a)} <span>@</span> {esc(h)}</h4>{v5.logo(h, "tl")}'
             f'<span class="ngb-c" title="Players with a threat score above 0">⚑ {board["badge"]} threat{"s" if board["badge"] != 1 else ""}</span></header>'
             f'<div class="ngb-m">{f"<span>🕒 {esc(when)}</span>" if when else ""}<span>Day <b>{esc(day_num)}</b></span>{arena_html}</div>'
-            f'<ol class="ngb-l">{rows}</ol></section>')
+            f'{effect}<ol class="ngb-l">{rows}</ol></section>')
 
 
-def boards_html(boards, day_num, model_p=None, pin=True, pmap=None):
+def boards_html(boards, day_num, model_p=None, pin=True, pmap=None, overlay=False):
     """Legend + every game board. Each team's TOP PICK / RUNNER-UP comes from all lists on the page (every board)."""
-    ranks = pick_ranks(top_picks_per_team([b.get('all_players') or b['players'] for b in boards], model_p))
-    return legend() + '<div class="nbgrid ngrid">' + ''.join(game_board(b, day_num, ranks, pin, pmap) for b in boards) + '</div>'
+    ranks = _board_ranks(boards, model_p)
+    return (OVERLAY_STYLE if overlay else '') + legend() + '<div class="nbgrid ngrid">' + ''.join(game_board(b, day_num, ranks, pin, pmap, overlay) for b in boards) + '</div>'

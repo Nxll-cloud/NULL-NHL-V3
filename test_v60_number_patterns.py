@@ -84,3 +84,23 @@ st.markdown(nv.reference_patterns_html(),unsafe_allow_html=True)
     assert 'Number patterns' in app.markdown[0].value
     assert '2-21, 22, 20' in app.markdown[0].value
     assert not app.button and not app.selectbox and not app.radio
+
+
+
+def test_additional_pattern_preserves_zero_and_exact_order():
+    html=nv.reference_patterns_html()
+    assert '<div class="nprf-group nprf-additional"><h4>Additional pattern</h4><p>4, 10, 0, 9, 3, 6</p>' in html
+    assert html.count('4, 10, 0, 9, 3, 6')==1
+    assert '.num-pattern-ref .nprf-additional{grid-column:1/-1}' in html
+    parser=ReferenceParser();parser.feed(html)
+    assert parser.underlined==['91','92','93','19'] # New group does not change earlier emphasis.
+
+
+def test_possible_mapping_is_literal_user_reference_not_expanded_date():
+    html=nv.reference_patterns_html()
+    assert '<p class="nprf-note">Possible date mapping: October 9th, 36.</p>' in html
+    assert 'User-supplied possible mapping; reference only.' in html
+    assert '1936' not in html and '2036' not in html and 'October 9, 1936' not in html
+    # All four existing groups remain as supplied, including the literal hyphen notation.
+    for group in ('2-21, 22, 20','7, 27, 37, 17','4, 43, 44, 49','81, 18, 11, 13'):
+        assert group in html

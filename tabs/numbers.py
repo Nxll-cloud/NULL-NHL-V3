@@ -6,6 +6,8 @@ st.markdown(v5.tab_head('NULL’S PLAYBOOK · NUMBERS','Numerology & Gematria','
 # V5.8: one hero (tab head), then "Tonight's numbers" (day number + ciphers, each with its plain meaning), then grouped controls.
 st.caption('Symbolic patterns for entertainment only. These values do not predict scoring or betting outcomes.')
 v5.html_block(st,numv58.reference_patterns_html(),extra_class='v58-num')  # Display-only reference; never a matching/scoring input.
+import number_pattern_backtest_v60 as _num_audit
+_num_audit.render(st)  # Saved historical summary only; no scoring/overlay inputs or runtime API fetch.
 try:
     _games_num=np_snapshot['games'] if np_snapshot is not None else schedule_cached(np_day)
 except (requests.RequestException,ValueError,KeyError):
@@ -49,7 +51,17 @@ else:
             if _nb_sort:
                 _nb_boards=sorted(_nb_boards,key=lambda b:-b['badge'])
             _nb_mp=numv58.model_p_from_results(_v56_results)  # model P (pid -> p_anytime(lam_game)) for the TOP PICK tie-break only
-            v5.html_block(st,numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap),extra_class='v58-num')
+            _num_overlay=st.toggle('Apply 4, 10, 0, 9, 3, 6 overlay',value=False,key=numv58.overlay_key(np_day))
+            st.caption(numv58.OVERLAY_RULE)
+            st.caption('By Game player rows only, after the existing per-game limit and top-pick pinning. '
+                       'No replacement picks or reranking; threat badges and pick labels keep their baseline meaning. '
+                       'Other views and the other listed reference patterns are unchanged.')
+            _num_base_count,_num_match_count=numv58.overlay_counts(_nb_boards,_nb_mp)
+            st.caption(f'Overlay {"ON" if _num_overlay else "OFF"} · Baseline: {_num_base_count} selections · '
+                       f'Matching: {_num_match_count} · Shown: {_num_match_count if _num_overlay else _num_base_count}')
+            _num_board_html=(numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap,overlay=True) if _num_overlay else
+                             numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap))
+            v5.html_block(st,_num_board_html,extra_class='v58-num')
             st.caption('Threat score = round(100 × (3·D + 2·A + 1·T) / 6): D = day-number match, A = arena match, T = team match, each counted once (0 or 1). '
                        'The three ciphers are not independent: reduction always gives the same digit as English, and reverse mirrors English (the two always add up to 9), so each name has one number, and the day match uses the English digit only. '
                        'Tiers by raw points: 5–6 blaze · 3–4 hot · 2 warm · 1 mild · 0 cool. Eng = the full name’s English total before reducing, used to order equal scores. Arena glows when any player in the game matches it. Badge = players with a score above 0. '

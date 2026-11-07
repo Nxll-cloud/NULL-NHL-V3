@@ -1,0 +1,400 @@
+{
+  "schema_version": 1,
+  "as_of": "2026-11-07",
+  "historical_audit_not_live_forecast": true,
+  "verdict": "No reliable scoring or winning advantage found. Scoring rules unchanged.",
+  "coverage": {
+    "games": 2624,
+    "dates": 345,
+    "skater_appearances": 94454,
+    "skater_scorers": 14226,
+    "goals": 15987,
+    "skater_goals": 15984,
+    "goalie_goals_not_in_skater_table": 3,
+    "shootouts": 196,
+    "goals_exceed_shots_rows_retained": 12,
+    "seasons": {
+      "20242025": {
+        "games": 1312,
+        "dates": 178,
+        "first": "2024-10-04",
+        "last": "2025-04-17",
+        "skater_appearances": 47224,
+        "goals": 7901,
+        "skater_scorers": 7055
+      },
+      "20252026": {
+        "games": 1312,
+        "dates": 167,
+        "first": "2025-10-07",
+        "last": "2026-04-16",
+        "skater_appearances": 47230,
+        "goals": 8086,
+        "skater_scorers": 7171
+      }
+    },
+    "overall": {
+      "games": 2624,
+      "dates": 345,
+      "skater_appearances": 94454,
+      "skaters_scored": 14226,
+      "goal_total": 15987,
+      "goals_per_game": 6.092606707317073,
+      "skater_goal_hit_rate": 0.15061299680267642,
+      "team_win_rate": 0.5
+    }
+  },
+  "core_formula": "universal_day = digital_root(sum(digits(YYYYMMDD)))",
+  "primary_seed": 20261107,
+  "robustness_seed": 20261108,
+  "controls": {
+    "repetitions": 1000,
+    "bootstrap_repetitions": 2000,
+    "date_label_permutations": 1999,
+    "equal_size": true,
+    "without_replacement": true,
+    "strata": "season and calendar month",
+    "unit": "games for date cohorts; dressed-skater appearances for player arm",
+    "dependence": "date-cluster bootstrap; crossed date/player Poisson bootstrap for player sensitivity"
+  },
+  "core": [
+    {
+      "group": "Primary",
+      "numbers": [
+        9,
+        19,
+        91,
+        92,
+        93
+      ],
+      "games": 213,
+      "dates": 34,
+      "goals_per_game": 6.051643192488263,
+      "goals_per_game_95ci": [
+        5.783717491075982,
+        6.32280388728918
+      ],
+      "control_goals_per_game": 6.130568075117371,
+      "scorers": 1141,
+      "skater_appearances": 7667,
+      "scoring_hit_rate": 0.1488196165384114,
+      "control_scoring_hit_rate": 0.15145114759287298,
+      "goals_permutation_p": 0.6265,
+      "player_day_match": {
+        "matched_appearances": 904,
+        "matched_scorers": 126,
+        "hit_rate": 0.13938053097345132,
+        "repeated_control_mean_hit_rate": 0.1481603982300885
+      },
+      "player_day_match_crossed_cluster_ci": [
+        -0.054262301771927014,
+        0.04356919766654685
+      ],
+      "unique_team_alignment": {
+        "games": 38,
+        "dates": 26,
+        "wins": 21,
+        "hit_rate": 0.5526315789473685,
+        "hit_rate_95ci": [
+          0.41301150895140665,
+          0.7096774193548387
+        ],
+        "p_date_cluster_signflip": 0.594,
+        "both_aligned_excluded": 1,
+        "neither_aligned_excluded": 174
+      },
+      "by_season": {
+        "20242025": {
+          "games": 106,
+          "dates": 18,
+          "skater_appearances": 3815,
+          "skaters_scored": 564,
+          "goal_total": 642
+        },
+        "20252026": {
+          "games": 107,
+          "dates": 16,
+          "skater_appearances": 3852,
+          "skaters_scored": 577,
+          "goal_total": 647
+        }
+      }
+    },
+    {
+      "group": "Secondary 7 / 27 / 37 / 17",
+      "numbers": [
+        7,
+        17,
+        27,
+        37
+      ],
+      "games": 291,
+      "dates": 38,
+      "goals_per_game": 6.329896907216495,
+      "goals_per_game_95ci": [
+        6.070231031709809,
+        6.592463643821314
+      ],
+      "control_goals_per_game": 6.079274914089347,
+      "scorers": 1646,
+      "skater_appearances": 10475,
+      "scoring_hit_rate": 0.1571360381861575,
+      "control_scoring_hit_rate": 0.1502098611716455,
+      "goals_permutation_p": 0.108,
+      "player_day_match": {
+        "matched_appearances": 1199,
+        "matched_scorers": 186,
+        "hit_rate": 0.15512927439532945,
+        "repeated_control_mean_hit_rate": 0.1595979983319433
+      },
+      "player_day_match_crossed_cluster_ci": [
+        -0.04429554738584064,
+        0.04180550699268751
+      ],
+      "unique_team_alignment": {
+        "games": 128,
+        "dates": 38,
+        "wins": 52,
+        "hit_rate": 0.40625,
+        "hit_rate_95ci": [
+          0.31729166666666664,
+          0.48907313966589905
+        ],
+        "p_date_cluster_signflip": 0.0625,
+        "both_aligned_excluded": 20,
+        "neither_aligned_excluded": 143
+      },
+      "by_season": {
+        "20242025": {
+          "games": 134,
+          "dates": 19,
+          "skater_appearances": 4823,
+          "skaters_scored": 769,
+          "goal_total": 855
+        },
+        "20252026": {
+          "games": 157,
+          "dates": 19,
+          "skater_appearances": 5652,
+          "skaters_scored": 877,
+          "goal_total": 987
+        }
+      }
+    },
+    {
+      "group": "Secondary 4 / 43 / 44 / 49",
+      "numbers": [
+        4,
+        43,
+        44,
+        49
+      ],
+      "games": 294,
+      "dates": 43,
+      "goals_per_game": 5.840136054421769,
+      "goals_per_game_95ci": [
+        5.608450672238372,
+        6.06460390607856
+      ],
+      "control_goals_per_game": 6.131625850340136,
+      "scorers": 1534,
+      "skater_appearances": 10582,
+      "scoring_hit_rate": 0.14496314496314497,
+      "control_scoring_hit_rate": 0.15125153204640862,
+      "goals_permutation_p": 0.055,
+      "player_day_match": {
+        "matched_appearances": 1124,
+        "matched_scorers": 148,
+        "hit_rate": 0.13167259786476868,
+        "repeated_control_mean_hit_rate": 0.14422597864768685
+      },
+      "player_day_match_crossed_cluster_ci": [
+        -0.0542159796939753,
+        0.030041009205318835
+      ],
+      "unique_team_alignment": {
+        "games": 98,
+        "dates": 38,
+        "wins": 51,
+        "hit_rate": 0.5204081632653061,
+        "hit_rate_95ci": [
+          0.43157894736842106,
+          0.6126198779424585
+        ],
+        "p_date_cluster_signflip": 0.76,
+        "both_aligned_excluded": 7,
+        "neither_aligned_excluded": 189
+      },
+      "by_season": {
+        "20242025": {
+          "games": 152,
+          "dates": 22,
+          "skater_appearances": 5470,
+          "skaters_scored": 787,
+          "goal_total": 873
+        },
+        "20252026": {
+          "games": 142,
+          "dates": 21,
+          "skater_appearances": 5112,
+          "skaters_scored": 747,
+          "goal_total": 844
+        }
+      }
+    }
+  ],
+  "expanded_exploratory": [
+    {
+      "group": "Primary",
+      "games": 647,
+      "dates": 86,
+      "scoring_hit_rate": 0.1516595817768045,
+      "goals_per_game": 6.145285935085008,
+      "control_status": "Exact equal-size unmatched controls, without replacement within each season/month, 1000 independent repeated samples",
+      "control": {
+        "goals_per_game": 6.087958268933539,
+        "skater_goal_hit_rate": 0.15051029997952584
+      },
+      "p": 0.573,
+      "unreachable": [
+        91,
+        92,
+        93
+      ]
+    },
+    {
+      "group": "Secondary 2-21 / 22 / 20",
+      "games": 447,
+      "dates": 63,
+      "scoring_hit_rate": 0.14955246146195922,
+      "goals_per_game": 6.1029082774049215,
+      "control_status": "Exact equal-size unmatched controls, without replacement within each season/month, 1000 independent repeated samples",
+      "control": {
+        "goals_per_game": 6.117335570469799,
+        "skater_goal_hit_rate": 0.15157436414334913
+      },
+      "p": 0.9155,
+      "unreachable": []
+    },
+    {
+      "group": "Secondary 7 / 27 / 37 / 17",
+      "games": 808,
+      "dates": 105,
+      "scoring_hit_rate": 0.15389375966993296,
+      "goals_per_game": 6.186881188118812,
+      "control_status": "Exact equal-size unmatched controls, without replacement within each season/month, 1000 independent repeated samples",
+      "control": {
+        "goals_per_game": 6.06224504950495,
+        "skater_goal_hit_rate": 0.14938938264647042
+      },
+      "p": 0.204,
+      "unreachable": [
+        37
+      ]
+    },
+    {
+      "group": "Secondary 4 / 43 / 44 / 49",
+      "games": 625,
+      "dates": 83,
+      "scoring_hit_rate": 0.1482173023917489,
+      "goals_per_game": 5.984,
+      "control_status": "Not testable: insufficient unmatched games in season/month strata; no replacement or relaxation used",
+      "control": null,
+      "p": null,
+      "unreachable": [
+        43,
+        44,
+        49
+      ]
+    },
+    {
+      "group": "Honorary",
+      "games": 991,
+      "dates": 135,
+      "scoring_hit_rate": 0.14557228155748045,
+      "goals_per_game": 5.868819374369324,
+      "control_status": "Not testable: insufficient unmatched games in season/month strata; no replacement or relaxation used",
+      "control": null,
+      "p": null,
+      "unreachable": [
+        81
+      ]
+    },
+    {
+      "group": "All unambiguous numbers",
+      "games": 2175,
+      "dates": 286,
+      "scoring_hit_rate": 0.1504278962830502,
+      "goals_per_game": 6.077241379310345,
+      "control_status": "Not testable: insufficient unmatched games in season/month strata; no replacement or relaxation used",
+      "control": null,
+      "p": null,
+      "unreachable": [
+        37,
+        43,
+        44,
+        49,
+        81,
+        91,
+        92,
+        93
+      ]
+    }
+  ],
+  "zero_core_exposure_groups": [
+    "Secondary literal 2-21 (undefined), 22, 20",
+    "Honorary 81, 18, 11, 13"
+  ],
+  "undefined_literal": "2-21 is not split or expanded.",
+  "date_only_win_warning": "Date-only matching selects both teams; 50% wins is a tautology, not predictive accuracy. Unique-team alignment is a separate descriptive observational arm, not a winner-selection model.",
+  "unreachable_core": "All supplied values greater than 9; specifically 91, 92, 93 and 19.",
+  "unreachable_expanded": [
+    37,
+    43,
+    44,
+    49,
+    81,
+    91,
+    92,
+    93
+  ],
+  "later_group_not_tested": {
+    "numbers": [
+      4,
+      10,
+      0,
+      9,
+      3,
+      6
+    ],
+    "note": "Possible date mapping: October 9th, 36",
+    "mapping_semantics": "not inferred",
+    "excluded_from_original_hypotheses": true
+  },
+  "multiplicity": {
+    "planned_testable_comparisons": 15,
+    "smallest_unadjusted_p": 0.055,
+    "smallest_holm_p": 0.825
+  },
+  "sources": [
+    {
+      "name": "Official NHL games",
+      "url": "https://api.nhle.com/stats/rest/en/game"
+    },
+    {
+      "name": "Official NHL team game logs",
+      "url": "https://api.nhle.com/stats/rest/en/team/summary"
+    },
+    {
+      "name": "Official NHL skater game logs",
+      "url": "https://api.nhle.com/stats/rest/en/skater/summary"
+    }
+  ],
+  "traceability": {
+    "results_json_sha256": "8319571b0c2ffab8e3d1f870eb5e7827c834e9abacb67255e05e98de9742dc71",
+    "source_manifest_sha256": "88bb2c91b79662b2f9e60616f41ea20690e001fc4d9794e31d96e7b2c3b844bd",
+    "cached_source_responses": 38,
+    "full_bundle": "reproducibility_bundle.zip",
+    "no_automatic_fetch_needed": true
+  }
+}
