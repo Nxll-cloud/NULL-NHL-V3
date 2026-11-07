@@ -46,6 +46,29 @@ def tonight_strip(day, day_num, analyses, boards=None):
     return f'<section class="sec ntn-wrap"><div class="sh"><h3>Tonight’s numbers</h3><p>{esc(day)} · entertainment only, not a scoring probability</p></div><div class="ntg">{"".join(cards)}</div>{facts}</section>'
 
 
+
+def reference_patterns_html():
+    """User-supplied reference display only; never an input to any cipher, match or rank."""
+    style = """<style>
+.num-pattern-ref{min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;border:1px solid rgba(155,92,255,.3);background:linear-gradient(135deg,rgba(155,92,255,.09),rgba(0,229,255,.035))}
+.num-pattern-ref .nprf-grid{display:grid;grid-template-columns:1.2fr 1.2fr 1fr;gap:12px;min-width:0}
+.num-pattern-ref .nprf-group{min-width:0;padding:10px 12px;border:1px solid rgba(155,92,255,.18);border-radius:10px}
+.num-pattern-ref h4{font-size:.78rem;letter-spacing:.07em;text-transform:uppercase;margin:0 0 6px;color:#c9b6ff}
+.num-pattern-ref p,.num-pattern-ref ul{margin:0;line-height:1.6}.num-pattern-ref ul{list-style:none;padding:0}
+.num-pattern-ref .nprf-primary{border-color:rgba(0,229,255,.3)}.num-pattern-ref .nprf-primary p{font-size:1.12rem;font-weight:700;color:#d9caff}
+.num-pattern-ref u{text-decoration-line:underline;text-decoration-thickness:2px;text-underline-offset:.22em}
+.num-pattern-ref .nprf-note{font-size:.78rem;margin-top:10px;opacity:.8}
+@media(max-width:600px){.num-pattern-ref .nprf-grid{grid-template-columns:1fr;gap:8px}.num-pattern-ref .nprf-group{padding:8px 10px}}
+</style>"""
+    return (style + '<section class="sec num-pattern-ref" aria-label="Number patterns reference">'
+            '<div class="sh"><h3>Number patterns</h3><p>Reference only · underlined numbers mark the key sequence</p></div>'
+            '<div class="nprf-grid">'
+            '<div class="nprf-group nprf-primary"><h4>Primary pattern</h4><p>9, <u>91</u>, <u>92</u>, <u>93</u>, <u>19</u></p></div>'
+            '<div class="nprf-group"><h4>Secondary patterns</h4><ul><li>2-21, 22, 20</li><li>7, 27, 37, 17</li><li>4, 43, 44, 49</li></ul></div>'
+            '<div class="nprf-group"><h4>Honorary numbers</h4><p>81, 18, 11, 13</p></div></div>'
+            '<p class="nprf-note">Display reference only. Existing cipher rules, matches, scores and sorting are unchanged.</p></section>')
+
+
 def legend():
     items = ''.join(f'<li class="t-{n}" style="--c:{c}"><span class="ti">{TIER_ICON[n]}</span><b>{n.title()}</b><small>{TIER_RANGE[n]}</small></li>' for _, n, c in TIERS)
     return (f'<section class="nlg nleg-v58"><div class="nlg-h"><b>How to read a row</b><span>Score 0–100 = ({W_DAY}·DAY + {W_ARENA}·ARENA + {W_TEAM}·TEAM) ÷ {RAW_MAX} × 100 · '

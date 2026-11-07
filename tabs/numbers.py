@@ -5,6 +5,7 @@ st.markdown(v5.tab_head('NULL’S PLAYBOOK · NUMBERS','Numerology & Gematria','
     chips=[(f'Universal day {_day_num}','gem'),('D = day','day'),('T = team','team'),('A = arena','arena'),('Entertainment only','warn')],tone='gem'),unsafe_allow_html=True)
 # V5.8: one hero (tab head), then "Tonight's numbers" (day number + ciphers, each with its plain meaning), then grouped controls.
 st.caption('Symbolic patterns for entertainment only. These values do not predict scoring or betting outcomes.')
+v5.html_block(st,numv58.reference_patterns_html(),extra_class='v58-num')  # Display-only reference; never a matching/scoring input.
 try:
     _games_num=np_snapshot['games'] if np_snapshot is not None else schedule_cached(np_day)
 except (requests.RequestException,ValueError,KeyError):
