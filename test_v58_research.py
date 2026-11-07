@@ -7,7 +7,7 @@ import feature_flags_v58 as flags
 from v54_testkit import HERE, run_app
 
 VISIBLE = ['Top 10 Statistical', 'Top 10 Storylines', 'Top 10 Overlap', 'Top 10 Statistical Sleepers',
-           '🥅 First Goal Intelligence']   # V6.0: always-visible first-goal board follows Sleepers
+           '🥅 First Goal Intelligence', '📝 The List — Best Bets to Score Method']   # V6.0: always-visible first-goal board + The List follow Sleepers
 HIDDEN = ['Full NHL Slate', 'Player Statistics Explorer', 'V3.2 Goal-Scorer Rankings', 'V3.3 Historical Backtesting',
           'V3.5 Auto Storyline, Numerology & Gematria', 'V3.8 Opponent History & Season Milestone Evidence',
           'V3.8.2 Data Integrity Audit', 'V3.8.2 Opponent, Milestone & Birthday Diagnostics',

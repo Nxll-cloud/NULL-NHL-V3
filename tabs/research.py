@@ -355,6 +355,9 @@ if _intel is not None:
             with _fg_t2: st.dataframe(fgv.table_rows(sorted(_fg_f,key=lambda r:r['gap_pp'],reverse=True)),hide_index=True,use_container_width=True)
             with _fg_t3: st.dataframe((globals().get('_np_firstgoal') or {}).get('quotes') or [],hide_index=True,use_container_width=True)
         st.caption(fgv.COVERAGE_NOTE)
+        # V6.0: The List (thelist_v60) - static user-supplied method reference; always visible, separate section.
+        import thelist_v60 as tlv
+        tlv.render(st)
     if _rx:
         st.download_button('Download top 10 storyline watchlist CSV', ui.with_form_pct(top_stories).to_csv(index=False), file_name=f'null-v381-top10-{day}.csv', mime='text/csv')
         st.subheader('V3.8.2 Data Integrity Audit')
