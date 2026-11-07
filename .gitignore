@@ -245,3 +245,7 @@ logs/
 *.mp4
 *.gif
 playbook_screens/
+
+# Private user financial ledgers never belong in public snapshots or git.
+private_ledgers/
+*private-ledger*.json

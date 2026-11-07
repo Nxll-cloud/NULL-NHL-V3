@@ -79,6 +79,14 @@ try:
                 unsafe_allow_html=True)
     # Rendered with the plain streamlit module: the badges are placed by ID here, so the page-wide name pass must not add its own.
     v5.html_block(getattr(st, '_st', st), pmv.page_html(_pm_t, _pm_ns, _pm_scored, _pm_sc_rec))
+    # Separate strategy section only; no changes to existing rankings, accuracy or Home selection.
+    try:
+        import strict_card_ui_v60 as _strict_ui
+        _strict_ui.render(st, np_day, globals().get('_v56_results') or [], globals().get('_v56_rows') or [],
+                          getattr(globals().get('_v56_situ'), 'ctx', None), globals().get('_np_odds_scorers'),
+                          globals().get('_v56_pbp'), demo=bool(globals().get('_V56_DIR')))
+    except Exception as _strict_exc:
+        st.caption('Strict 3-game card unavailable: ' + type(_strict_exc).__name__)
     # V6.0: First Goal - a SEPARATE board (not a fifth SYSTEMS column; no effect on Model/NP/Blend/Books math or logs).
     st.markdown(v5.sec_head('First goal · separate market board', 'Who scores the first goal of each game · '
                             'median implied % across books (market reference, not a calibrated prediction)'), unsafe_allow_html=True)

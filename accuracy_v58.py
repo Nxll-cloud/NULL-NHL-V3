@@ -404,7 +404,7 @@ def results_from_score(payload, pbp_fn=None, box_fn=None):
     The score feed's goals carry no position; a failed lookup simply leaves the scorer without one."""
     games = [g for g in (payload or {}).get('games') or [] if str(g.get('gameScheduleState', 'OK')) == 'OK']
     final = [g for g in games if str(g.get('gameState')) in FINAL]
-    tally, pos = {}, {}
+    tally, pos, strict_games = {}, {}, {}
     for g in final:
         goals = [x for x in g.get('goals') or [] if (x.get('periodDescriptor') or {}).get('periodType') != 'SO']
         rows = [(int(x['playerId']), _name(x), x.get('teamAbbrev') or '') for x in goals if x.get('playerId') is not None]
@@ -417,18 +417,28 @@ def results_from_score(payload, pbp_fn=None, box_fn=None):
                 pos.update({k: v for k, v in positions_from_pbp(pbp).items() if k in {r[0] for r in rows}})
             except Exception:
                 pass
+        _strict_box = None
         if box_fn is not None and any(r[0] not in pos for r in rows):
             try:
-                bx = positions_from_boxscore(box_fn(g['id']))
+                _strict_box = box_fn(g['id'])
+                bx = positions_from_boxscore(_strict_box)
                 pos.update({r[0]: bx[r[0]] for r in rows if r[0] in bx})
             except Exception:
                 pass
+        # Additional strategy evidence from the SAME already-fetched final payloads, no extra network call.
+        import probable_goalies_v54 as _pg
+        _teams = [(g.get(k) or {}).get('abbrev') for k in ('awayTeam', 'homeTeam')]
+        _counts = {t: sum(r[2] == t for r in rows) for t in _teams}
+        _expected = [a - (so if a > h else 0), h - (so if h > a else 0)]
+        strict_games[str(g['id'])] = {'final': True, 'verified': all(t and _counts[t] == v for t, v in zip(_teams, _expected)),
+            'scorers': [r[0] for r in rows], 'team_goals': _counts, 'total': len(rows),
+            'starters': {t: st['goalie_id'] for t, st in _pg.parse_nhl_boxscore(_strict_box).items() if st.get('goalie_id')}}
         for pid, name, team in rows:
             t = tally.setdefault(pid, [pid, name, team, 0])
             t[3] += 1
     return {'complete': bool(games) and len(final) == len(games), 'n_games': len(final),
             'scorers': sorted(tally.values(), key=lambda r: (-r[3], r[1])),
-            'positions': {str(k): v for k, v in pos.items() if k in tally}}
+            'positions': {str(k): v for k, v in pos.items() if k in tally}, 'strict_games': strict_games}
 
 
 def fetch_results(day, getter):
@@ -473,6 +483,8 @@ def score(entry, results, now=None, compact=False):
     modeled = [pred[s] for s in sids if s in pred]
     e['results'] = {'fetched_at': (now or datetime.now(timezone.utc)).isoformat(timespec='seconds'),
                     'n_games': results['n_games'], 'scorers': scorers}
+    if results.get('strict_games'):
+        e['results']['strict_games'] = results['strict_games']
     if results.get('positions'):
         e['results']['positions'] = results['positions']   # V5.9: scorer positions by player ID (goalie pill)
     e['summary'] = {'n_scorers': len(scorers), 'n_modeled_scorers': len(modeled),
@@ -623,7 +635,15 @@ def update(now=None, getter=None, snap_root=SNAP_DIR, root=LOG_DIR, injuries_fn=
                 note = f'ESPN out list at freeze time ({len(out)} out)'
             except Exception as exc:
                 note = f'no injury list ({type(exc).__name__})'
-            save_entry(predictions(snap, out, 'workflow', now, note, situ_for(today, snap.get('games'), getter, starters=True)), root)
+            _freeze_situ = situ_for(today, snap.get('games'), getter, starters=True)
+            _freeze_entry = predictions(snap, out, 'workflow', now, note, _freeze_situ)
+            save_entry(_freeze_entry, root)
+            # Separate public strategy evidence, sharing existing fetched inputs; accuracy math is unchanged.
+            try:
+                import strict_card_v60 as strict
+                strict.capture_inputs(snap, _freeze_entry, _freeze_situ, Path(root).parent / 'strict_card_inputs', out)
+            except Exception as exc:
+                log(f'strict card inputs skipped ({type(exc).__name__})')
             done.append(f'froze {today}')
     except Exception as exc:
         log(f'accuracy: freeze skipped ({type(exc).__name__}: {exc})')

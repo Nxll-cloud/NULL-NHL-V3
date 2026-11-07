@@ -146,7 +146,8 @@ def parse_goalies(rows=None):
         if pid is None:
             continue
         out.append({'Team': _last_team(r.get('teamAbbrevs')), 'Goalie': str(r.get('goalieFullName') or ''),
-                    'Player ID': str(pid), 'SA': _f(r.get('shotsAgainst')), 'Saves': _f(r.get('saves'))})
+                    'Player ID': str(pid), 'SA': _f(r.get('shotsAgainst')), 'Saves': _f(r.get('saves')),
+                    'GP': _f(r.get('gamesPlayed'))})
     return out
 
 

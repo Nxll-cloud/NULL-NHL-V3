@@ -40,6 +40,8 @@ jobs:
         run: python prediction_models_v59.py update || echo "blend log update skipped"
       - name: Freeze the books top picks (V5.9; free ESPN DraftKings props, no odds key, no Odds API credits)
         run: python books_picks_v59.py update || echo "books log update skipped"
+      - name: Strict three-game card (public quotes only; no new API calls or private stakes)
+        run: python strict_card_v60.py || echo "strict card log skipped"
       - name: First goal market log (V6.0; snapshots/accuracy_firstgoal/; freezes only if the ODDS_API_KEY repo secret is set, ~2 credits/game)
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
