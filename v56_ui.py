@@ -128,7 +128,7 @@ def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, ti
     history = ('Last confirmed scorer: history unavailable' if result.get('history_available') is False else
                last_scorer_text(result.get('last_scorer')))
     cycle = len(result.get('goal_cycle') or ())
-    info = (f'<p class="ngnote">{esc(history)}</p><p class="ngnote"><b>{esc(heading)}</b><br/>{esc(timing)}'
+    info = (f'<p class="ngnote ng-last-confirmed">{esc(history)}</p><p class="ngnote ng-current-candidates"><b>{esc(heading)}</b><br/>{esc(timing)}'
             f'<br/>After {cycle} confirmed regulation/OT goals. Previous scorers remain eligible to score again.</p>')
     warning = f'<p class="ngnote" role="status">{esc(result.get("feed_warning"))}</p>' if result.get('feed_warning') else ''
     wrap = 'sec ngp-wrap ngp-demo' if demo else 'sec ngp-wrap'   # V5.9: demo-scoped spacing (assets/v58.css)

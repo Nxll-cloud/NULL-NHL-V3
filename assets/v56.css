@@ -135,3 +135,9 @@
 .v55 .ngp-wrap .ngl[data-ng-active="false"] .rk{color:var(--dim)}
 
 .v55 .ngp-wrap .ngr.ng-current{box-shadow:inset 3px 0 0 var(--neon);background:color-mix(in srgb,var(--neon) 7%,transparent)}
+
+/* Next-goal panel: history (violet) versus current candidates (cyan); no geometry changes. */
+.v55 .ngp-wrap .ngnote.ng-last-confirmed{--ng-section-accent:var(--neon2)}
+.v55 .ngp-wrap .ngnote.ng-current-candidates{--ng-section-accent:var(--neon)}
+.v55 .ngp-wrap .ngnote:is(.ng-last-confirmed,.ng-current-candidates){color:var(--ink);background:color-mix(in srgb,var(--ng-section-accent) 8%,transparent);box-shadow:inset 0 -2px 0 color-mix(in srgb,var(--ng-section-accent) 55%,transparent)}
+.v55 .ngp-wrap .ngnote.ng-current-candidates>b{color:var(--ng-section-accent)}
