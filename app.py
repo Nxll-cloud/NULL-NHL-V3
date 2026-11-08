@@ -367,13 +367,20 @@ def history_status(day, quiet=False):
 
 # V5.1: Load sportsbook data once for all tabs, not only inside Odds.
 # Streamlit executes tab bodies in order; Home must not depend on Odds running first.
-@st.cache_data(ttl=1800,show_spinner=False)
+@st.cache_resource(show_spinner=False)
+def np_quote_cache():
+    from odds_feed_cache_v60 import QuoteCache
+    return QuoteCache()
+
+
 def np_live_odds_cached(api_key, regions, markets):
-    return fetch_odds(api_key,regions=regions,markets=markets)
+    # Backward-compatible (frame, warnings); explicit short negative cooldown, never 30-min empty success.
+    return np_quote_cache().get(fetch_odds,api_key,regions,markets)
 
 def np_api_key():
     try:
-        return st.secrets.get('ODDS_API_KEY','')
+        value=st.secrets.get('ODDS_API_KEY','')
+        return value.strip() if isinstance(value,str) else value
     except (FileNotFoundError, KeyError):
         return ''
 
@@ -381,20 +388,31 @@ def np_api_key():
 _np_live_quotes=pd.DataFrame()
 _np_live_error=None
 _np_live_warnings=[]
+_np_feed_status={'state':'missing_key','quotes':0}
 _np_key=np_api_key()
+if _np_key is not None and not isinstance(_np_key,str):
+    _np_feed_status={'state':'configuration','quotes':0}
+    _np_key=''
 if _np_key:
     try:
         _np_live_quotes,_np_live_warnings=np_live_odds_cached(_np_key,'us','player_goal_scorer_anytime')
+        _np_feed_status=dict(_np_live_quotes.attrs.get('feed_status') or {})
     except (OddsFeedError,ValueError,KeyError,TypeError) as _exc:
         _np_live_error=str(_exc)
+        _np_feed_status=dict(getattr(_exc,'status',{}) or {},state=getattr(_exc,'code','malformed'))
 _np_csv_quotes=st.session_state.get('playbook_odds_data')
 _np_source=st.session_state.get('v46_source','Automatic API')
 _np_frames=[]
+_np_quote_origins=[]
 if _np_source in ('Automatic API','Combine both') and not _np_live_quotes.empty:
     _np_frames.append(_np_live_quotes)
+    _np_quote_origins.extend(['provider']*len(_np_live_quotes))
 if _np_source in ('Uploaded CSV','Combine both') and isinstance(_np_csv_quotes,pd.DataFrame) and not _np_csv_quotes.empty:
     _np_frames.append(_np_csv_quotes)
+    _np_quote_origins.extend(['csv']*len(_np_csv_quotes))
 _np_shared_quotes=pd.concat(_np_frames,ignore_index=True) if _np_frames else pd.DataFrame()
+# EdgeLab-only provenance copy; shared/export quote schema remains unchanged.
+_np_edge_quotes=_np_shared_quotes.assign(_quote_origin=_np_quote_origins) if _np_frames else pd.DataFrame()
 _np_shared_clean=pd.DataFrame()
 _np_shared_discrepancies=pd.DataFrame()
 _np_shared_error=None

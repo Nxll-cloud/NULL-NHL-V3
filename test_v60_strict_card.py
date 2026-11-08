@@ -218,6 +218,12 @@ def test_bridge_no_network_reuses_model_pool_and_books(tmp_path):
 
 
 def test_streamlit_render_and_private_entry(monkeypatch):
+    # UI uses wall time, unlike pure helpers that receive NOW; freeze only this test's UI clock.
+    class FixtureClock(datetime):
+        @classmethod
+        def now(cls,tz=None):
+            return NOW if tz else NOW.replace(tzinfo=None)
+    monkeypatch.setattr(ui,'datetime',FixtureClock)
     from streamlit.testing.v1 import AppTest
     monkeypatch.setattr(sc,'load',lambda *a,**k:card())
     app=AppTest.from_string('''

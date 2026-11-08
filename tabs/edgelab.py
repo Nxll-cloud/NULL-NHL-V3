@@ -3,9 +3,11 @@ Model p = the Edge Flags computation (edgeflags_v56.player_lambda + live_nextgoa
 _v56_results); implied = edgelab_v55.american_to_implied of the LIVE price (latest quote per book, averaged across
 books). No manual entry, no bankroll / sizing, no moneylines, no DEMO prices. See edgelab_v58."""
 # ============================================================ V5.8 EdgeLab (read-only)
-st.markdown(v5.tab_head('NULL’S PLAYBOOK · EDGELAB','EdgeLab','Next-goal model chance vs the live anytime-goal price · edge = model p − implied',
-    chips=[('Model p = 1 − e^(−λ)','odds'),('Live price, not the opener','team'),('Read-only · not betting advice','warn')],tone='odds'),unsafe_allow_html=True)
-_el_prices=elv58.live_prices(_np_shared_quotes)
+st.markdown(v5.tab_head('NULL’S PLAYBOOK · EDGELAB','EdgeLab','Next-goal model chance vs mapped anytime-goal quotes · edge = model p − implied',
+    chips=[('Model p = 1 − e^(−λ)','odds'),('Provider / imported quotes','team'),('Read-only · not betting advice','warn')],tone='odds'),unsafe_allow_html=True)
+import edgelab_prices_v60 as _el_scope
+_el_prices,_el_quote_report=_el_scope.prepare(globals().get('_np_edge_quotes',_np_shared_quotes),_v56_results,np_day,_np_source)
+v5.html_block(st,_el_scope.status_html(_el_quote_report,globals().get('_np_feed_status')),extra_class='v58-el')
 _el_scorers=sctn.active(st.session_state,np_day)
 _el_scored=set((_el_scorers or {}).get('players',{}).keys())
 _el_priced,_el_unpriced=elv58.model_rows(_v56_results,_el_prices,_el_scored)
@@ -16,7 +18,7 @@ st.markdown(ui.stat_strip([('Priced players',len(_el_priced),'odds' if _el_price
     ('Positive edge',sum(r['edge']>0 for r in _el_priced),'ok' if any(r['edge']>0 for r in _el_priced) else 'muted'),
     ('Books',len(_el_books),'team'),('Updated',elv58.fmt_time(_el_at),'gem')]),unsafe_allow_html=True)
 if not _el_prices:
-    st.markdown(v5.empty_state(elv58.NO_PRICES_TITLE,'EdgeLab never invents prices. The model chance for every slate skater is still listed below, without an edge.','$'),unsafe_allow_html=True)
+    st.markdown(v5.empty_state(elv58.NO_PRICES_TITLE,'See the source, provider status and mapping exclusions above. EdgeLab never invents prices. The model chance for every slate skater is still listed below, without an edge.','$'),unsafe_allow_html=True)
 if not _v56_results:
     st.info('No NHL games for this date.')
 elif not (_el_priced or _el_unpriced):
@@ -29,7 +31,8 @@ else:
 if _el_scored:
     _el_sc=sorted(_el_scorers['players'].values(),key=lambda x:(-x['goals'],x['name']))
     st.markdown(v5.inline('<p class="el-settled"><span>Settled · already scored, left out of the edges:</span> '+' · '.join(f'<b>{v5.esc(x["name"])}</b>' for x in _el_sc)+'</p>','v58-el'),unsafe_allow_html=True)
-st.caption(('Live price = each sportsbook’s latest anytime-goal quote for the player, averaged across books ('+', '.join(_el_books)+'; source: '+_np_source+'). ' if _el_books else '')+
+st.caption(('Quote = each sportsbook’s latest mapped affirmative anytime-goal quote for the player, averaged across books ('+', '.join(_el_books)+'; source: '+_np_source+'). ' if _el_books else '')+
+           'Quotes are as-of snapshots, not a guarantee of currently executable live markets. Imported CSV rows are user-supplied, not verified live. Only Yes anytime-goal quotes with a current NHL game mapping are eligible; Over/No are excluded. '
            'Edge Flags compares the same model with the opener (earliest quote seen); EdgeLab uses the current price. '
            'λ: pregame = prior shots/game × shrunk sh%; live = current scoring rate × remaining minutes. Final/shootout games'+
            (f' ({_el_over} tonight)' if _el_over else '')+' and players who already scored are left out. No moneylines: the model has no win probability. '

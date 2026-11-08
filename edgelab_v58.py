@@ -20,19 +20,24 @@ import edgelab_v55 as el
 import edgeflags_v56 as eflags
 import live_nextgoal_v56 as lm
 import situational_v58 as sit
+from edgelab_prices_v60 import name_key, text
 
-LIVE_LABEL = 'Live price'
-NO_PRICE = 'No live price'
-NO_PRICES_TITLE = 'No live prices loaded — add ODDS_API_KEY in Streamlit secrets'
+LIVE_LABEL = 'Quote / consensus'
+NO_PRICE = 'No mapped price'
+NO_PRICES_TITLE = 'No eligible live or imported prices — see feed status'
 OVER = ('final', 'shootout')
 
 
 def live_prices(quotes):
     """Quotes frame (player, market, american_odds, sportsbook, updated_at) -> {player_casefold: price dict}.
-    Per player: each book's LATEST anytime-goal quote, averaged across books (implied probability)."""
+    Aggregation only; EdgeLab's tab must use edgelab_prices_v60.prepare first to verify game/identity.
+    Per player: each book's LATEST Yes anytime-goal quote, averaged across books (implied probability)."""
     if not isinstance(quotes, pd.DataFrame) or quotes.empty or not {'player', 'american_odds'}.issubset(quotes.columns):
         return {}
     q = quotes.copy()
+    if 'selection' not in q:
+        return {}
+    q = q[q['selection'].map(lambda v: text(v).casefold() == 'yes')]
     if 'market' in q.columns:
         m = q['market'].astype(str).str.lower()
         q = q[m.apply(lambda s: any(k in s for k in eflags.ANYTIME_MARKETS))]
@@ -43,7 +48,7 @@ def live_prices(quotes):
     q['_imp'] = q['american_odds'].map(_implied)
     q = q[q['_imp'].notna()]
     out = {}
-    for player, grp in q.groupby(q['player'].map(eflags._norm)):
+    for player, grp in q.groupby(q['player'].map(name_key)):
         if not player:
             continue
         latest = []
@@ -53,7 +58,7 @@ def live_prices(quotes):
         imp = sum(r['_imp'] for r in latest) / len(latest)
         ts = [r['_t'] for r in latest if not pd.isna(r['_t'])]
         t = max(ts) if ts else None
-        out[player] = {'implied': imp, 'american': eflags.implied_to_american(imp), 'books': len(latest),
+        out[player] = {'implied': imp, 'american': float(latest[0]['american_odds']) if len(latest) == 1 else round(-100*imp/(1-imp)) if imp >= .5 else round(100*(1-imp)/imp), 'books': len(latest),
                        'book_names': sorted({str(r['_b']) for r in latest if str(r['_b'])}),
                        'at': None if t is None else t.isoformat(), 'source': 'live'}
     return out
@@ -80,18 +85,20 @@ def model_rows(results, prices, scored_ids=()):
         for rec in res['players']:
             if rec.get('goals', 0) > 0 or rec.get('pid') in scored:  # settled: the anytime prop has already won
                 continue
+            if not name_key(rec.get('name')):
+                continue
             lam = eflags.player_lambda(rec, ph, rem)
             if lam is None:
                 continue
             p = lm.p_anytime(lam)
-            line = prices.get(eflags._norm(rec['name']))
+            line = prices.get_for(slate, rec) if hasattr(prices,'get_for') else prices.get(name_key(rec['name']))
             row = {'pid': rec.get('pid'), 'name': rec['name'], 'team': rec['team'], 'game': game, 'phase': ph,
                    'start': slate.get('start'), 'rank': rec.get('rank'), 'lambda': lam, 'model_p': p,
                    'implied': None, 'american': None, 'books': 0, 'at': None, 'edge': None,
                    'why': sit.why(rec.get('situ')) if rec.get('situ') else ''}
             if line:
                 row.update(implied=line['implied'], american=line['american'], books=line['books'], at=line['at'],
-                           edge=p - line['implied'])
+                           edge=p - line['implied'], price_source=line.get('source','unverified legacy quote'))
                 priced.append(row)
             else:
                 unpriced.append(row)
@@ -113,7 +120,7 @@ def fmt_time(iso, tz='America/New_York'):
         return '—'
     t = pd.Timestamp(iso)
     t = t.tz_localize('UTC') if t.tzinfo is None else t
-    return t.tz_convert(tz).strftime('%-I:%M %p ET')
+    return t.tz_convert(tz).strftime('%b %-d · %-I:%M %p ET')
 
 
 def table_html(priced, unpriced, logo=None, limit_unpriced=None):
@@ -125,7 +132,7 @@ def table_html(priced, unpriced, logo=None, limit_unpriced=None):
         tone = 'pos' if priced_row and r['edge'] > 0 else 'neg' if priced_row else 'na'
         edge = f'<td class="el-e {tone}">{fmt_edge(r["edge"])}</td>' if priced_row else f'<td class="el-e na">{NO_PRICE}</td>'
         price = (f'<td class="el-n">{el.fmt_odds(r["american"])}<small>{fmt_pct(r["implied"])} · {r["books"]} book{"s" if r["books"] != 1 else ""}'
-                 f' · {fmt_time(r["at"])}</small></td>') if priced_row else '<td class="el-n na">—</td>'
+                 f' · {fmt_time(r["at"])} · {h.escape(r.get("price_source","quote"))}</small></td>') if priced_row else '<td class="el-n na">—</td>'
         live = ' <i class="el-live">LIVE</i>' if r['phase'] == 'live' else ''
         why = f' title="{h.escape(r["why"])}"' if r.get('why') else ''  # V5.8: situational breakdown on hover
         return (f'<tr class="{tone}"><td class="el-p">{lg(r["team"])}<span><b>{h.escape(r["name"])}</b><small>{h.escape(r["team"])} · {h.escape(r["game"])}{live}</small></span></td>'
