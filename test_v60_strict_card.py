@@ -49,7 +49,7 @@ def test_strict_distinct_ids_not_opposing_teams_and_shared_optimizer(monkeypatch
     cs,ctx,q=pool()
     cs=[c for c in cs if c['game_id'] in {cs[0]['game_id'],cs[2]['game_id']}]
     assert not sc.build('2026-11-07',cs,ctx,q,NOW)['legs']
-    assert 'No qualifying 3-game card' in ui.section_html(sc.build('2026-11-07',cs,ctx,q,NOW))
+    assert 'Partial card · 2 of 3 legs' in ui.section_html(sc.build('2026-11-07',cs,ctx,q,NOW))  # 2 games: partial, never a full card
 
 
 @pytest.mark.parametrize('change',[ 'small_gp','small_sa','unknown','strong','missing_gp','wrong_game'])

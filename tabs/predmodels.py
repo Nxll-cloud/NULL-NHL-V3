@@ -92,7 +92,7 @@ try:
                           getattr(globals().get('_v56_situ'), 'ctx', None), globals().get('_np_odds_scorers'),
                           globals().get('_v56_pbp'), demo=bool(globals().get('_V56_DIR')))
     except Exception as _strict_exc:
-        st.caption('Strict 3-game card unavailable: ' + type(_strict_exc).__name__)
+        st.caption('the list unavailable: ' + type(_strict_exc).__name__)
     # V6.0: First Goal - a SEPARATE board (not a fifth SYSTEMS column; no effect on Model/NP/Blend/Books math or logs).
     st.markdown(v5.sec_head('First goal · separate market board', 'Who scores the first goal of each game · '
                             'median implied % across books (market reference, not a calibrated prediction)'), unsafe_allow_html=True)

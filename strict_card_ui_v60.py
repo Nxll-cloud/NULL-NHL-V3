@@ -58,18 +58,26 @@ def resolve(store, day, results, rows, ctx, quotes, now=None, demo=False):
 
 def section_html(rec):
     e = lambda v: escape(str(v))
-    body = '<h3>The List · strict 3-game card</h3><p>' + e(strategy.RULE_NOTE) + '</p>'
+    body = '<h3>the list</h3><p>' + e(strategy.RULE_NOTE) + '</p>'
     legs = rec.get('legs') or []
-    if not legs:
-        why = '; '.join(f'{k} ({v})' for k, v in rec.get('reasons', {}).items())
+    partial = [] if legs else (rec.get('partial_legs') or [])
+    why = '; '.join(f'{k} ({v})' for k, v in (rec.get('reasons') or {}).items())
+    if not legs and not partial:
         body += '<b>No qualifying 3-game card</b><p>' + e(why or 'Fewer than three distinct eligible NHL games with supported prices.') + '</p>'
     else:
+        shown = legs or partial
         states = (rec.get('results') or {}).get('legs') or {}
-        body += '<p>Frozen at ' + e(rec['frozen_at']) + ' · three distinct NHL game IDs · independent of Home’s four-leg card.</p>'
-        body += '<div class="sc60-scroll" tabindex="0" role="region" aria-label="Strict three-game card table"><table><thead><tr>'
+        if legs:
+            body += '<p>Frozen at ' + e(rec['frozen_at']) + ' · three distinct NHL game IDs · independent of Home’s four-leg card.</p>'
+        else:
+            n, total = len(partial), rec.get('candidate_games')
+            body += (f'<b class="sc60-partial">Partial card · {n} of 3 legs</b><p>Only {n} distinct NHL game{"s" if n != 1 else ""}'
+                     + (f' of {e(total)}' if total else '') + ' had a qualifying player. Other games failed the strict screen: '
+                     + e(why or 'no qualifying player') + '. Not a full 3-game card; no combined price shown.</p>')
+        body += '<div class="sc60-scroll" tabindex="0" role="region" aria-label="the list table"><table><thead><tr>'
         body += ''.join('<th scope="col">' + h + '</th>' for h in ('Player', 'Game ID / matchup', 'Model %', 'Opposing goalie', 'Book / offered odds', 'Quote source / time', 'Result'))
         body += '</tr></thead><tbody>'
-        for c in legs:
+        for c in shown:
             q, g = c['quote'], c['goalie']
             cells = [f"{c['name']} ({c['team']})", f"{c['game_id']} · {c['team']} vs {c['opp']}", f"{100*c['p']:.1f}%",
                      f"{g['name']} · {g['status']} · SV {g['sv']:.3f} (shrunk {g['shrunk_sv']:.3f}, ×{g['multiplier']:.2f}) · {g['gp']:g} GP / {g['sa']:g} SA",
@@ -77,12 +85,13 @@ def section_html(rec):
                      states.get(str(c['pid']), 'pending')]
             body += '<tr>' + ''.join('<td>' + e(v) + '</td>' for v in cells) + '</tr>'
         body += '</tbody></table></div>'
-        import math
-        combined = math.prod(c['quote']['decimal'] for c in legs)
-        body += f'<p>Estimated independent-leg combined decimal price: {combined:.3f} · paper estimate, not an offered whole-card quote.</p>'
+        if legs:
+            import math
+            combined = math.prod(c['quote']['decimal'] for c in legs)
+            body += f'<p>Estimated independent-leg combined decimal price: {combined:.3f} · paper estimate, not an offered whole-card quote.</p>'
         body += '<p>Anytime grading includes overtime, excludes shootout attempts; settles only on verified final games. DNP/void rules vary by book: verify settlement yourself.</p>'
-    body += '<p>' + e(strategy.QUOTE_NOTE) + '</p><p>Nyah: player-selection method. This enhancement applies The List’s separate-game card rule to the supplied model pool; no claim to automate her full method.</p>'
-    return CSS + '<section class="sc60" aria-label="The List strict three-game card">' + body + '</section>'
+    body += '<p>' + e(strategy.QUOTE_NOTE) + '</p>'
+    return CSS + '<section class="sc60" aria-label="the list">' + body + '</section>'
 
 
 def render(st, day, results, rows, ctx, quotes, pbps=None, demo=False):

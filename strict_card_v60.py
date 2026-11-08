@@ -97,6 +97,8 @@ def build(day, candidates, ctx, data, now=None, rule=None):
             reject('missing NHL player/game ID'); continue
         if not start or now >= start or c.get('phase') != 'pregame':
             reject('started/unknown game time'); continue
+        if not isinstance(c.get('name'), str) or not c['name'].strip():
+            reject('missing player name'); continue
         if str(c.get('position') or '').upper() in ('G', 'GOALIE'):
             reject('goalie not a skater'); continue
         if not num(c.get('p')) or not 0 < c['p'] < 1 or pid in seen:
@@ -117,8 +119,20 @@ def build(day, candidates, ctx, data, now=None, rule=None):
     rec = {'schema': 1, 'day': day, 'frozen_at': now.isoformat(), 'rule': rule, 'legs': legs,
            'eligible_games': games, 'reasons': reasons, 'notes': make_notes(legs, eligible, fades),
            'results': None, 'kind': 'quoted suggestion'}
+    if not legs and eligible:
+        # Partial card: same strict filters, best one per distinct game, never a full card or payout.
+        rec['partial_legs'] = partial_legs(eligible, 3)
+        rec['candidate_games'] = len({str(c.get('game_id')) for c in candidates or [] if str(c.get('game_id') or '').isdigit()})
     rec['id'] = digest(rec)
     return rec
+
+
+def partial_legs(eligible, k=3):
+    """Local one-per-game selection (shared parlay.choose stays all-or-nothing)."""
+    best = {}
+    for c in sorted(eligible, key=lambda c: (-c['p'], c['name'])):
+        best.setdefault(c['game_id'], c)
+    return sorted(best.values(), key=lambda c: (-c['p'], c['name']))[:k]
 
 
 def make_notes(legs, eligible, fades=()):
