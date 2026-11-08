@@ -77,7 +77,12 @@ def test_live_game_from_real_pbp(live):
     kids = [tab.children[k] for k in sorted(tab.children)]
     vals = [getattr(c, 'value', '') or '' for c in kids]
     i_banner = next(i for i, v in enumerate(vals) if isinstance(v, str) and 'NULL’S PLAYBOOK · LIVE' in v)
-    i_strip = next(i for i, v in enumerate(vals) if isinstance(v, str) and 'class="lstrip' in v)
+    # The strip now lives in a replaceable container so fragment updates cannot leave it stale.
+    def contains_strip(c):
+        if 'class="lstrip' in str(getattr(c, 'value', '')):
+            return True
+        return any(contains_strip(x) for x in getattr(c, 'children', {}).values())
+    i_strip = next(i for i, c in enumerate(kids) if contains_strip(c))
     assert i_banner == 0 and i_strip == 1, (i_banner, i_strip)
 
 

@@ -8,12 +8,12 @@ from __future__ import annotations
 import live_nextgoal_v56 as ng
 import live_feed_v56 as lf
 
-PHASE_FROM_SCORE = {'FUT': 'pregame', 'PRE': 'pregame', 'LIVE': 'live', 'CRIT': 'live', 'OFF': 'final', 'FINAL': 'final'}
+PHASE_FROM_SCORE = {'FUT': 'pregame', 'PRE': 'pregame', 'LIVE': 'live', 'CRIT': 'live', 'OFF': 'final', 'FINAL': 'final', 'OVER': 'final'}
 
 
 def needs_pbp(score_state, slate_status=''):
     st = str(score_state or slate_status or '').upper()
-    return st in ('LIVE', 'CRIT', 'OFF', 'FINAL')
+    return st in ('LIVE', 'CRIT', 'OFF', 'FINAL', 'OVER')
 
 
 def game_label(game):
@@ -29,7 +29,8 @@ def game_label(game):
 
 
 def signature(game):
-    return (len(game.get('events') or []), game.get('period'), game.get('secs_remaining'), game.get('state'))
+    return (ng.event_revision(game.get('events')), game.get('period'), game.get('secs_remaining'),
+            game.get('state'), game.get('situation'), game.get('away_score'), game.get('home_score'))
 
 
 def model(game, priors, use_form=False, situ=None):
@@ -65,6 +66,47 @@ def ranked_result(game, priors, memory, key, use_form=False, situ=None):
     return res
 
 
+def feed_status(game, score=None, missing=False):
+    """Presentation safety gate. Never changes rates, eligibility or the model's math."""
+    score = score or {}
+    ph = ng.phase(game)
+    score_ph = PHASE_FROM_SCORE.get(str(score.get('state') or '').upper())
+    score_so = score.get('ptype') == 'SO' or score.get('label') == 'SO' or '/SO' in score.get('label', '')
+    display = ('final' if ph == 'final' or score_ph == 'final' else
+               'shootout' if ph == 'shootout' or score_so else
+               'live' if ph == 'live' or score_ph == 'live' else 'pregame')
+    warnings = []
+    if missing and score_ph in ('live', 'final'):
+        warnings.append('Play-by-play unavailable or incomplete; awaiting synchronization, no active next-goal highlight.')
+    elif ph == 'live':
+        if not score:
+            warnings.append('Score feed unavailable; synchronization unverified.')
+        elif score_ph == 'pregame':
+            warnings.append('Score and play-by-play phases disagree; awaiting synchronization.')
+        if not ng.goal_totals_match(game):
+            warnings.append('PBP goal history and score disagree; awaiting complete history.')
+    if score_ph == 'live' and ph == 'pregame' and not missing:
+        warnings.append('Score and play-by-play phases disagree; awaiting synchronization.')
+    if ph == 'live' and score_ph == 'final':
+        warnings.append('Score feed is final; awaiting final play-by-play.')
+    if ph == 'final' and score_ph == 'live':
+        warnings.append('Play-by-play is final; score feed has not synchronized.')
+    # Exact score agreement matters in BOTH directions. SO is never a next-goal market.
+    if ph == 'live' and score_ph == 'live' and not score_so:
+        a = (game.get('away_score'), game.get('home_score'))
+        b = (score.get('away_score'), score.get('home_score'))
+        if any(v is None for v in a + b):
+            warnings.append('Score totals unavailable; awaiting synchronization.')
+        elif a != b:
+            warnings.append('Score and play-by-play totals disagree; awaiting synchronization.')
+    if game.get('pbp_warning'):
+        warnings.append(game['pbp_warning'])
+    if missing and not warnings:
+        warnings.append('Play-by-play unavailable; no active next-goal highlight.')
+    active = display in ('live', 'pregame') and not warnings and not missing
+    return {'candidates_active': active, 'display_phase': display, 'feed_warning': ' '.join(warnings)}
+
+
 def slate_results(games, priors, scores=None, pbp=None, memory=None, use_form=False, situ=None):
     """games: matchup_center slate_games rows. scores: live_feed.parse_scores. pbp: {game_id: parsed game}.
 
@@ -79,9 +121,15 @@ def slate_results(games, priors, scores=None, pbp=None, memory=None, use_form=Fa
         if parsed is None:
             state = sc.get('state') or g.get('status') or 'FUT'
             if needs_pbp(state):
-                note = 'Play-by-play unavailable right now; showing the pregame prior.'
+                note = 'Play-by-play unavailable right now; no active next-goal highlight.'
             parsed = ng.pregame_game(gid, g['away'], g['home'], g.get('start'))
         res = ranked_result(parsed, priors, memory, gid, use_form, situ)
+        res.update(feed_status(parsed, sc, missing=pbp.get(gid) is None and needs_pbp(sc.get('state') or g.get('status'))))
+        if res['feed_warning']:
+            note = res['feed_warning']
+        if pbp.get(gid) is None and needs_pbp(sc.get('state') or g.get('status')):
+            res.update(history_available=False, pbp_clock='unavailable',
+                       display_scores=(sc.get('away_score'), sc.get('home_score')))
         label = game_label(parsed) or sc.get('label', '')
         out.append({'slate': g, 'game': parsed, 'result': res, 'label': label, 'note': note, 'score': sc})
     return out
@@ -92,8 +140,12 @@ def strip_items(results):
     for r in results:
         g, res = r['game'], r['result']
         sc = r.get('score') or {}
-        lead = res['players'][0] if res['players'] and res['phase'] == 'live' else None
-        items.append({'away': g['away'], 'home': g['home'], 'phase': res['phase'], 'label': r['label'] or ('Pregame' if res['phase'] == 'pregame' else ''),
+        ph = res.get('display_phase', res['phase'])
+        lead = res['players'][0] if res['players'] and ph == 'live' and res.get('candidates_active', True) else None
+        items.append({'away': g['away'], 'home': g['home'], 'phase': ph, 'label': r['label'] or ('Pregame' if ph == 'pregame' else ''),
+                      'feed_warning': res.get('feed_warning', ''), 'last_scorer': res.get('last_scorer'),
+                      'history_available': res.get('history_available', True),
+                      'pbp_clock': res.get('pbp_clock'), 'pbp_fetched_at': res.get('pbp_fetched_at'),
                       'away_score': g.get('away_score') if g.get('away_score') is not None else sc.get('away_score'),
                       'home_score': g.get('home_score') if g.get('home_score') is not None else sc.get('home_score'), 'leader': lead,
                       'venue': (r.get('slate') or {}).get('venue') or ''})

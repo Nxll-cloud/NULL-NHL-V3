@@ -17,14 +17,14 @@ _v56_force=st.session_state.pop('v56_force_refresh',False)
 vn.fill(_v56_games,_v56_scores)   # V5.8: older snapshots without a Venue get the score endpoint's real arena (never guessed)
 
 
-def v56_collect(force=False):
+def v56_collect(force=False, scores=None):
     """Poll every game that has (or should have) play-by-play. Returns ({game_id: parsed}, {game_id: poller})."""
     pbp, pollers = {}, {}
     for g in _v56_games:
         gid = str(g.get('game_id') or '')
         if not gid:
             continue
-        state = (_v56_scores.get(gid) or {}).get('state')
+        state = ((_v56_scores if scores is None else scores).get(gid) or {}).get('state')
         if state is None and v5.game_state(g, _v56_now) in ('live', 'done'):
             state = 'LIVE'  # score endpoint unavailable: the clock says the game has started
         if not lstate.needs_pbp(state, g.get('status')):
@@ -32,6 +32,9 @@ def v56_collect(force=False):
         parsed, p = v56_poll(gid, force)
         pollers[gid] = p
         if parsed is not None:
+            parsed = dict(parsed)
+            if ng.phase(parsed) in ('live', 'shootout') and p.updated_at is not None and datetime.now(timezone.utc).timestamp() - p.updated_at > 90:
+                parsed['pbp_warning'] = 'PBP snapshot is stale (over 90 seconds since local fetch); retaining last good data.'
             pbp[gid] = parsed
     return pbp, pollers
 
@@ -60,7 +63,7 @@ def v56_model(game, use_form=False):
 
 _v56_results=v56_slate_results()
 _v56_by_key={r['slate']['key']:r for r in _v56_results}
-_v56_live_n=sum(1 for r in _v56_results if r['result']['phase']=='live')
+_v56_live_n=sum(1 for r in _v56_results if r['result'].get('display_phase',r['result']['phase'])=='live')
 
 
 def v56_updated(gid):

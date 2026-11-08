@@ -1,6 +1,8 @@
 """V5.6 HTML fragments (rendered through v55_ui.html_block / inline). Pure functions, no Streamlit."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import v55_ui as v5
 import scorers_tonight_v58 as sctn
 import venue_v58 as vn
@@ -74,29 +76,66 @@ def _st(badge, demo):
     return f'<div class="ngst">{badge}</div>' if demo else badge
 
 
+def fetched_label(value):
+    """Only label the local fetch time; the NHL PBP has no provider update timestamp here."""
+    if value is None:
+        return 'local fetch time unavailable'
+    try:
+        return 'locally fetched ' + datetime.fromtimestamp(value, timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+    except (ValueError, TypeError, OverflowError, OSError):
+        return 'local fetch time unavailable'
+
+
+def last_scorer_text(rec):
+    if not rec:
+        return 'Last confirmed scorer: none in loaded regulation/OT history'
+    secs = int(rec.get('secs') or 0)
+    period = rec.get('ptype') if rec.get('ptype') == 'OT' else 'P' + str(rec.get('period') or '?')
+    return f'Last confirmed scorer: {rec["name"]} ({rec["team"]}) · {period} {secs // 60:02d}:{secs % 60:02d} elapsed'
+
+
 def nextgoal_panel(result, season, label='', updated=None, demo=False, top=8, title=None, note='', venue=None, scored=None, replay=None):
     """'Live Next Goal' panel: score line, team split, top shooters with headshot, SOG, xG, conv %, next-goal %, rank change."""
     g = result['game']
+    ph = result.get('display_phase', result['phase'])
+    active = ph in ('pregame', 'live') and result.get('candidates_active', True) and not result.get('feed_warning')
     a, h = g['away'], g['home']
-    sa, sh = g.get('away_score'), g.get('home_score')
-    score = f'<b class="sc">{esc(sa, "0")}</b><span>–</span><b class="sc">{esc(sh, "0")}</b>' if result['phase'] != 'pregame' else '<span class="vs">VS</span>'
+    sa, sh = result.get('display_scores', (g.get('away_score'), g.get('home_score')))
+    score = f'<b class="sc">{esc(sa, "—")}</b><span>–</span><b class="sc">{esc(sh, "—")}</b>' if ph != 'pregame' else '<span class="vs">VS</span>'
     rows = []
-    for p in result['players'][:top]:
-        rows.append(f'<div class="ngr" data-ng="ng-{esc(g.get("game_id"), "")}-{esc(p.get("pid"), "")}" style="--tc:{v5.colors(p["team"])[0]}"><span class="rk">{p.get("rank", "")}</span>{_arrow(p.get("delta"))}'
+    visible = [] if result.get('history_available') is False and not active else result['players'][:top]
+    for i, p in enumerate(visible):
+        movement = _arrow(p.get('delta')) if active else '<span></span>'
+        row_class = 'ngr ng-current' if active and i == 0 else 'ngr'
+        next_chance = (f'<span class="ngp"><em>{pct(p["p_next"])}</em><small>next goal</small><i style="width:{min(100, p["p_next"] * 400):.0f}%"></i></span>'
+                       if active else '<span class="ngp"><small>historical stats</small></span>')
+        rows.append(f'<div class="{row_class}" data-ng="ng-{esc(g.get("game_id"), "")}-{esc(p.get("pid"), "")}" style="--tc:{v5.colors(p["team"])[0]}"><span class="rk">{p.get("rank", "") if active else "—"}</span>{movement}'
                     f'{_headshot(p, season)}<div class="ngn"><b>{esc(p["name"])}{sctn.badge_for(scored, p.get("pid"), p.get("name"))}</b><small>{esc(p["team"])} · {esc(p.get("pos"), "")}'
                     f'{" · prior: league" if p.get("prior_source") == "league" else ""}</small></div>'
                     f'<span class="ngs"><em>{p["sog"]}</em><small>SOG</small></span><span class="ngs"><em>{p["xg"]:.2f}</em><small>xG</small></span>'
                     f'<span class="ngs"><em>{p["conv"] * 100:.1f}%</em><small>conv</small></span>'
-                    f'<span class="ngp"><em>{pct(p["p_next"])}</em><small>next goal</small><i style="width:{min(100, p["p_next"] * 400):.0f}%"></i></span></div>')
+                    f'{next_chance}</div>')
     if not rows:
-        rows.append('<div class="ngempty">No skaters available for this game yet.</div>')
+        rows.append('<div class="ngempty">No confirmed play-by-play skater history available.</div>'
+                    if result.get('history_available') is False else
+                    '<div class="ngempty">No skaters available for this game yet.</div>')
     head = title or f'{esc(a)} @ {esc(h)}'
     rsc = f'{sa if sa is not None else 0}–{sh if sh is not None else 0}' if replay else ''
+    heading = ('Current next-goal candidates' if active else
+               'Historical skater summary · no active next-goal pick' if ph in ('final', 'shootout') else
+               'Awaiting synchronized feeds · no active next-goal pick')
+    timing = f'PBP game clock: {result.get("pbp_clock") or "unavailable"} · {fetched_label(result.get("pbp_fetched_at"))}'
+    history = ('Last confirmed scorer: history unavailable' if result.get('history_available') is False else
+               last_scorer_text(result.get('last_scorer')))
+    cycle = len(result.get('goal_cycle') or ())
+    info = (f'<p class="ngnote">{esc(history)}</p><p class="ngnote"><b>{esc(heading)}</b><br/>{esc(timing)}'
+            f'<br/>After {cycle} confirmed regulation/OT goals. Previous scorers remain eligible to score again.</p>')
+    warning = f'<p class="ngnote" role="status">{esc(result.get("feed_warning"))}</p>' if result.get('feed_warning') else ''
     wrap = 'sec ngp-wrap ngp-demo' if demo else 'sec ngp-wrap'   # V5.9: demo-scoped spacing (assets/v58.css)
     return (f'<section class="{wrap}"><div class="ngh">{v5.logo(a, "tl")}<div class="ngt"><h3>{head}</h3>{vn.tag(venue)}'
-            f'{_st(state_badge(result["phase"], label, updated, demo, replay, rsc), demo)}</div>'
-            f'<div class="ngsc">{score}</div>{v5.logo(h, "tl")}</div>{team_bar(result)}'
-            f'<div class="ngl">{"".join(rows)}</div>'
+            f'{_st(state_badge(ph, label, None, demo, replay, rsc), demo)}</div>'
+            f'<div class="ngsc">{score}</div>{v5.logo(h, "tl")}</div>{info}{warning}{team_bar(result) if active else ""}'
+            f'<div class="ngl" data-ng-active="{str(active).lower()}">{"".join(rows)}</div>'
             f'<p class="ngnote">{esc(note, "")} Horizon {result["remaining"]:.1f} min · pace weight {result["pace_weight"]:.2f} · model estimate, uncalibrated, not betting advice.</p></section>')
 
 
@@ -107,9 +146,15 @@ def live_strip(items, jump=True):
         return ''
     cells = []
     for it in items:
-        lead = it.get('leader')
+        lead = it.get('leader') if it['phase'] == 'live' and not it.get('feed_warning') else None
         idle = {'final': 'final · no next goal', 'shootout': 'shootout · not modelled', 'pregame': 'pregame prior in tab'}.get(it['phase'], 'model pending')
+        idle = 'awaiting synchronized feeds · no active pick' if it.get('feed_warning') and it['phase'] not in ('final', 'shootout') else idle
         who = f'<small>next: {esc(lead["name"].split(" ")[-1])} {pct(lead["p_next"], 0)}</small>' if lead else f'<small>{idle}</small>'
+        if 'last_scorer' in it:
+            last = ('Last confirmed scorer: history unavailable' if it.get('history_available') is False else
+                    last_scorer_text(it.get('last_scorer')))
+            who += f'<small>{esc(last)}</small>'
+            who += f'<small>PBP clock: {esc(it.get("pbp_clock") or "unavailable")} · {esc(fetched_label(it.get("pbp_fetched_at")))}</small>'
         pulse = '<i class="pulse"></i>' if it['phase'] == 'live' else ''
         cells.append(f'<div class="ls {esc(it["phase"])}">{pulse}{v5.logo(it["away"], "tl")}<b>{esc(it.get("away_score"), "")}</b>'
                      f'<span>{esc(it.get("label"), "")}</span><b>{esc(it.get("home_score"), "")}</b>{v5.logo(it["home"], "tl")}{who}{vn.tag(it.get("venue"))}</div>')

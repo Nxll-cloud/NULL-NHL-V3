@@ -127,11 +127,18 @@ def _show(at, filt):
     return _md(at)
 
 
-@pytest.mark.parametrize('filt', ['All', 'Live', 'Pregame', 'Final'])
+@pytest.mark.parametrize('filt', ['All', 'Live', 'Final'])
 def test_demo_hidden_when_a_real_game_matches(live, filt):
     src, cap = _show(live, filt)
     assert _demo_sec(src) is None and 'DEMO · MIN @ CGY' not in src
     assert 'DEMO replay hidden' in cap
+
+
+def test_missing_live_pbp_is_not_mislabelled_pregame(live):
+    # Every game in the official score fixture has started; missing PBP cannot create fake pregame rows.
+    src, cap = _show(live, 'Pregame')
+    assert _demo_sec(src) is not None and 'DEMO replay hidden' not in cap
+    assert 'pregame prior in tab' not in src
 
 
 def test_demo_hidden_under_all_on_pregame_slate(pregame):

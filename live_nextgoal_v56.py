@@ -163,7 +163,7 @@ def parse_pbp(payload):
         if shooter is None:
             continue
         shooter = int(shooter)
-        team = (roster.get(shooter) or {}).get('team') or ids.get(d.get('eventOwnerTeamId'), '')
+        team = ids.get(d.get('eventOwnerTeamId')) or (roster.get(shooter) or {}).get('team', '')
         is_home = team == home.get('abbrev')
         strength = strength_for(p.get('situationCode'), is_home)
         x, y = d.get('xCoord'), d.get('yCoord')
@@ -203,6 +203,64 @@ def merge_events(known, new_events):
             added += 1
         merged[e['eid']] = e
     return merged, added
+
+
+def event_revision(events):
+    """Content revision, not event count: includes reclassification, credit and shot-quality corrections."""
+    return tuple(sorted((str(e.get('eid')), tuple((k, repr(v)) for k, v in sorted(e.items())))
+                        for e in events or []))
+
+
+def goal_revision(events):
+    """Stable confirmed goal cycle; shootout attempts never start a next-goal cycle."""
+    return tuple((str(e.get('eid')), e.get('shooter'), e.get('team'), e.get('period'),
+                  e.get('secs'), e.get('ptype'), e.get('kind'))
+                 for e in events or [] if e.get('kind') == 'goal' and e.get('ptype') != 'SO')
+
+
+def goal_totals_match(game):
+    """Verify regulation/OT event totals against the PBP scoreboard; SO's deciding point is not a goal."""
+    counts = tuple(sum(e.get('kind') == 'goal' and e.get('ptype') != 'SO' and e.get('team') == game[t]
+                       for e in game.get('events') or []) for t in ('away', 'home'))
+    scores = (game.get('away_score'), game.get('home_score'))
+    if any(not isinstance(v, int) or isinstance(v, bool) or v < 0 for v in scores):
+        return False
+    if scores == counts:
+        return True
+    return (game.get('ptype') == 'SO' and counts[0] == counts[1]
+            and tuple(scores[i] - counts[i] for i in (0, 1)) in ((1, 0), (0, 1)))
+
+
+def validate_snapshot(payload, game, game_id, known=None):
+    """The official /play-by-play endpoint is full-history, not an incremental event feed.
+
+    Replacement is permitted only for a structurally complete response with matching goal AND
+    SOG totals. Ambiguous/partial/error bodies retain the last good snapshot, never an empty wipe.
+    No schema can prove a server's history is complete; these checks enforce its full-feed contract.
+    """
+    if (str(game.get('game_id')) != str(game_id) or not isinstance(payload.get('plays'), list)
+            or not isinstance(payload.get('rosterSpots'), list) or not game.get('away') or not game.get('home')
+            or game.get('state') not in LIVE_STATES + FINAL_STATES + PRE_STATES
+            or payload.get('partial') or payload.get('hasMore') or payload.get('snapshotComplete') is False):
+        raise ValueError('Incomplete play-by-play snapshot')
+    if known and not payload['plays']:
+        raise ValueError('Empty history after recorded play; awaiting complete snapshot')
+    if phase(game) == 'live' and (not isinstance(game.get('secs_remaining'), (int, float))
+                                  or not game.get('period') or not isinstance(payload.get('clock'), dict)):
+        raise ValueError('Incomplete play-by-play game clock')
+    if not goal_totals_match(game):
+        raise ValueError('Play-by-play goal history and scoreboard disagree')
+    for team, key in ((game['away'], 'away_sog'), (game['home'], 'home_sog')):
+        sog = game.get(key)
+        count = sum(e.get('team') == team and e.get('kind') in ('goal', 'sog') for e in game['events'])
+        if not isinstance(sog, int) or isinstance(sog, bool) or sog != count:
+            raise ValueError('Incomplete play-by-play shot history')
+    # Missing shooter IDs would silently delete a real shot or goal during parsing.
+    relevant = [p for p in payload['plays'] if p.get('typeDescKey') in SHOT_TYPES
+                and (p.get('periodDescriptor') or {}).get('periodType') != 'SO']
+    if any(p.get('eventId') is None or not (p.get('details') or {}).get(
+            'scoringPlayerId' if p.get('typeDescKey') == 'goal' else 'shootingPlayerId') for p in relevant):
+        raise ValueError('Incomplete play-by-play event credit')
 
 
 def truncate(game, upto):
@@ -441,8 +499,30 @@ def model(game, priors=None, use_form=False, lineup=None, situ=None, d_attempts=
     out.sort(key=lambda r: (-r['p_next'], -r['sog'], r['name']))
     return {'phase': ph, 'elapsed': round(elapsed, 2), 'remaining': round(remaining, 2), 'pace_weight': round(w, 3),
             'team_rate': team_rate, 'team_mult': mult, 'p_team': p_team, 'p_any': p_any, 'p_none': 1 - p_any,
-            'pool': pool_kind, 'd_attempts': d_att, 'players': out, 'game': {k: game.get(k) for k in ('game_id', 'away', 'home', 'away_score', 'home_score',
+            'pool': pool_kind, 'd_attempts': d_att, 'players': out,
+            'goal_cycle': goal_revision(game.get('events')),
+            'last_scorer': last_confirmed_scorer(game, priors),
+            'candidates_active': ph in ('live', 'pregame'),
+            'pbp_clock': game_clock(game), 'pbp_fetched_at': game.get('pbp_fetched_at'), 'game': {k: game.get(k) for k in ('game_id', 'away', 'home', 'away_score', 'home_score',
                                                                'away_sog', 'home_sog', 'period', 'ptype', 'state', 'situation', 'intermission')}}
+
+
+def game_clock(game):
+    """Game clock, not a claimed provider update timestamp."""
+    secs = game.get('secs_remaining')
+    if secs is None or not game.get('period'):
+        return 'pregame' if phase(game) == 'pregame' else 'clock unavailable'
+    label = game.get('ptype') if game.get('ptype') in ('OT', 'SO') else 'P' + str(game['period'])
+    return f'{label} {int(secs) // 60:02d}:{int(secs) % 60:02d} left'
+
+
+def last_confirmed_scorer(game, priors=None):
+    goals = [e for e in game.get('events') or [] if e.get('kind') == 'goal' and e.get('ptype') != 'SO']
+    if not goals:
+        return None
+    e = goals[-1]
+    who = (game.get('roster') or {}).get(e['shooter']) or (priors or {}).get(e['shooter']) or {}
+    return dict(e, name=who.get('name') or str(e['shooter']))
 
 
 def rerank(players, previous_ranks=None):
@@ -491,12 +571,13 @@ def backoff(attempt, base=30, cap=600, rand=random.random):
 
 
 class Poller:
-    """One game's poller: keeps the last good parsed state, dedupes events, backs off on failure.
+    """One game's poller: reconciles validated full snapshots and backs off with last-good on failure.
 
     ``fetch(game_id)`` returns the raw PBP dict or raises. Clock and jitter are injectable for tests."""
 
-    def __init__(self, game_id, fetch, clock=time.time, rand=random.random):
+    def __init__(self, game_id, fetch, clock=time.time, rand=random.random, full_snapshot=True):
         self.game_id, self.fetch, self.clock, self.rand = game_id, fetch, clock, rand
+        self.full_snapshot = full_snapshot
         self.last_good, self.events, self.failures, self.next_due = None, {}, 0, 0.0
         self.last_error, self.updated_at, self.new_events = None, None, 0
 
@@ -509,15 +590,25 @@ class Poller:
         if not force and not self.due():
             return self.last_good
         try:
-            game = parse_pbp(self.fetch(self.game_id))
+            payload = self.fetch(self.game_id)
+            game = parse_pbp(payload)
+            if not self.full_snapshot:
+                raise ValueError('Incremental PBP cannot establish a complete current snapshot')
+            validate_snapshot(payload, game, self.game_id, self.events)
         except Exception as exc:  # network / HTTP / JSON: keep the last good state
             self.failures += 1
             self.last_error = f'{type(exc).__name__}: {exc}'
             self.next_due = self.clock() + backoff(self.failures - 1, rand=self.rand)
+            if self.last_good is not None:
+                self.last_good['pbp_warning'] = 'PBP refresh failed or incomplete; retaining last good snapshot.'
             return self.last_good
-        self.events, self.new_events = merge_events(self.events, game['events'])
+        new = {e['eid']: e for e in game['events']}
+        self.new_events = len(new.keys() - self.events.keys())
+        # Validated full snapshot replaces history, so removals/reclassifications are authoritative.
+        self.events = new
         game['events'] = sorted(self.events.values(), key=lambda e: (e['period'], e['secs'], e.get('order', 0)))
         self.last_good, self.failures, self.last_error, self.updated_at = game, 0, None, self.clock()
+        game['pbp_fetched_at'] = self.updated_at
         c = cadence(phase(game))
         self.next_due = float('inf') if c is None else self.clock() + c
         return game

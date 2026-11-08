@@ -25,8 +25,14 @@ def play(eid, kind, period=1, t='05:00', shooter=11, team_id=1, goalie=91, x=80,
 
 def payload(plays, state='LIVE', period=1, ptype='REG', remaining=900):
     spot = lambda pid, tid, pos, fn: {'playerId': pid, 'teamId': tid, 'positionCode': pos, 'firstName': {'default': fn}, 'lastName': {'default': 'X'}}
-    return {'id': 1, 'gameDate': '2026-10-22', 'gameState': state, 'awayTeam': {'id': 1, 'abbrev': 'AAA', 'score': 0, 'sog': 0},
-            'homeTeam': {'id': 2, 'abbrev': 'HHH', 'score': 0, 'sog': 0}, 'periodDescriptor': {'number': period, 'periodType': ptype},
+    # Complete official snapshots include scores/SOG consistent with their deduplicated REG/OT history.
+    events = {p['eventId']: p for p in plays}.values()
+    def team(tid, abbrev):
+        shots = [p for p in events if p['typeDescKey'] in ('goal', 'shot-on-goal')
+                 and p['details']['eventOwnerTeamId'] == tid and p['periodDescriptor']['periodType'] != 'SO']
+        return {'id': tid, 'abbrev': abbrev, 'score': sum(p['typeDescKey'] == 'goal' for p in shots), 'sog': len(shots)}
+    return {'id': 1, 'gameDate': '2026-10-22', 'gameState': state, 'awayTeam': team(1, 'AAA'),
+            'homeTeam': team(2, 'HHH'), 'periodDescriptor': {'number': period, 'periodType': ptype},
             'clock': {'secondsRemaining': remaining, 'timeRemaining': f'{remaining // 60:02d}:{remaining % 60:02d}', 'inIntermission': False},
             'rosterSpots': [spot(11, 1, 'C', 'A1'), spot(12, 1, 'D', 'A2'), spot(21, 2, 'L', 'H1'), spot(91, 2, 'G', 'HG'), spot(92, 1, 'G', 'AG')],
             'plays': plays}
@@ -188,7 +194,7 @@ class Clock:
 def test_poller_cadence_backoff_last_good_and_stop():
     clock, calls = Clock(), []
     live = payload([play(1, 'shot-on-goal')])
-    responses = [live, ConnectionError('down'), dict(live, plays=live['plays'] + [play(2, 'shot-on-goal')]), dict(live, gameState='OFF')]
+    responses = [live, ConnectionError('down'), payload(live['plays'] + [play(2, 'shot-on-goal')]), dict(live, gameState='OFF')]
 
     def fetch(gid):
         calls.append(gid)
@@ -278,10 +284,10 @@ def test_slate_results_arrow_bases_and_missing_pbp_note():
     assert pre[0]['result']['rank_basis'] == 'pregame prior' and all(p['delta'] == 0 for p in pre[0]['result']['players'])
     g = ng.parse_pbp(payload([play(1, 'shot-on-goal', shooter=21, team_id=2, goalie=92, x=-85)]))
     mem2 = {}
-    live = lstate.slate_results(_slate(), PRIORS, {'1': {'state': 'LIVE'}}, {'1': g}, mem2)
+    live = lstate.slate_results(_slate(), PRIORS, {'1': {'state': 'LIVE', 'away_score': g['away_score'], 'home_score': g['home_score']}}, {'1': g}, mem2)
     assert live[0]['result']['rank_basis'] == 'vs pregame prior'
     g2 = ng.parse_pbp(payload([play(1, 'shot-on-goal', shooter=21, team_id=2, goalie=92, x=-85), play(2, 'shot-on-goal')]))
-    live2 = lstate.slate_results(_slate(), PRIORS, {'1': {'state': 'LIVE'}}, {'1': g2}, mem2)
+    live2 = lstate.slate_results(_slate(), PRIORS, {'1': {'state': 'LIVE', 'away_score': g2['away_score'], 'home_score': g2['home_score']}}, {'1': g2}, mem2)
     assert live2[0]['result']['rank_basis'] == 'vs previous update'
     miss = lstate.slate_results(_slate(), PRIORS, {'1': {'state': 'LIVE'}}, {}, {})
     assert 'unavailable' in miss[0]['note']
@@ -289,7 +295,7 @@ def test_slate_results_arrow_bases_and_missing_pbp_note():
 
 def test_strip_and_tile_scores():
     g = ng.parse_pbp(payload([play(1, 'goal')]))
-    res = lstate.slate_results(_slate('2') + _slate('1'), PRIORS, {'1': {'state': 'LIVE'}}, {'1': g}, {})
+    res = lstate.slate_results(_slate('2') + _slate('1'), PRIORS, {'1': {'state': 'LIVE', 'away_score': g['away_score'], 'home_score': g['home_score']}}, {'1': g}, {})
     items = lstate.strip_items(res)
     assert [i['phase'] for i in items] == ['live', 'pregame'] and items[0]['leader'] is not None and items[1]['label'] == 'Pregame'
     tiles = lstate.tile_scores(res)

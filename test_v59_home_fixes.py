@@ -46,5 +46,7 @@ def test_strip_moved_from_home_to_live_next_goal_tab_below_banner():
     code = [l for l in body.splitlines() if l.strip() and not l.lstrip().startswith('#')]
     assert code[0].startswith("st.markdown(v5.tab_head('NULL’S PLAYBOOK · LIVE','Live Next Goal'")   # banner first
     assert code[2].startswith('if _v56_results:')                                                     # strip second
-    assert code[3].strip() == 'v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results),jump=False))'
+    assert code[3].strip() == '_ng_strip_slot = st.empty()'
+    assert 'with _ng_strip_slot.container():' in ng
+    assert 'v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results),jump=False))' in ng
     assert ng.index('v5.tab_head(') < ng.index('live_strip(')  # strip directly below the tab header

@@ -6,8 +6,12 @@ DEMO replay: real past PBP fixture (test_fixtures_v56/pbp_2026020162.json), step
 
 st.markdown(v5.tab_head('NULL’S PLAYBOOK · LIVE','Live Next Goal','Who scores the next goal · official NHL play-by-play · xG + shrunk shooting % + pace blend · competing risk',
     chips=[(f'{_v56_live_n} live','hot' if _v56_live_n else 'muted'),('30 s live cadence','odds'),('Model estimate · uncalibrated','warn')],tone='hot'),unsafe_allow_html=True)
-if _v56_results:  # V5.9: live strip moved here from Home (directly below the tab header); no tap-to-jump on its own tab
-    v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results),jump=False))
+if _v56_results:  # one replaceable strip, refreshed from the same data as the panels
+    _ng_strip_slot = st.empty()
+    with _ng_strip_slot.container():
+        v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results),jump=False))
+else:
+    _ng_strip_slot = None
 _ng_c1,_ng_c2,_ng_c3,_ng_c4=st.columns([2,2,2,1])
 with _ng_c1:
     _ng_filter=st.segmented_control('Show',['All','Live','Pregame','Final'],default='All',key='v56_ng_filter') if hasattr(st,'segmented_control') else st.radio('Show',['All','Live','Pregame','Final'],horizontal=True,key='v56_ng_filter')
@@ -15,36 +19,45 @@ with _ng_c2:
     _ng_form=st.toggle('Bounded Form multiplier (0.9–1.1)',value=False,key='v56_ng_form',help='Form % is an index, never a probability; this only nudges a skater’s rate by at most ±10%.')
 with _ng_c3:
     _ng_auto=st.toggle('Auto-refresh while live',value=True,key='v56_ng_auto')
+def _ng_refresh():
+    # Refresh BOTH feeds; a cached old score must not veto the freshly fetched PBP.
+    v56_scores_cached.clear()
+    st.session_state['v56_force_refresh'] = True
+
 with _ng_c4:
-    st.button('↻ Refresh',key='v56_ng_refresh',on_click=lambda: st.session_state.__setitem__('v56_force_refresh',True),width='stretch')
+    st.button('↻ Refresh',key='v56_ng_refresh',on_click=_ng_refresh,width='stretch')
 _ng_top=st.select_slider('Shooters per game',[5,8,12],value=8,key='v56_ng_top')
 
 
 def _ng_panels(force=False):
     """Recompute from the pollers (fragment reruns poll again; the cache and poller cadence bound the network)."""
     if force:
-        pbp, _ = v56_collect(False)
+        scores, score_err = v56_scores_cached(np_day)
+        pbp, _ = v56_collect(False, scores=scores)
     else:
-        pbp = _v56_pbp
+        pbp, scores, score_err = _v56_pbp, _v56_scores, _v56_scores_err
     # V5.9: same path + situational layer as Home / Matchup Center (tabs/live.py); unchanged inputs reuse their results.
     if not force and not _ng_form:
         res = _v56_results
     else:
-        res = v56_slate_results(v56_scores_cached(np_day)[0] if force else _v56_scores, pbp,
+        res = v56_slate_results(scores, pbp,
                                 st.session_state.setdefault('v56_rank_mem_form' if _ng_form else 'v56_rank_mem', {}), use_form=_ng_form)
+    if res and _ng_strip_slot is not None:
+        with _ng_strip_slot.container():
+            v5.html_block(st, v56.live_strip(lstate.strip_items(res), jump=False))
     want = {'All': None, 'Live': 'live', 'Pregame': 'pregame', 'Final': 'final'}.get(_ng_filter or 'All')
     shown = 0
-    for r in sorted(res, key=lambda r: {'live': 0, 'shootout': 1, 'pregame': 2, 'final': 3}.get(r['result']['phase'], 9)):
-        if want and r['result']['phase'] != want:
+    for r in sorted(res, key=lambda r: {'live': 0, 'shootout': 1, 'pregame': 2, 'final': 3}.get(r['result'].get('display_phase',r['result']['phase']), 9)):
+        if want and r['result'].get('display_phase',r['result']['phase']) != want:
             continue
         shown += 1
         note = (r['note'] + ' ' if r['note'] else '') + 'Arrows: ' + r['result'].get('rank_basis', '') + '.'
         if r['result']['phase'] == 'final':
-            note += ' Final: no further goal is possible, so next-goal % is 0; the list keeps the final shot leaders.'
-        v5.html_block(st, v56.nextgoal_panel(r['result'], SEASON, r['label'], v56_updated(r['slate']['game_id']), top=_ng_top, note=note, venue=r['slate'].get('venue'), scored=sctn.active(st.session_state, np_day)))
+            note += ' Final: no further goal is possible; no active next-goal pick; the list is a historical skater summary.'
+        v5.html_block(st, v56.nextgoal_panel(r['result'], SEASON, r['label'], None, top=_ng_top, note=note, venue=r['slate'].get('venue'), scored=sctn.active(st.session_state, np_day)))
     if not shown:
         st.info('No games in this state on the selected slate.' if _v56_games else 'No NHL games for this date.')
-    st.caption(f'Last checked {datetime.now(timezone.utc).strftime("%H:%M:%S UTC")} · score feed: {"ok" if not _v56_scores_err else _v56_scores_err}'
+    st.caption(f'Last checked {datetime.now(timezone.utc).strftime("%H:%M:%S UTC")} · score feed: {"ok" if not score_err else score_err}'
                f' · {len(pbp)} play-by-play feed(s) loaded')
 
 
@@ -64,7 +77,7 @@ else:
 # while autoplay is stepping (paused / scrubbed = static REPLAY tag with the score at that step; last step = Final a–h),
 # clocks are time LEFT in the period (same as the P-label), and strength comes from each replayed event's situationCode.
 _ng_want={'All': None, 'Live': 'live', 'Pregame': 'pregame', 'Final': 'final'}.get(_ng_filter or 'All')
-_ng_match=sum(1 for r in (_v56_results or []) if _ng_want is None or r['result']['phase']==_ng_want)
+_ng_match=sum(1 for r in (_v56_results or []) if _ng_want is None or r['result'].get('display_phase',r['result']['phase'])==_ng_want)
 
 
 def _ng_clock_left(ev):

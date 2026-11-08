@@ -128,3 +128,10 @@
  .v55 .efr .ngs:nth-of-type(2),.v55 .efr .ngs:nth-of-type(3){display:none}
  .v55 .nbgrid,.v55 .gtgrid,.v55 .efgrid{grid-template-columns:1fr}
 }
+
+/* A goal-light badge means historical scoring, never the current next-goal highlight. */
+.v55 .ngp-wrap .ngr:has(.npsc){box-shadow:none}
+.v55 .ngp-wrap .ngl[data-ng-active="false"] .ngr{box-shadow:none;transform:none}
+.v55 .ngp-wrap .ngl[data-ng-active="false"] .rk{color:var(--dim)}
+
+.v55 .ngp-wrap .ngr.ng-current{box-shadow:inset 3px 0 0 var(--neon);background:color-mix(in srgb,var(--neon) 7%,transparent)}

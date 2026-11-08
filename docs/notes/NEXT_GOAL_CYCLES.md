@@ -1,0 +1,11 @@
+# Live Next Goal: confirmed history versus current candidates
+
+- The last confirmed regulation/OT scorer is historical information, not a settled prediction lock. The current #1 is the model's highest-ranked eligible skater; it may legitimately be the same player again. No scorer exclusion, probability weights or rate formulas changed.
+- A stable goal-cycle revision includes event ID, credited player/team, period, time and event type. Rank-input revisions include event content, not just event count. Corrections of the same event ID therefore recompute normally.
+- The official NHL full-history PBP endpoint replaces event history **only after validation**: identity/schema, clock for live games, complete event credit, and goal/SOG totals matching its scoreboard. Removed goals disappear; goal-to-shot changes and revised credits replace old versions. Shootout attempts/deciding points are not skater goals.
+- Malformed, empty-after-play, declared partial/incremental, inconsistent or failed responses retain last-good history and its original local-fetch timestamp, with a warning and no active-pick emphasis. Completeness ultimately relies on the full-history endpoint's contract; validation cannot prove completeness of every blocked/missed event. Incremental feeds must not use replacement mode.
+- Score/PBP disagreements in either direction, unavailable live scores, stale PBP (>90 seconds), final and shootout states suppress active ranks/probabilities in the panel and mini strip. Missing live PBP shows no fake pregame candidates. A final panel remains a historical summary.
+- Live cadence remains 30 seconds over 25-second feed caches, with existing exponential backoff. Both views update from the same fragment results. Manual Refresh clears the score cache as well as forcing PBP; this also fetches final-game corrections after automatic polling stops. Displayed fetch time is explicitly local, separate from the PBP game clock; it is not a provider update timestamp.
+- No past-forecast settlement ledger is invented. Goal-cycle metadata describes confirmed feed history only.
+
+Offline coverage: `test_v61_nextgoal_cycles.py`, existing model/UI regressions and full Streamlit AppTests, including a captured-game goal-to-shot correction through the actual Refresh path. Production rendering has not been visually verified.
