@@ -8,6 +8,9 @@ st.caption('Symbolic patterns for entertainment only. These values do not predic
 v5.html_block(st,numv58.reference_patterns_html(),extra_class='v58-num')  # Display-only reference; never a matching/scoring input.
 import number_pattern_backtest_v60 as _num_audit
 _num_audit.render(st)  # Saved historical summary only; no scoring/overlay inputs or runtime API fetch.
+import daily_patterns_v60 as _num_dp
+_num_daily,_num_daily_warn=_num_dp.load()  # registry data file; bad entries skipped with a visible warning
+v5.html_block(st,numv58.daily_patterns_html(_num_daily,_num_daily_warn),extra_class='v58-num')  # display only
 try:
     _games_num=np_snapshot['games'] if np_snapshot is not None else schedule_cached(np_day)
 except (requests.RequestException,ValueError,KeyError):
@@ -51,15 +54,18 @@ else:
             if _nb_sort:
                 _nb_boards=sorted(_nb_boards,key=lambda b:-b['badge'])
             _nb_mp=numv58.model_p_from_results(_v56_results)  # model P (pid -> p_anytime(lam_game)) for the TOP PICK tie-break only
-            _num_overlay=st.toggle('Apply 4, 10, 0, 9, 3, 6 overlay',value=False,key=numv58.overlay_key(np_day))
-            st.caption(numv58.OVERLAY_RULE)
+            st.markdown('**Daily pattern filters** · each OFF by default; turn on any to show only matching current rows')
+            _num_sel=[_e for _e in _num_daily if st.toggle(f'{_e["label"]} ({_e["date"]}) · '+', '.join(str(_n) for _n in _e['numbers']),
+                                                           value=False,key=_num_dp.toggle_key(np_day,_e['date']))]
+            _num_overlay=bool(_num_sel)
+            st.caption(_num_dp.RULE+' Several ON = union (a row matching any selected pattern is shown, labelled with each match).')
             st.caption('By Game player rows only, after the existing per-game limit and top-pick pinning. '
                        'No replacement picks or reranking; threat badges and pick labels keep their baseline meaning. '
                        'Other views and the other listed reference patterns are unchanged.')
-            _num_base_count,_num_match_count=numv58.overlay_counts(_nb_boards,_nb_mp)
-            st.caption(f'Overlay {"ON" if _num_overlay else "OFF"} · Baseline: {_num_base_count} selections · '
+            _num_base_count,_num_match_count=numv58.overlay_counts(_nb_boards,_nb_mp,patterns=_num_sel)
+            st.caption(f'Overlay {"ON ("+str(len(_num_sel))+" selected)" if _num_overlay else "OFF"} · Baseline: {_num_base_count} selections · '
                        f'Matching: {_num_match_count} · Shown: {_num_match_count if _num_overlay else _num_base_count}')
-            _num_board_html=(numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap,overlay=True) if _num_overlay else
+            _num_board_html=(numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap,overlay=_num_sel) if _num_overlay else
                              numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap))
             v5.html_block(st,_num_board_html,extra_class='v58-num')
             st.caption('Threat score = round(100 × (3·D + 2·A + 1·T) / 6): D = day-number match, A = arena match, T = team match, each counted once (0 or 1). '

@@ -68,9 +68,11 @@ def test_no_matches_zero_not_fallback_and_source_is_existing_fields():
 
 def test_integration_default_off_scope_and_slate_key():
     src=Path('tabs/numbers.py').read_text()
-    assert "st.toggle('Apply 4, 10, 0, 9, 3, 6 overlay',value=False,key=numv58.overlay_key(np_day))" in src
-    assert 'overlay=True) if _num_overlay else' in src and 'numv58.overlay_counts(_nb_boards,_nb_mp)' in src
-    assert src.index('_nb_mp=numv58.model_p_from_results')<src.index('_num_overlay=st.toggle')<src.index('overlay=True) if _num_overlay else')
+    # t191: the single 4,10,0,9,3,6 toggle migrated into per-day registry toggles (label/key legitimately changed;
+    # the 2026-11-07 entry is the same numbers, now one of several independent default-OFF filters).
+    assert "value=False,key=_num_dp.toggle_key(np_day,_e['date'])" in src
+    assert 'overlay=_num_sel) if _num_overlay else' in src and 'numv58.overlay_counts(_nb_boards,_nb_mp,patterns=_num_sel)' in src
+    assert src.index('_nb_mp=numv58.model_p_from_results')<src.index('_num_sel=[')<src.index('overlay=_num_sel) if _num_overlay else')
     assert 'after the existing per-game limit and top-pick pinning' in src
     assert nv.overlay_key('2026-11-07')!=nv.overlay_key('2026-11-08')
     reference=nv.reference_patterns_html()

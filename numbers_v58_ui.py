@@ -258,10 +258,20 @@ def _shown_players(board, ranks, pin=True):
     return pin_board(board['players'], board.get('all_players'), ranks, pin) if ranks else board['players']
 
 
-def overlay_counts(boards, model_p=None, pin=True):
+def _overlay_reason(p, overlay):
+    """overlay True = original root-only 4,10,0,9,3,6 API; a list of registry entries = daily union (root OR total)."""
+    if overlay is True:
+        return overlay_match(p)
+    import daily_patterns_v60 as _dp
+    return _dp.reason(p, overlay)
+
+
+def overlay_counts(boards, model_p=None, pin=True, patterns=None):
     """Count the SAME already-selected displayed rows (after limits/pinning), not a fresh candidate pool."""
     ranks = _board_ranks(boards, model_p)
     rows = [p for b in boards for p in _shown_players(b, ranks, pin)]
+    if patterns is not None:
+        return len(rows), (sum(_overlay_reason(p, list(patterns)) is not None for p in rows) if patterns else 0)
     return len(rows), sum(overlay_match(p) is not None for p in rows)
 
 
@@ -296,9 +306,9 @@ def game_board(board, day_num, ranks=None, pin=True, pmap=None, overlay=False):
     players = _shown_players(board, ranks, pin)
     baseline_count = len(players)
     if overlay:
-        players = [p for p in players if overlay_match(p) is not None]
+        players = [p for p in players if _overlay_reason(p, overlay) is not None]
     rows = ''.join(player_row(p, ranks.get(_pkey(p)), _pos.tag_for(pmap, p.get('player_id'), p.get('team'), p.get('player'), p) if pmap is not None else '',
-                              overlay_match(p) if overlay else None) for p in players)
+                              _overlay_reason(p, overlay) if overlay else None) for p in players)
     rows = rows or ('<li class="npr none">0 overlay matches in the current selection.</li>' if overlay else '<li class="npr none">No ranked players.</li>')
     effect = (f'<p class="npr-overlay-summary">Overlay ON · {len(players)} of {baseline_count} current selections shown</p>' if overlay else '')
     return (f'<section class="sec ngb{" ahit" if board["arena_hit"] else ""}"><header class="ngb-h">{v5.logo(a, "tl")}<h4>{esc(a)} <span>@</span> {esc(h)}</h4>{v5.logo(h, "tl")}'
@@ -308,6 +318,41 @@ def game_board(board, day_num, ranks=None, pin=True, pmap=None, overlay=False):
 
 
 def boards_html(boards, day_num, model_p=None, pin=True, pmap=None, overlay=False):
-    """Legend + every game board. Each team's TOP PICK / RUNNER-UP comes from all lists on the page (every board)."""
+    """Legend + every game board. Each team's TOP PICK / RUNNER-UP comes from all lists on the page (every board).
+    overlay: False/[] = baseline; True = original 4,10,0,9,3,6 root rule; list of daily registry entries = union filter."""
+    if isinstance(overlay, tuple):
+        overlay = list(overlay)
     ranks = _board_ranks(boards, model_p)
     return (OVERLAY_STYLE if overlay else '') + legend() + '<div class="nbgrid ngrid">' + ''.join(game_board(b, day_num, ranks, pin, pmap, overlay) for b in boards) + '</div>'
+
+
+DAILY_STYLE = ('<style>.num-daily{min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;'
+               'border:1px solid rgba(155,92,255,.3);background:linear-gradient(135deg,rgba(155,92,255,.09),rgba(0,229,255,.035))}'
+               '.num-daily .ndp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;min-width:0}'
+               '.num-daily .ndp-item{min-width:0;padding:10px 12px;border:1px solid rgba(155,92,255,.18);border-radius:10px}'
+               '.num-daily h4{font-size:.78rem;letter-spacing:.07em;text-transform:uppercase;margin:0 0 6px;color:#c9b6ff}'
+               '.num-daily .ndp-nums{font-size:1.05rem;font-weight:700;color:#d9caff;margin:0}'
+               '.num-daily dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:8px 0 0;font-size:.82rem}'
+               '.num-daily dt{opacity:.8}.num-daily dd{margin:0;font-weight:600}'
+               '.num-daily .ndp-note{font-size:.78rem;margin:8px 0 0;opacity:.8}</style>')
+
+
+def daily_patterns_html(entries, warnings=()):
+    """Visible registry list (date, literal numbers, optional literal note / breakdown). Display only."""
+    import daily_patterns_v60 as _dp
+    items = []
+    for e in entries:
+        nums = ', '.join(str(n) for n in e['numbers'])
+        rootable = [n for n in e['numbers'] if 1 <= n <= 9]
+        other = [n for n in e['numbers'] if not 1 <= n <= 9]
+        bd = ''.join(f'<dt>{esc(a)}</dt><dd>{esc(b)}</dd>' for a, b in e['breakdown'])
+        items.append(f'<div class="ndp-item"><h4>{esc(e["label"])} · {esc(e["date"])}</h4><p class="ndp-nums">{esc(nums)}</p>'
+                     + (f'<dl aria-label="Date breakdown (user-supplied)">{bd}</dl>' if bd else '')
+                     + (f'<p class="ndp-note">{esc(e["note"])}</p>' if e.get('note') else '')
+                     + f'<p class="ndp-note">Can match a 1–9 English root: {esc(", ".join(map(str, rootable)) or "none")}'
+                     + (f' · full-total only: {esc(", ".join(map(str, other)))}' if other else '') + '</p></div>')
+    body = ''.join(items) or '<p>No daily patterns registered.</p>'
+    warn = ''.join(f'<p class="ndp-note">⚠ {esc(w)}</p>' for w in warnings)
+    return (DAILY_STYLE + '<section class="sec num-daily" aria-label="Daily number patterns">'
+            '<div class="sh"><h3>Daily patterns</h3><p>One user-supplied pattern per day · each can be applied as a By Game filter</p></div>'
+            f'<div class="ndp-grid">{body}</div>{warn}<p class="ndp-note">{esc(_dp.NOT_TESTED)}</p></section>')
