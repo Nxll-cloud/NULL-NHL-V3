@@ -114,7 +114,7 @@ def test_no_match_zero_state():
 
 def test_integration_panel_placement_toggle_keys_scoped_per_slate_and_entry():
     src = Path('tabs/numbers.py').read_text()
-    assert src.index('_num_audit.render(st)') < src.index('numv58.daily_patterns_html(_num_daily,_num_daily_warn)') < src.index('_games_num=np_snapshot')
+    assert src.index('_num_audit.render(st)') < src.index('numv58.daily_patterns_html([_num_entry],_num_daily_warn)') < src.index('_games_num=np_snapshot')
     assert dp.toggle_key('2026-11-09', '2026-11-07') != dp.toggle_key('2026-11-10', '2026-11-07')
     assert dp.toggle_key('2026-11-09', '2026-11-07') != dp.toggle_key('2026-11-09', '2026-11-09')
 
@@ -143,3 +143,91 @@ st.markdown(nv.boards_html([_slate()],9,overlay=sel) if sel else nv.boards_html(
     app.toggle[1].set_value(True).run()
     app.selectbox[0].set_value('2026-11-10').run()
     assert [t.value for t in app.toggle] == [False, False] and app.markdown[0].value == baseline
+
+
+# ---- t198: auto-computed days + day picker ----
+import datetime as _dt
+
+
+def test_formula_reproduces_user_nov9_exactly():
+    e = dp.compute('2026-11-09')
+    assert e['numbers'] == (1, 3, 9, 10, 11, 21, 30) == entries()['2026-11-09']['numbers']
+    assert e['breakdown'] == (('Universal Day', '30/3'), ('Universal Month', '21/3'), ('Calendar Day', '9'),
+                              ('Universal Year', '10/1'), ('Month', '11'))
+    assert e['breakdown'] == entries()['2026-11-09']['breakdown'] and e['note'] == dp.AUTO_NOTE
+
+
+def test_formula_today_full_chain_and_month_unreduced():
+    e = dp.compute(_dt.date(2026, 11, 17))
+    assert e['numbers'] == (1, 2, 3, 8, 10, 11, 17, 21, 38)
+    assert dict(e['breakdown']) == {'Universal Day': '38/11/2', 'Universal Month': '21/3', 'Calendar Day': '17/8',
+                                    'Universal Year': '10/1', 'Month': '11'}
+    assert dp.chain(38) == (38, 11, 2) and dp.chain(9) == (9,) and dp.chain(30) == (30, 3)
+    dec = dp.compute('2026-12-01')  # month 12 kept as written (no 3 from the month itself)
+    assert dict(dec['breakdown'])['Month'] == '12' and 12 in dec['numbers'] and dict(dec['breakdown'])['Universal Month'] == '22/4'
+    assert dp.compute('2027-01-05')['breakdown'][3] == ('Universal Year', '11/2')
+
+
+def test_saved_entries_override_and_auto_label():
+    es = list(entries().values())
+    assert dp.entry_for('2026-11-07', es)['numbers'] == (4, 10, 0, 9, 3, 6) and dp.entry_for('2026-11-07', es)['source'] == 'saved'
+    a = dp.entry_for(_dt.date(2026, 11, 18), es)
+    assert a['source'] == 'auto' and a['label'] == 'Nov 18 pattern' and a['note'] == 'auto-computed from date formula'
+    html = nv.daily_patterns_html([a])
+    assert 'auto-computed from date formula' in html and '39/12/3' in html and 'Date breakdown (auto-computed)' in html
+    assert 'Reproduces your Nov 9 list exactly' in html
+    assert 'Date breakdown (user-supplied)' in nv.daily_patterns_html([dp.entry_for('2026-11-09', es)])
+
+
+def test_week_and_labels():
+    wk = dp.week_of(_dt.date(2026, 11, 17))
+    assert wk[0] == _dt.date(2026, 11, 16) and wk[-1] == _dt.date(2026, 11, 22)
+    assert [dp.day_label(d) for d in wk] == ['Mon 16', 'Tue 17', 'Wed 18', 'Thu 19', 'Fri 20', 'Sat 21', 'Sun 22']
+    assert isinstance(dp.today_et(), _dt.date)
+    assert dp.applied_key('2026-11-17') != dp.applied_key('2026-11-18')
+
+
+def test_apptest_picker_drives_toggle_union_persists_and_off_parity():
+    from streamlit.testing.v1 import AppTest
+    app = AppTest.from_string('''
+import datetime as dt
+import streamlit as st
+import numbers_v58_ui as nv, daily_patterns_v60 as dp
+from test_v60_daily_patterns import _slate
+es,_=dp.load()
+slate=st.selectbox('Slate',['2026-11-09','2026-11-10'])
+day=st.radio('Day',dp.week_of(dt.date(2026,11,9)),format_func=dp.day_label,horizontal=True,key=dp.picker_key('2026-11-09','day'))
+ent=dp.entry_for(day,es)
+applied=st.session_state.setdefault(dp.applied_key(slate),set())
+def cb(k,iso,ak): (st.session_state[ak].add if st.session_state.get(k) else st.session_state[ak].discard)(iso)
+tk=dp.toggle_key(slate,ent['date'])
+st.toggle(ent['label'],value=ent['date'] in applied,key=tk,on_change=cb,args=(tk,ent['date'],dp.applied_key(slate)))
+sel=[dp.entry_for(i,es) for i in sorted(applied)]
+base,m=nv.overlay_counts([_slate()],patterns=sel)
+st.caption(f'baseline {base} matching {m} sel {[e["date"] for e in sel]}')
+st.markdown(nv.boards_html([_slate()],9,overlay=sel) if sel else nv.boards_html([_slate()],9),unsafe_allow_html=True)
+''').run()
+    assert not app.exception and app.toggle[0].value is False and app.toggle[0].label == 'Nov 9 pattern'
+    baseline = app.markdown[0].value
+    assert 'Overlay ON' not in baseline and 'OverlayPlayer1' in baseline
+    app.toggle[0].set_value(True).run()
+    assert "matching 1 sel ['2026-11-09']" in app.caption[0].value
+    app.radio[0].set_value(dp.week_of(__import__('datetime').date(2026, 11, 9))[1]).run()  # Tue 10: auto entry
+    assert app.toggle[0].label == 'Nov 10 pattern' and app.toggle[0].value is False
+    assert "sel ['2026-11-09']" in app.caption[0].value  # earlier day stays applied (union)
+    app.toggle[0].set_value(True).run()
+    assert "sel ['2026-11-09', '2026-11-10']" in app.caption[0].value
+    app.toggle[0].set_value(False).run()
+    app.radio[0].set_value(dp.week_of(__import__('datetime').date(2026, 11, 9))[0]).run()
+    assert app.toggle[0].value is True
+    app.toggle[0].set_value(False).run()
+    assert app.markdown[0].value == baseline
+    app.toggle[0].set_value(True).run(); app.selectbox[0].set_value('2026-11-10').run()
+    assert app.toggle[0].value is False and app.markdown[0].value == baseline  # new slate resets
+
+
+def test_tab_source_picker_wiring():
+    src = Path('tabs/numbers.py').read_text()
+    assert "_num_dp.entry_for(_num_day,_num_daily)" in src and 'horizontal=True,label_visibility=\'collapsed\'' in src
+    assert src.index('_num_day=st.radio(') < src.index('numv58.daily_patterns_html([_num_entry]') < src.index('_games_num=np_snapshot')
+    assert "_num_sel=[_num_dp.entry_for(_iso,_num_daily) for _iso in sorted(_num_applied)]" in src

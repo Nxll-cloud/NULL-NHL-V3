@@ -3,7 +3,8 @@
 Add a day = append ONE JSON object to patterns/daily_number_patterns.json, e.g.
 {"date": "2026-11-10", "label": "Nov 10 pattern", "numbers": [2, 20, 11], "note": "optional literal text",
  "breakdown": [["Universal Day", "30/3"], ["Month", "11"]]}
-Numbers are kept literally (0 explicit, no digit transforms). Note/breakdown are user text, never computed.
+Saved numbers are kept literally (0 explicit, no digit transforms); saved note/breakdown are user text.
+Dates with no saved entry get an auto-computed pattern (see compute() below); a saved entry overrides it.
 Bad entries are skipped with a warning; the rest still load.
 """
 from datetime import date as _date
@@ -109,3 +110,85 @@ def reason(p, entries):
 
 def toggle_key(day, entry_date):
     return f'v60_number_overlay:{day}:{entry_date}'
+
+
+# ---- Auto-computed daily patterns (t198): every date gets a pattern; explicit registry entries override. ----
+# Formula derived from the user's Nov 9 2026 breakdown (reproduces 1, 3, 9, 10, 11, 21, 30 exactly):
+#   yearSum = digit sum of YYYY (2026 -> 10)
+#   Universal Year  = yearSum              shown with its reduction chain, e.g. '10/1'
+#   Universal Month = M + yearSum          e.g. Nov 2026 -> '21/3'
+#   Universal Day   = M + D + yearSum      e.g. Nov 9 -> '30/3'; Nov 17 -> '38/11/2'
+#   Calendar Day    = D                    '9', or '17/8' when D > 9
+#   Month           = M as written         '11' (NOT reduced: the user's Nov 9 list has 11 but not 2)
+# Numbers = sorted unique set of every value in the UD, UM, UY and Calendar Day chains, plus M.
+# Chains reduce by digit sum until one digit and keep EVERY step (38 -> 11 -> 2 contributes 38, 11 and 2).
+AUTO_NOTE = 'auto-computed from date formula'
+FORMULA = ('Auto days: yearSum = digits of the year added (2026 → 10). Universal Year = yearSum; Universal Month = month + yearSum; '
+           'Universal Day = month + day + yearSum; Calendar Day = day; Month = month as written. Each value is shown with every '
+           'digit-sum step to one digit (38/11/2), and all of those steps plus the month are the numbers to look for. '
+           'Reproduces your Nov 9 list exactly. A saved entry for a date replaces the formula for that date.')
+_WEEKDAYS = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
+_MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+
+
+def _dsum(n):
+    return sum(int(c) for c in str(abs(int(n))))
+
+
+def chain(n):
+    """Every digit-sum step down to one digit: 38 -> (38, 11, 2); 30 -> (30, 3); 9 -> (9,)."""
+    out = [int(n)]
+    while out[-1] > 9:
+        out.append(_dsum(out[-1]))
+    return tuple(out)
+
+
+def _fmt(c):
+    return '/'.join(str(x) for x in c)
+
+
+def compute(d):
+    """Formula entry for a datetime.date (or ISO string). Same shape as registry entries plus source='auto'."""
+    if isinstance(d, str):
+        d = _date.fromisoformat(d)
+    y, m, day = _dsum(d.year), d.month, d.day
+    uy, um, ud, cd = chain(y), chain(m + y), chain(m + day + y), chain(day)
+    nums = tuple(sorted(set(ud) | set(um) | set(uy) | set(cd) | {m}))
+    return {'date': d.isoformat(), 'label': f'{_MONTHS[m - 1]} {day} pattern', 'numbers': nums, 'note': AUTO_NOTE,
+            'breakdown': (('Universal Day', _fmt(ud)), ('Universal Month', _fmt(um)), ('Calendar Day', _fmt(cd)),
+                          ('Universal Year', _fmt(uy)), ('Month', str(m))), 'source': 'auto'}
+
+
+def entry_for(d, explicit=()):
+    """Explicit registry entry for that date if one exists (overrides), else the auto-computed one."""
+    iso = d if isinstance(d, str) else d.isoformat()
+    for e in explicit:
+        if e['date'] == iso:
+            return dict(e, source='saved')
+    return compute(iso)
+
+
+def today_et():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo('America/New_York')).date()
+
+
+def week_of(d):
+    """Mon..Sun dates of the week containing d."""
+    from datetime import timedelta
+    mon = d - timedelta(days=d.weekday())
+    return [mon + timedelta(days=i) for i in range(7)]
+
+
+def day_label(d):
+    return f'{_WEEKDAYS[d.weekday()]} {d.day}'
+
+
+def picker_key(day, kind):
+    return f'v60_daily_pick:{day}:{kind}'
+
+
+def applied_key(day):
+    """Per-slate set of applied pattern dates (union filter)."""
+    return f'v60_daily_applied:{day}'

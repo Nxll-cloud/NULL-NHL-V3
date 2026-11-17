@@ -347,12 +347,13 @@ def daily_patterns_html(entries, warnings=()):
         other = [n for n in e['numbers'] if not 1 <= n <= 9]
         bd = ''.join(f'<dt>{esc(a)}</dt><dd>{esc(b)}</dd>' for a, b in e['breakdown'])
         items.append(f'<div class="ndp-item"><h4>{esc(e["label"])} · {esc(e["date"])}</h4><p class="ndp-nums">{esc(nums)}</p>'
-                     + (f'<dl aria-label="Date breakdown (user-supplied)">{bd}</dl>' if bd else '')
+                     + (f'<dl aria-label="Date breakdown ({"auto-computed" if e.get("source") == "auto" else "user-supplied"})">{bd}</dl>' if bd else '')
                      + (f'<p class="ndp-note">{esc(e["note"])}</p>' if e.get('note') else '')
+                     + (f'<p class="ndp-note">{esc(_dp.FORMULA)}</p>' if e.get('source') == 'auto' else '')
                      + f'<p class="ndp-note">Can match a 1–9 English root: {esc(", ".join(map(str, rootable)) or "none")}'
                      + (f' · full-total only: {esc(", ".join(map(str, other)))}' if other else '') + '</p></div>')
     body = ''.join(items) or '<p>No daily patterns registered.</p>'
     warn = ''.join(f'<p class="ndp-note">⚠ {esc(w)}</p>' for w in warnings)
     return (DAILY_STYLE + '<section class="sec num-daily" aria-label="Daily number patterns">'
-            '<div class="sh"><h3>Daily patterns</h3><p>One user-supplied pattern per day · each can be applied as a By Game filter</p></div>'
+            '<div class="sh"><h3>Daily patterns</h3><p>One pattern per day (saved entry, else auto-computed) · can be applied as a By Game filter</p></div>'
             f'<div class="ndp-grid">{body}</div>{warn}<p class="ndp-note">{esc(_dp.NOT_TESTED)}</p></section>')

@@ -70,7 +70,8 @@ def test_integration_default_off_scope_and_slate_key():
     src=Path('tabs/numbers.py').read_text()
     # t191: the single 4,10,0,9,3,6 toggle migrated into per-day registry toggles (label/key legitimately changed;
     # the 2026-11-07 entry is the same numbers, now one of several independent default-OFF filters).
-    assert "value=False,key=_num_dp.toggle_key(np_day,_e['date'])" in src
+    # t198: one toggle for the picker-selected day; value comes from the per-slate applied set (empty = all OFF).
+    assert "value=_num_entry['date'] in _num_applied,key=_num_tk" in src and '_num_tk=_num_dp.toggle_key(np_day,_num_entry[\'date\'])' in src
     assert 'overlay=_num_sel) if _num_overlay else' in src and 'numv58.overlay_counts(_nb_boards,_nb_mp,patterns=_num_sel)' in src
     assert src.index('_nb_mp=numv58.model_p_from_results')<src.index('_num_sel=[')<src.index('overlay=_num_sel) if _num_overlay else')
     assert 'after the existing per-game limit and top-pick pinning' in src

@@ -10,7 +10,36 @@ import number_pattern_backtest_v60 as _num_audit
 _num_audit.render(st)  # Saved historical summary only; no scoring/overlay inputs or runtime API fetch.
 import daily_patterns_v60 as _num_dp
 _num_daily,_num_daily_warn=_num_dp.load()  # registry data file; bad entries skipped with a visible warning
-v5.html_block(st,numv58.daily_patterns_html(_num_daily,_num_daily_warn),extra_class='v58-num')  # display only
+# t198: day picker (Mon–Sun of a week, default today ET) -> that day's pattern: saved registry entry if one exists, else auto-computed.
+_num_today=_num_dp.today_et()
+st.session_state.setdefault('v60_daily_anchor',_num_today); st.session_state.setdefault('v60_daily_sel',_num_today.isoformat())
+def _num_goto(d):
+    st.session_state['v60_daily_anchor']=d; st.session_state['v60_daily_sel']=d.isoformat()
+    st.session_state.pop(_num_dp.picker_key(_num_dp.week_of(d)[0],'day'),None)
+def _num_shift(n):
+    import datetime as _ndt
+    _num_goto(st.session_state['v60_daily_anchor']+_ndt.timedelta(days=7*n))
+def _num_from_input():
+    if st.session_state.get('v60_daily_date') is not None: _num_goto(st.session_state['v60_daily_date'])
+_num_week=_num_dp.week_of(st.session_state['v60_daily_anchor'])
+_num_isos=[d.isoformat() for d in _num_week]
+_num_default=(_num_isos.index(st.session_state['v60_daily_sel']) if st.session_state['v60_daily_sel'] in _num_isos else
+              _num_isos.index(_num_today.isoformat()) if _num_today.isoformat() in _num_isos else 0)
+_num_pick=st.container(border=True)
+with _num_pick:
+    st.markdown(f'**Daily pattern** · week of {_num_week[0].strftime("%b")} {_num_week[0].day} – {_num_week[-1].strftime("%b")} {_num_week[-1].day}')
+    _num_day=st.radio('Pattern day',_num_week,index=_num_default,format_func=lambda d:_num_dp.day_label(d)+(' · today' if d==_num_today else ''),
+                      horizontal=True,label_visibility='collapsed',key=_num_dp.picker_key(_num_week[0],'day'))
+    st.session_state['v60_daily_sel']=_num_day.isoformat()
+    with st.expander('Other weeks or dates'):
+        _num_n1,_num_n2,_num_n3=st.columns(3)
+        _num_n1.button('‹ Prev week',on_click=_num_shift,args=(-1,),width='stretch',key='v60_daily_prev')
+        _num_n2.button('This week',on_click=_num_goto,args=(_num_today,),width='stretch',key='v60_daily_now')
+        _num_n3.button('Next week ›',on_click=_num_shift,args=(1,),width='stretch',key='v60_daily_next')
+        st.date_input('Jump to date',value=None,key='v60_daily_date',on_change=_num_from_input,format='YYYY-MM-DD')
+        st.caption('Saved entries (override the formula): '+(', '.join(e['date'] for e in _num_daily) or 'none'))
+_num_entry=_num_dp.entry_for(_num_day,_num_daily)
+v5.html_block(st,numv58.daily_patterns_html([_num_entry],_num_daily_warn),extra_class='v58-num')  # display only
 try:
     _games_num=np_snapshot['games'] if np_snapshot is not None else schedule_cached(np_day)
 except (requests.RequestException,ValueError,KeyError):
@@ -54,10 +83,18 @@ else:
             if _nb_sort:
                 _nb_boards=sorted(_nb_boards,key=lambda b:-b['badge'])
             _nb_mp=numv58.model_p_from_results(_v56_results)  # model P (pid -> p_anytime(lam_game)) for the TOP PICK tie-break only
-            st.markdown('**Daily pattern filters** · each OFF by default; turn on any to show only matching current rows')
-            _num_sel=[_e for _e in _num_daily if st.toggle(f'{_e["label"]} ({_e["date"]}) · '+', '.join(str(_n) for _n in _e['numbers']),
-                                                           value=False,key=_num_dp.toggle_key(np_day,_e['date']))]
+            st.markdown('**Daily pattern filter** · OFF by default; pick a day above, then turn it on to show only matching current rows')
+            _num_applied=st.session_state.setdefault(_num_dp.applied_key(np_day),set())  # per slate; survives switching picker days
+            def _num_apply(k,iso,ak):
+                (st.session_state[ak].add if st.session_state.get(k) else st.session_state[ak].discard)(iso)
+            _num_tk=_num_dp.toggle_key(np_day,_num_entry['date'])
+            st.toggle(f'Apply {_num_entry["label"]} ({_num_entry["date"]}) · '+', '.join(str(_n) for _n in _num_entry['numbers']),
+                      value=_num_entry['date'] in _num_applied,key=_num_tk,on_change=_num_apply,args=(_num_tk,_num_entry['date'],_num_dp.applied_key(np_day)))
+            _num_sel=[_num_dp.entry_for(_iso,_num_daily) for _iso in sorted(_num_applied)]
             _num_overlay=bool(_num_sel)
+            _num_others=[_e for _e in _num_sel if _e['date']!=_num_entry['date']]
+            if _num_others:
+                st.caption('Also applied (pick that day to turn it off): '+'; '.join(f'{_e["label"]} ({_e["date"]})' for _e in _num_others))
             st.caption(_num_dp.RULE+' Several ON = union (a row matching any selected pattern is shown, labelled with each match).')
             st.caption('By Game player rows only, after the existing per-game limit and top-pick pinning. '
                        'No replacement picks or reranking; threat badges and pick labels keep their baseline meaning. '
