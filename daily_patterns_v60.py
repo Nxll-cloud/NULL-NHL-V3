@@ -9,6 +9,7 @@ Bad entries are skipped with a warning; the rest still load.
 """
 from datetime import date as _date
 from pathlib import Path
+import functools
 import json
 import math
 import re
@@ -16,7 +17,7 @@ import re
 REGISTRY = Path(__file__).resolve().parent / 'patterns' / 'daily_number_patterns.json'
 _DATE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 RULE = ('A row matches a selected pattern when the player’s English root (values.ordinal_root, 1–9) OR full '
-        'unreduced English ordinal total (values.ordinal) exactly equals one of its numbers. No Reverse, '
+        'unreduced English ordinal total (values.ordinal) OR raw jersey (sweater) number exactly equals one of its numbers. No Reverse, '
         'digit transforms or date mapping; 10, 11, 21, 30 are kept literally. 0 matches only an explicit stored 0; '
         'missing/unknown values never match.')
 NOT_TESTED = ('Display/filter only, not a forecast. These daily patterns are not backtested; the saved historical '
@@ -91,13 +92,18 @@ def fields(p):
 
 
 def matches(p, entries):
-    """-> list of (entry, 'English root = n' | 'English total = n') for every selected entry hit."""
+    """-> list of (entry, 'English root = n' | 'English total = n' | 'Jersey #n', joined by ' & ') per selected entry hit."""
     root, total = fields(p)
+    jersey = _whole(p.get('jersey'))
+    if jersey is not None and jersey < 0:
+        jersey = None
     out = []
     for e in entries:
         why = [f'English root = {root}'] if root is not None and root in e['numbers'] else []
         if total is not None and total in e['numbers']:
             why.append(f'English total = {total}')
+        if jersey is not None and jersey in e['numbers']:
+            why.append(f'Jersey #{jersey}')
         if why:
             out.append((e, ' & '.join(why)))
     return out
@@ -166,6 +172,25 @@ def entry_for(d, explicit=()):
         if e['date'] == iso:
             return dict(e, source='saved')
     return compute(iso)
+
+
+@functools.lru_cache(maxsize=128)
+def _numbers_cached(iso, stamp):
+    es, _ = load()
+    return tuple(entry_for(iso, es)['numbers'])
+
+
+def numbers_for(d):
+    """The day's pattern numbers (saved entry if present, else auto-computed) for jersey matching. Never raises."""
+    try:
+        iso = d if isinstance(d, str) else d.isoformat()
+        try:
+            stamp = REGISTRY.stat().st_mtime_ns
+        except OSError:
+            stamp = 0
+        return _numbers_cached(iso, stamp)
+    except Exception:
+        return ()
 
 
 def today_et():

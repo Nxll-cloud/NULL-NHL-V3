@@ -37,7 +37,8 @@ def get_roster(team, season=SEASON):
         for p in data.get(group, []):
             players.append({'id': p.get('id'),
                             'Player': (p.get('firstName', {}).get('default', '') + ' ' + p.get('lastName', {}).get('default', '')).strip(),
-                            'Team': team, 'Position': p.get('positionCode', '')})
+                            'Team': team, 'Position': p.get('positionCode', ''),
+                            'Jersey': p.get('sweaterNumber')})   # t201: raw sweater number (None if absent)
     return [p for p in players if p['id']]
 
 

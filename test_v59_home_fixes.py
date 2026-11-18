@@ -45,8 +45,13 @@ def test_strip_moved_from_home_to_live_next_goal_tab_below_banner():
     body = ng.split('"""', 2)[2]                      # code after the module docstring
     code = [l for l in body.splitlines() if l.strip() and not l.lstrip().startswith('#')]
     assert code[0].startswith("st.markdown(v5.tab_head('NULL’S PLAYBOOK · LIVE','Live Next Goal'")   # banner first
-    assert code[2].startswith('if _v56_results:')                                                     # strip second
-    assert code[3].strip() == '_ng_strip_slot = st.empty()'
+    i = next(k for k, l in enumerate(code) if l.startswith('if _v56_results:'))                        # strip second:
+    assert not any(l.startswith('st.') for l in code[2:i])                                           # nothing drawn before it
+    assert code[i + 1].strip() == '_ng_strip_slot = st.empty()'
     assert 'with _ng_strip_slot.container():' in ng
     assert 'v5.html_block(st,v56.live_strip(lstate.strip_items(_v56_results),jump=False))' in ng
+    # V6.1: the live panel fragment never writes into the outer strip slot (white-page 'delta path' crash)
+    frag = ng[ng.index('if force:  # V6.1'):ng.index('else:      # full script run')]
+    assert '_ng_strip_slot.container()' not in frag and 'st.session_state[_ng_strip_key] = (np_day, res)' in frag
+    assert "st.fragment(run_every='10s')(safe_section('Live strip')(_ng_strip_body))()" in ng
     assert ng.index('v5.tab_head(') < ng.index('live_strip(')  # strip directly below the tab header

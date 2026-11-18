@@ -6,6 +6,22 @@ DEMO replay: real past PBP fixture (test_fixtures_v56/pbp_2026020162.json), step
 
 st.markdown(v5.tab_head('NULL’S PLAYBOOK · LIVE','Live Next Goal','Who scores the next goal · official NHL play-by-play · xG + shrunk shooting % + pace blend · competing risk',
     chips=[(f'{_v56_live_n} live','hot' if _v56_live_n else 'muted'),('30 s live cadence','odds'),('Model estimate · uncalibrated','warn')],tone='hot'),unsafe_allow_html=True)
+# V6.1 white-page fix: the live panel fragment used to rewrite this strip from INSIDE its fragment run. A fragment writing
+# into a container created outside it sends a delta into a block the browser never received ('Cannot set a node at a
+# delta path') and Streamlit's frontend blanks the whole page. Now the panel fragment only stores its latest rows; the
+# main script (never a fragment) then puts a small strip fragment into the slot that shows those rows (same markup, 10 s).
+_ng_strip_key='v61_ng_strip_res'
+
+
+def _ng_strip_rows():
+    _saved=st.session_state.get(_ng_strip_key)
+    return _saved[1] if isinstance(_saved,tuple) and len(_saved)==2 and _saved[0]==np_day and _saved[1] else _v56_results
+
+
+def _ng_strip_body():
+    v5.html_block(st,v56.live_strip(lstate.strip_items(_ng_strip_rows()),jump=False))
+
+
 if _v56_results:  # one replaceable strip, refreshed from the same data as the panels
     _ng_strip_slot = st.empty()
     with _ng_strip_slot.container():
@@ -19,6 +35,7 @@ with _ng_c2:
     _ng_form=st.toggle('Bounded Form multiplier (0.9–1.1)',value=False,key='v56_ng_form',help='Form % is an index, never a probability; this only nudges a skater’s rate by at most ±10%.')
 with _ng_c3:
     _ng_auto=st.toggle('Auto-refresh while live',value=True,key='v56_ng_auto')
+@safe_callback   # V6.1: a failing control shows a toast, not an error page
 def _ng_refresh():
     # Refresh BOTH feeds; a cached old score must not veto the freshly fetched PBP.
     v56_scores_cached.clear()
@@ -43,8 +60,11 @@ def _ng_panels(force=False):
         res = v56_slate_results(scores, pbp,
                                 st.session_state.setdefault('v56_rank_mem_form' if _ng_form else 'v56_rank_mem', {}), use_form=_ng_form)
     if res and _ng_strip_slot is not None:
-        with _ng_strip_slot.container():
-            v5.html_block(st, v56.live_strip(lstate.strip_items(res), jump=False))
+        if force:  # V6.1: inside the live fragment: never write to the outer slot; the strip's own fragment shows these rows
+            st.session_state[_ng_strip_key] = (np_day, res)
+        else:      # full script run (no fragment): replace the strip in place, as before
+            with _ng_strip_slot.container():
+                v5.html_block(st, v56.live_strip(lstate.strip_items(res), jump=False))
     want = {'All': None, 'Live': 'live', 'Pregame': 'pregame', 'Final': 'final'}.get(_ng_filter or 'All')
     shown = 0
     for r in sorted(res, key=lambda r: {'live': 0, 'shootout': 1, 'pregame': 2, 'final': 3}.get(r['result'].get('display_phase',r['result']['phase']), 9)):
@@ -64,9 +84,13 @@ def _ng_panels(force=False):
 _ng_live=_v56_live_n>0 and _ng_auto and hasattr(st,'fragment')
 if _ng_live:
     @st.fragment(run_every='30s')
+    @safe_section('Live next-goal panel')   # V6.1
     def _ng_live_fragment():
         _ng_panels(force=True)
     _ng_live_fragment()
+    if _ng_strip_slot is not None:  # V6.1: main script (not a fragment) swaps in the self-refreshing strip
+        with _ng_strip_slot.container():
+            st.fragment(run_every='10s')(safe_section('Live strip')(_ng_strip_body))()
 else:
     _ng_panels()
     if _v56_live_n and not _ng_auto:
@@ -97,12 +121,16 @@ def _ng_demo_body():
         _ss['v59_demo_tick']=True
         if _ss['v56_demo_step']>=_n:
             _ss['v59_demo_play']=False; _ss['v59_demo_tick']=False
+    @safe_callback   # V6.1: a failing control shows a toast, not an error page
     def _pause():
         _ss['v59_demo_play']=False; _ss['v59_demo_tick']=False
+    @safe_callback   # V6.1: a failing control shows a toast, not an error page
     def _ng_step(d):
         _pause(); _ss['v56_demo_step']=max(0,min(_n,_ss.get('v56_demo_step',0)+d))
+    @safe_callback   # V6.1: a failing control shows a toast, not an error page
     def _ng_set(v):
         _pause(); _ss['v56_demo_step']=v
+    @safe_callback   # V6.1: a failing control shows a toast, not an error page
     def _ng_play():
         if _ss.get('v59_demo_play'):
             _pause()
@@ -155,7 +183,7 @@ else:
         if not _ng_can_play:
             st.session_state['v59_demo_play']=False
         if _ng_can_play:
-            st.fragment(run_every='1.5s' if _ng_play_reg else None)(_ng_demo_body)()
+            st.fragment(run_every='1.5s' if _ng_play_reg else None)(safe_section('Demo replay')(_ng_demo_body))()  # V6.1
         else:
             _ng_demo_body()
 with st.expander('ⓘ How the next-goal model works'):

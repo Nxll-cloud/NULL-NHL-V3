@@ -11,7 +11,7 @@ import firstgoal_v60 as fgv
 import overall_accuracy_v60 as oav
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False, max_entries=4)
 def _pm_logs(sig):
     """Blend records + accuracy entries + books records (sig = file names + mtimes, so a new freeze shows at once)."""
     import books_picks_v59 as _bp
@@ -34,19 +34,19 @@ def _pm_sig():
     return tuple(out)
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False, max_entries=4)
 def _pm_overall_extras(sig):
     return fgv.load_all(), oav.gematria_records()
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False, max_entries=8)
 def _pm_card(yday, sig):
     """The Model accuracy card (moved here from Home in V5.9; accuracy_v58.home_html unchanged apart from the top-10
     list). Keyed on Eastern 'yesterday' (so the midnight rollover still switches the night) + the log signature."""
     return pmv.acc.home_html()
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False, max_entries=8)
 def _pm_layers(day, key, _rankings, _games):
     return pmv.layers_for({'day': day, 'rankings': _rankings, 'games': _games}, day)
 

@@ -8,11 +8,13 @@ def _mc_set_query(key):
         except Exception:
             pass
 
+@safe_callback   # V6.1: a failing control shows a toast, not an error page
 def _mc_open(key):
     st.session_state['v54_mc_game'] = key
     st.session_state['v54_mc_select'] = key
     _mc_set_query(key)
 
+@safe_callback   # V6.1: a failing control shows a toast, not an error page
 def _mc_back():
     st.session_state['v54_mc_game'] = None
     st.session_state['v54_mc_select'] = '—'
@@ -27,6 +29,7 @@ def _v59_pmark(_gl):
     except Exception:   # the marker must never break the tab
         return None
 
+@safe_callback   # V6.1: a failing control shows a toast, not an error page
 def _mc_pick():
     _sel = st.session_state.get('v54_mc_select')
     st.session_state['v54_mc_game'] = None if _sel in (None, '—') else _sel

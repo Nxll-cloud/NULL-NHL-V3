@@ -1,4 +1,8 @@
-streamlit>=1.50,<2
+# V6.1: Streamlit Community Cloud installs from this file (it does not read requirements.lock). Unpinned, a rebuild
+# resolved streamlit 1.67.0 + starlette 1.10.0, versions never tested here and tied in forum reports to blank pages.
+# streamlit/starlette are pinned to the tested lock versions; bump them together with requirements.lock after testing.
+streamlit==1.66.1
+starlette==1.9.0
 pandas>=2.0,<3
 requests>=2.31,<3
 streamlit-autorefresh>=1.0,<2

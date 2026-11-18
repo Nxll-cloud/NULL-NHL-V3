@@ -11,6 +11,19 @@ from ranking_integrity_v3871 import assign_statistical_ranks
 from history_v386 import fetch_multi_history
 from snapshot_store import save_snapshot
 
+def fill_jersey(ranked, errors, fetch=None):
+    """t201: fill any missing 'Jersey' from the public NHL current-roster feed by Player ID. Never raises;
+    a failed fetch leaves the value null (None)."""
+    import jersey_v61 as jy
+    try:
+        teams = jy.missing_teams(ranked)
+        rmap, problems = (fetch or jy.fetch_map)(teams) if teams else ({}, [])
+        errors.extend(str(p) for p in problems)
+        return jy.fill_records(ranked, rmap)
+    except Exception as exc:
+        errors.append(f"Jersey: {type(exc).__name__}")
+        return [dict(r, Jersey=jy.norm(r.get("Jersey"))) for r in ranked]
+
 def compute(day, include_history=True):
     games = get_schedule(day)
     if not games:
@@ -44,6 +57,7 @@ def compute(day, include_history=True):
         ranked = list(ranked)
     if not ranked:
         raise RuntimeError("No eligible rankings; retaining previous snapshot")
+    ranked = fill_jersey(ranked, errors)
     history = []
     if include_history:
         try:

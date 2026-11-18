@@ -11,6 +11,7 @@ Targets are single numbers: the day digit and the arena number (the arena name's
 Reverse digit = 9 - English digit (9 stays 9), so one name never hits the same target with both ciphers.
 Not imported by any scoring, ranking, tier, TOP PICK or match-table module.
 """
+import jersey_v61 as _jy   # t201: jersey tag after names (display only)
 import html
 
 from numerology_v48 import gematria
@@ -96,14 +97,14 @@ def table_html(full, close, day_num, loaded=True, demo=False, close_limit=8):
     chip = lambda h: f'<span class="pl-c{" rv" if h.endswith("Rev") else ""}">{e(h)}</span>'
     sc = lambda p: (f'<span class="pl-s{" demo" if demo else ""}">{e(p["scored"])}{" demo" if demo else ""}</span>' if p['scored'] else '')
     if full:
-        trs = ''.join(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(p["player"]))}</b></td><td class="pl-pos">{e(p["pos"])}</td>'
+        trs = ''.join(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(p["player"]))}</b>{_jy.tag(p)}</td><td class="pl-pos">{e(p["pos"])}</td>'
                       f'<td class="pl-pos">{e(str(p.get("team", "")))}</td><td class="pl-sc">{sc(p)}</td></tr>'
                       f'<tr class="gm-c pl-ch"><td colspan="4">{"".join(chip(h) for h in p["hits"])}</td></tr>' for p in full)
         body = ('<div class="gm-w"><table class="gm"><thead><tr><th>Player</th><th title="Position">Pos</th><th>Team</th>'
                 f'<th title="Scored tonight">🚨</th></tr></thead><tbody>{trs}</tbody></table></div>'
                 f'<p class="gm-note">{len(full)} player{"s" if len(full) != 1 else ""} match all five layers</p>')
     else:
-        items = ''.join(f'<li><b>{e(str(p["player"]))}</b> <span class="al-m">{e(p["pos"])} · {e(str(p.get("team", "")))}</span> '
+        items = ''.join(f'<li><b>{e(str(p["player"]))}</b>{_jy.tag(p)} <span class="al-m">{e(p["pos"])} · {e(str(p.get("team", "")))}</span> '
                         f'<span class="al-x">missed {e(", ".join(LABEL[m] for m in p["missed"]))}</span>{sc(p)}</li>'
                         for p in close[:close_limit])
         more = f' · showing {close_limit} of {len(close)}' if len(close) > close_limit else ''

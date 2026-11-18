@@ -7,6 +7,7 @@ and the NHL codes) run through numerology_v48.gematria and compared, English dig
 his game's arena number (the same English-digit arena comparison the app uses). Not imported by any scoring, ranking,
 tier, TOP PICK or match-table module; nothing here feeds back into them.
 """
+import jersey_v61 as _jy   # t201: jersey tag after names (display only)
 import html
 
 from numerology_v48 import gematria
@@ -100,7 +101,7 @@ def table_html(data, none, day_num, loaded=True, demo=False):
     for p in data:
         chips = ''.join(f'<span class="pl-c">{e(h)}</span>' for h in p['pos_hits'])
         sc = f'<span class="pl-s{" demo" if demo else ""}">{e(p["scored"])}{" demo" if demo and p["scored"] else ""}</span>' if p['scored'] else ''
-        trs.append(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(p["player"]))}</b><small class="pl-tm">{e(str(p.get("team", "")))}</small></td>'
+        trs.append(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(p["player"]))}</b>{_jy.tag(p)}<small class="pl-tm">{e(str(p.get("team", "")))}</small></td>'
                    f'<td class="pl-pos">{e(p["pos"])}</td><td>{tick(p["day_hit"])}</td><td>{tick(p["arena_hit"])}</td>'
                    f'<td>{tick(p["team_hit"])}</td><td>{tick(bool(p["pos_hits"]))}</td><td class="gm-n">{p["layers"]}</td>'
                    f'<td class="pl-sc">{sc}</td></tr>'

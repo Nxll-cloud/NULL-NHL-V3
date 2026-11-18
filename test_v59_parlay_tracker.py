@@ -173,7 +173,7 @@ def test_uses_existing_poll_no_new_interval():
     assert 'ptrack.states(_pl_data,_v56_pbp,_v56_results)' in home
     found = sorted(m for p in [HERE / 'app.py', *(HERE / 'tabs').glob('*.py')] for m in re.findall(r"run_every=\(?'[^']+'", p.read_text()))
     # the tracker adds no timer: this is exactly the set already on main (1.5s = Next Goal DEMO replay, offline only)
-    assert found == ["run_every='1.5s'", "run_every='10s'", "run_every='30s'", "run_every=('3s'", "run_every=('45s'"]
+    assert found == ["run_every='1.5s'", "run_every='10s'", "run_every='10s'", "run_every='30s'", "run_every=('3s'", "run_every=('45s'"]  # V6.1: +10s Live Next Goal strip fragment
     assert (HERE / 'app.py').read_text().count('st_autorefresh(') == 1
     app = (HERE / 'app.py').read_text()
     watch = app[app.index('def np_scorer_watch'):app.index('with _np_scorer_slot')]

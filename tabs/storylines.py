@@ -39,6 +39,7 @@ else:
     _sl_job._t.join(timeout=1.5)
 
     @st.fragment(run_every=('3s' if _sl_job.running else None))
+    @safe_section('Storylines view')   # V6.1
     def np_storylines_view():
         j=slx.job_for(_sl_key,_sl_build)
         if j.running:

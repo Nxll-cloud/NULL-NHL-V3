@@ -13,12 +13,15 @@ _num_daily,_num_daily_warn=_num_dp.load()  # registry data file; bad entries ski
 # t198: day picker (Mon–Sun of a week, default today ET) -> that day's pattern: saved registry entry if one exists, else auto-computed.
 _num_today=_num_dp.today_et()
 st.session_state.setdefault('v60_daily_anchor',_num_today); st.session_state.setdefault('v60_daily_sel',_num_today.isoformat())
+@safe_callback   # V6.1: a failing control shows a toast, not an error page
 def _num_goto(d):
     st.session_state['v60_daily_anchor']=d; st.session_state['v60_daily_sel']=d.isoformat()
     st.session_state.pop(_num_dp.picker_key(_num_dp.week_of(d)[0],'day'),None)
+@safe_callback   # V6.1: a failing control shows a toast, not an error page
 def _num_shift(n):
     import datetime as _ndt
     _num_goto(st.session_state['v60_daily_anchor']+_ndt.timedelta(days=7*n))
+@safe_callback   # V6.1: a failing control shows a toast, not an error page
 def _num_from_input():
     if st.session_state.get('v60_daily_date') is not None: _num_goto(st.session_state['v60_daily_date'])
 _num_week=_num_dp.week_of(st.session_state['v60_daily_anchor'])
@@ -48,6 +51,9 @@ except (requests.RequestException,ValueError,KeyError):
 _analyses=[num_analyze_game(g,np_day,_TEAM_NAMES) for g in _games_num]
 _nb_ranked=st.session_state.get('signals_ranked')
 _nb_ok=isinstance(_nb_ranked,pd.DataFrame) and st.session_state.get('signals_day')==np_day
+import jersey_v61 as _num_jy
+if _nb_ok:  # t201: render-time fallback for snapshots saved before the Jersey column (cached NHL roster map, by Player ID; never raises)
+    _nb_ranked=_num_jy.fill_frame(_nb_ranked,lambda _t:v55_rosters_cached(_t)[0])
 _gm_targets=num_slate_targets(_analyses,_nb_ranked,np_day) if (_nb_ok and _analyses) else None
 _nb_all=numboard.slate_boards(_gm_targets) if _gm_targets is not None else None
 import pos_tag_v59 as _postag
@@ -85,6 +91,7 @@ else:
             _nb_mp=numv58.model_p_from_results(_v56_results)  # model P (pid -> p_anytime(lam_game)) for the TOP PICK tie-break only
             st.markdown('**Daily pattern filter** · OFF by default; pick a day above, then turn it on to show only matching current rows')
             _num_applied=st.session_state.setdefault(_num_dp.applied_key(np_day),set())  # per slate; survives switching picker days
+            @safe_callback   # V6.1: a failing control shows a toast, not an error page
             def _num_apply(k,iso,ak):
                 (st.session_state[ak].add if st.session_state.get(k) else st.session_state[ak].discard)(iso)
             _num_tk=_num_dp.toggle_key(np_day,_num_entry['date'])
@@ -95,7 +102,7 @@ else:
             _num_others=[_e for _e in _num_sel if _e['date']!=_num_entry['date']]
             if _num_others:
                 st.caption('Also applied (pick that day to turn it off): '+'; '.join(f'{_e["label"]} ({_e["date"]})' for _e in _num_others))
-            st.caption(_num_dp.RULE+' Several ON = union (a row matching any selected pattern is shown, labelled with each match).')
+            st.caption(_num_dp.RULE+' Jersey matching is new and was not part of the historical backtest. Several ON = union (a row matching any selected pattern is shown, labelled with each match).')
             st.caption('By Game player rows only, after the existing per-game limit and top-pick pinning. '
                        'No replacement picks or reranking; threat badges and pick labels keep their baseline meaning. '
                        'Other views and the other listed reference patterns are unchanged.')
@@ -105,9 +112,10 @@ else:
             _num_board_html=(numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap,overlay=_num_sel) if _num_overlay else
                              numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap))
             v5.html_block(st,_num_board_html,extra_class='v58-num')
-            st.caption('Threat score = round(100 × (3·D + 2·A + 1·T) / 6): D = day-number match, A = arena match, T = team match, each counted once (0 or 1). '
+            st.caption('Threat score = min(100, round(100 × (3·D + 2·A + 1·T + 2·J) / 6)): D = day-number match, A = arena match, T = team match, '
+                       'J = jersey match (raw sweater number is one of the slate date’s pattern numbers; new, additive only, not part of the historical backtest), each counted once (0 or 1). '
                        'The three ciphers are not independent: reduction always gives the same digit as English, and reverse mirrors English (the two always add up to 9), so each name has one number, and the day match uses the English digit only. '
-                       'Tiers by raw points: 5–6 blaze · 3–4 hot · 2 warm · 1 mild · 0 cool. Eng = the full name’s English total before reducing, used to order equal scores. Arena glows when any player in the game matches it. Badge = players with a score above 0. '
+                       'Tiers by raw points: 5–8 blaze · 3–4 hot · 2 warm · 1 mild · 0 cool. Eng = the full name’s English total before reducing, used to order equal scores. Arena glows when any player in the game matches it. Badge = players with a score above 0. '
                        'Same matches as Player Targets (unchanged); entertainment only, not a scoring probability.')
     elif _num_view=='Games':
         for r in _analyses:
@@ -126,9 +134,7 @@ else:
                         st.markdown(f'**{label}: {name}**')
                         st.caption(f'English ordinal {v["ordinal"]} → {v["ordinal_root"]} · Full reduction {v["reduction"]} → {v["reduction_root"]} · Reverse {v["reverse"]} → {v["reverse_root"]}')
     elif _num_view=='Player Targets':
-        _ranked_targets=st.session_state.get('signals_ranked')
-        if not (isinstance(_ranked_targets,pd.DataFrame) and st.session_state.get('signals_day')==np_day):
-            _ranked_targets=None
+        _ranked_targets=_nb_ranked if _nb_ok else None  # t201: same frame as By Game (jersey fallback applied)
         st.markdown(ui.section('Team player targets','Every matchup · both teams · numerical patterns','🎯','gem'),unsafe_allow_html=True)
         if _ranked_targets is None:
             st.info('Load the slate snapshot to see player targets for each team.')
@@ -149,10 +155,11 @@ else:
                 ordered=_v50_sort(targets)
                 st.markdown(ui.team_head(code,name,f'{len(ordered)} roster players shown in ranking'),unsafe_allow_html=True)
                 for ix,t in enumerate(ordered[:_limit],1):
-                    st.markdown(ui.target_row(ix,t['player'],code,t['player_id'],t['matches'],t['form'],len(t['day']),len(t['team_matches']),len(t['arena_matches']),season=SEASON,pos_tag=_postag.tag_for(_num_pmap,t['player_id'],code,t['player'])),unsafe_allow_html=True)
+                    st.markdown(ui.target_row(ix,t['player'],code,t['player_id'],t['matches'],t['form'],len(t['day']),len(t['team_matches']),len(t['arena_matches']),season=SEASON,pos_tag=_postag.tag_for(_num_pmap,t['player_id'],code,t['player'])+_num_jy.tag(t)),unsafe_allow_html=True)
                     _wpc=_postag.lookup(_num_pmap,t['player_id'],code,t['player'])
                     with st.expander(f'Why {t["player"]}{" ("+_wpc+")" if _wpc else ""}? · {code}',expanded=False):
-                        st.caption(f'Player full-name roots: English {t["values"]["ordinal_root"]}, reduction {t["values"]["reduction_root"]}, reverse {t["values"]["reverse_root"]}.')
+                        st.caption(f'Player full-name roots: English {t["values"]["ordinal_root"]}, reduction {t["values"]["reduction_root"]}, reverse {t["values"]["reverse_root"]} · Jersey {_num_jy.text(t.get("jersey"))}.')
+                        st.write(f'Jersey: {", ".join(t.get("jersey_hit") or []) or "no match"} (raw number vs the day’s pattern numbers; new, not backtested)')
                         st.write(f'Day {_day_num}: {", ".join(t["day"]) or "no match"}')
                         st.write(f'Team: {", ".join(t["team_matches"]) or "no match"}')
                         st.write(f'Arena: {", ".join(t["arena_matches"]) or "no match"}')
@@ -161,7 +168,7 @@ else:
                     with st.expander(f'See {len(ordered)-_limit} more · {code}'):
                         for t in ordered[_limit:]:
                             _pc=_postag.lookup(_num_pmap,t['player_id'],code,t['player'])
-                            st.write(f'{t["player"]}{" ("+_pc+")" if _pc else ""} · {t["matches"]} matches · Form {ui.format_form_pct(t["form"])}')
+                            st.write(f'{t["player"]} {_num_jy.text(t.get("jersey"))}{" ("+_pc+")" if _pc else ""} · {t["matches"]} matches · Form {ui.format_form_pct(t["form"])}')
             for item in _targets:
                 r=item['game']; away,home=r['away'],r['home']
                 st.markdown(ui.matchup_bar(away,home,format_game_time(r['start']),r['arena']),unsafe_allow_html=True)
@@ -186,15 +193,15 @@ else:
             else:
                 st.caption(f'{r["away"]} @ {r["home"]}: Arena unavailable')
     elif _num_view=='Player Matches':
-        ranked=st.session_state.get('signals_ranked')
+        ranked=_nb_ranked if _nb_ok else None  # t201: jersey fallback applied
         if isinstance(ranked,pd.DataFrame) and not ranked.empty and st.session_state.get('signals_day')==np_day and 'Player' in ranked:
             matched=[]
             for _,player in ranked.iterrows():
                 v=num_gematria(player.get('Player',''))
                 methods=[k.replace('_root','').replace('_',' ') for k in ('ordinal_root','reduction_root') if v[k]==_day_num]  # English only (== reduction); Reverse never counts for the day
                 if methods:
-                    matched.append({'Player':player['Player'],'Pos':_postag.code(player.get('Position')) or '','Team':player.get('Team',''),'Matching methods':', '.join(methods)})
-            st.dataframe(pd.DataFrame(matched,columns=['Player','Pos','Team','Matching methods']),hide_index=True,use_container_width=True)
+                    matched.append({'Player':player['Player'],'Jersey':_num_jy.text(player.get('Jersey')),'Pos':_postag.code(player.get('Position')) or '','Team':player.get('Team',''),'Matching methods':', '.join(methods)})
+            st.dataframe(pd.DataFrame(matched,columns=['Player','Jersey','Pos','Team','Matching methods']),hide_index=True,use_container_width=True)
             st.caption('Number matches only, not goal-scoring recommendations.')
         else:
             st.info('Player names will appear after rankings for this date are loaded.')

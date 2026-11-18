@@ -37,10 +37,14 @@ def test_render_draws_one_caption():
 
 def test_app_renders_footer_after_every_tab_body():
     src = (ROOT / 'app.py').read_text()
-    tab_runs = re.findall(r"\n( +)run_tab\('(\w+)', globals\(\)\)\n\1app_footer\.render\(st\)", src)
-    all_runs = [n for n in re.findall(r"run_tab\('(\w+)', globals\(\)\)", src) if n != 'live']
-    assert sorted(n for _, n in tab_runs) == sorted(all_runs)
+    # V6.1: each tab is np_run_tab(name, label) = run_tab inside safe_section, then the shared footer (its own section)
+    helper = src[src.index('def np_run_tab('):]
+    helper = helper[:helper.index('\n\n\n')]
+    assert re.search(r"np_run_section\(name, [^)]*\)\n\s+with safe_section\([^)]*\):\n\s+app_footer\.render\(st\)", helper)
+    all_runs = re.findall(r"np_run_tab\('(\w+)', '[^']+'\)", src)
+    assert len(all_runs) == len(set(all_runs))
     assert set(all_runs) == {p.stem for p in (ROOT / 'tabs').glob('*.py')} - {'__init__', 'live'}
+    assert "np_run_section('live'" in src
     assert src.index('def _np_drop_stale_modules') < src.index('import app_footer')   # crash guard stays first
 
 

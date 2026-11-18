@@ -11,7 +11,7 @@ TAB_DIR = Path(__file__).resolve().parent
 TABS = ('live', 'home', 'odds', 'research', 'numbers', 'matchup', 'edgelab', 'track', 'predmodels', 'nextgoal', 'edgeflags', 'storylines')
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=64)   # V6.1: bounded (one entry per tab file version)
 def _code(name, mtime):
     path = TAB_DIR / f'{name}.py'
     return compile(path.read_text(encoding='utf-8'), str(path), 'exec')

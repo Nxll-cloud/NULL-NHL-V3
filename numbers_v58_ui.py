@@ -11,7 +11,7 @@ from datetime import date
 
 import v55_ui as v5
 import venue_v58 as vn
-from numboard_v56 import TIERS, W_DAY, W_ARENA, W_TEAM, RAW_MAX
+from numboard_v56 import TIERS, W_DAY, W_ARENA, W_TEAM, W_JERSEY, RAW_MAX
 
 esc = v5.esc
 TIER_ICON = {'blaze': '🔥', 'hot': '♨', 'warm': '▲', 'mild': '◆', 'cool': '○'}
@@ -72,7 +72,17 @@ def reference_patterns_html():
             '<p class="nprf-note">Display reference only. Existing cipher rules, matches, scores and sorting are unchanged.</p></section>')
 
 
-def legend():
+JERSEY_LEGEND = ('<p class="nlg-k"><span class="mc j"><b>#21 ✓</b></span> JERSEY (new): the player’s raw sweater number '
+                 '(not reduced) is one of the slate date’s daily pattern numbers · +{w} raw points, additive only (no jersey hit = '
+                 'the same score as before) · score capped at 100, ties keep raw points, blaze covers 5–8 pts · joined from the public NHL roster by '
+                 'Player ID · jersey matching is new and was not part of the historical Numbers backtest</p>')
+
+
+def _has_jersey(boards):
+    return any('jersey' in p for b in boards for p in (b.get('all_players') or b.get('players') or []))
+
+
+def legend(jersey=False):
     items = ''.join(f'<li class="t-{n}" style="--c:{c}"><span class="ti">{TIER_ICON[n]}</span><b>{n.title()}</b><small>{TIER_RANGE[n]}</small></li>' for _, n, c in TIERS)
     return (f'<section class="nlg nleg-v58"><div class="nlg-h"><b>How to read a row</b><span>Score 0–100 = ({W_DAY}·DAY + {W_ARENA}·ARENA + {W_TEAM}·TEAM) ÷ {RAW_MAX} × 100 · '
             f'each counts once (0 or 1) when the player’s name number equals that target · ring fill = score · '
@@ -84,7 +94,8 @@ def legend():
             '<p class="nlg-k"><span class="mc d">DAY</span> matches the universal day · <span class="mc a">ARENA</span> matches the game’s arena name · '
             '<span class="mc t">TEAM</span> matches his own team name · warm colours = higher score; every tier also has its icon and word</p>'
             '<p class="nlg-k"><span class="npk pk1">★ TOP PICK</span> each team’s highest score on the slate · <span class="npk pk2">☆ RUNNER-UP</span> its second · '
-            'ties: score, then model chance, form, shot rate, English name total</p></section>')
+            'ties: score, then model chance, form, shot rate, English name total</p>'
+            + (JERSEY_LEGEND.format(w=W_JERSEY) if jersey else '') + '</section>')
 
 
 def _numbers(p, labels):
@@ -104,6 +115,8 @@ def match_chips(p):
         if labels:
             how = ' · '.join(l[:3].upper() for l in labels)
             out.append(f'<span class="mc {cls}" title="{word} match by {esc(", ".join(labels))}"><b>{word} {esc(_numbers(p, labels))}</b><i>{esc(how)}</i></span>')
+    if p.get('jersey_hit') and p.get('jersey') is not None:   # t201: raw jersey in the date's pattern numbers
+        out.append(f'<span class="mc j" title="JERSEY match: raw sweater number {esc(p["jersey"])} is one of the day’s pattern numbers"><b>#{esc(p["jersey"])} ✓</b><i>JERSEY</i></span>')
     return ''.join(out) or '<span class="mc none">no matches</span>'
 
 
@@ -275,13 +288,18 @@ def overlay_counts(boards, model_p=None, pin=True, patterns=None):
     return len(rows), sum(overlay_match(p) is not None for p in rows)
 
 
+def _jersey_tag(p):
+    import jersey_v61 as _jy
+    return _jy.tag(p)
+
+
 def player_row(p, rank=None, pos_tag='', overlay_reason=None):
     v = p.get('values') or {}
     roots = ' · '.join(f'{short} {v.get(field, "—")}' for _, field, short in METHOD_FIELD)
     pk = f' {PICK_LABEL[rank][2]}' if rank in PICK_LABEL else ''
     return (f'<li class="npr t-{p["tier"]}{pk}" style="--c:{p["colour"]}"><span class="npr-ring" style="--to:{p["threat"] * 3.6:.0f}deg" title="Threat {p["threat"]}/100">'
             f'<span>{TIER_ICON.get(p["tier"], "")}</span></span>'
-            f'<div class="npr-id"><span class="npr-nl"><b class="npr-name">{esc(p["player"])}</b>{pos_tag}{pick_badge(rank)}</span><small>{esc(p["team"])} · <span class="tn">{esc(roots)}</span></small>'
+            f'<div class="npr-id"><span class="npr-nl"><b class="npr-name">{esc(p["player"])}</b>{_jersey_tag(p)}{pos_tag}{pick_badge(rank)}</span><small>{esc(p["team"])} · <span class="tn">{esc(roots)}</span></small>'
             + (f'<small class="npr-overlay">Overlay match · {esc(overlay_reason)}</small>' if overlay_reason else '') + '</div>'
             f'<div class="npr-m">{match_chips(p)}</div>'
             f'<div class="npr-s"><strong class="tn">{p["threat"]}</strong><small>{TIER_ICON.get(p["tier"], "")} {p["tier"]}'
@@ -323,7 +341,7 @@ def boards_html(boards, day_num, model_p=None, pin=True, pmap=None, overlay=Fals
     if isinstance(overlay, tuple):
         overlay = list(overlay)
     ranks = _board_ranks(boards, model_p)
-    return (OVERLAY_STYLE if overlay else '') + legend() + '<div class="nbgrid ngrid">' + ''.join(game_board(b, day_num, ranks, pin, pmap, overlay) for b in boards) + '</div>'
+    return (OVERLAY_STYLE if overlay else '') + legend(_has_jersey(boards)) + '<div class="nbgrid ngrid">' + ''.join(game_board(b, day_num, ranks, pin, pmap, overlay) for b in boards) + '</div>'
 
 
 DAILY_STYLE = ('<style>.num-daily{min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;'

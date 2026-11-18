@@ -5,7 +5,11 @@ Built only from the existing V4.9 signals (``player_targets_v49.target_rows``), 
   A = arena matches (player's root equals the arena name's root, per method)
   T = team matches  (player's root equals his team name's root, per method)
 
-Threat score (0-100) = round(100 * (3*D + 2*A + 1*T) / 6)   -- each of D, A, T is 0 or 1, so raw max = 6.
+Threat score (0-100) = min(100, round(100 * (3*D + 2*A + 1*T + 2*J) / 6))   -- each of D, A, T, J is 0 or 1.
+  J = jersey hit (t201): the player's RAW sweater number is one of the slate date's daily pattern numbers.
+  J is additive only: with no jersey hit (or no jersey data) every score is identical to the name-only formula.
+  The name-only raw max stays 6 (the 0-100 scale); a jersey hit can add 2 more raw points (sort uses raw points),
+  with the displayed score capped at 100.
 The ciphers are not independent (Reduction always equals English; Reverse mirrors English), so a name has one digit
 and each target counts at most once (player_targets_v49 DAY_METHODS / NAME_METHODS).
 Weights: the day number is the headline signal of the Numbers tab, the arena is game-specific, the team is shared by
@@ -17,16 +21,18 @@ Per-game badge = number of players with a threat score > 0. Entertainment only, 
 from __future__ import annotations
 
 W_DAY, W_ARENA, W_TEAM = 3, 2, 1
+W_JERSEY = 2   # t201: additive jersey component
 RAW_MAX = W_DAY + W_ARENA + W_TEAM   # = 6: each target counts once (was 3 * 6 = 18 with three dependent ciphers)
 TIERS = ((5, 'blaze', '#ff3b3b'), (3, 'hot', '#ff7a1a'), (2, 'warm', '#ffb020'), (1, 'mild', '#f5d90a'), (0, 'cool', '#64748b'))
 
 
 def threat_raw(t):
-    return W_DAY * len(t.get('day') or []) + W_ARENA * len(t.get('arena_matches') or []) + W_TEAM * len(t.get('team_matches') or [])
+    return (W_DAY * len(t.get('day') or []) + W_ARENA * len(t.get('arena_matches') or []) + W_TEAM * len(t.get('team_matches') or [])
+            + W_JERSEY * min(1, len(t.get('jersey_hit') or [])))
 
 
 def threat_score(t):
-    return round(100 * threat_raw(t) / RAW_MAX)
+    return min(100, round(100 * threat_raw(t) / RAW_MAX))
 
 
 def tier(raw):

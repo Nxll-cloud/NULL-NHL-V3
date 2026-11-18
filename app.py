@@ -90,6 +90,7 @@ import mc_goalies_v56 as mcg
 import v56_ui as v56
 import os, threading
 from tabs import run_tab
+from safe_section_v61 import safe_section, safe_callback  # V6.1: a failing section shows a warning, not a blank page
 import app_footer  # audit P1.7d: shared footer (21+, sources, not affiliated, not advice, model card)
 
 # V5.3.1: brand favicon from assets/ (emoji fallback if the file is missing).
@@ -156,29 +157,32 @@ st_autorefresh(interval=30 * 60 * 1000, key='playbook_v42_30min_timer')
 _np_date_col,_np_theme_col=st.columns([3,2])
 with _np_date_col:
     np_selected_date=st.date_input('📅 NHL slate date',np_eastern_today(),key='playbook_v42_date')
-with _np_theme_col:  # V5.5: server-side theme (native widget; no fake HTML toggles)
+_np_theme_label='Night'
+with _np_theme_col, safe_section('Theme picker'):  # V5.5: server-side theme (native widget; no fake HTML toggles)
     _np_theme_opts=list(v5.THEMES)
     if hasattr(st,'segmented_control'):
         _np_theme_label=st.segmented_control('🎨 Theme',_np_theme_opts,default='Night',key='v55_theme')
     else:
         _np_theme_label=st.radio('🎨 Theme',_np_theme_opts,horizontal=True,key='v55_theme')
-v5.set_theme(v5.theme_from_label(_np_theme_label or 'Night'))
-st.markdown(v5.page_style(),unsafe_allow_html=True)
+with safe_section('Page style'):
+    v5.set_theme(v5.theme_from_label(_np_theme_label or 'Night'))
+    st.markdown(v5.page_style(),unsafe_allow_html=True)
 np_day=np_selected_date.isoformat()
 # Load the last completed, validated snapshot before any live NHL API calls.
 # Research uses the same session state so it does not recompute on each visit.
 np_snapshot=load_snapshot(np_day)
-if np_snapshot is not None:
-    _previous=st.session_state.get('v44_snapshot_at')
-    if _previous != (np_day, np_snapshot['updated_at']):
-        st.session_state['signals_ranked']=pd.DataFrame(np_snapshot['rankings'])
-        st.session_state['signals_day']=np_day
-        st.session_state['v44_snapshot_at']=(np_day,np_snapshot['updated_at'])
-        st.session_state['v42_last_rank']={'key':(np_day,3,True),'at':datetime.now(timezone.utc),'snapshot':True}
-        if np_snapshot.get('history'):
-            st.session_state['history_v386']=pd.DataFrame(np_snapshot['history'])
-            st.session_state['history_v386_day']=np_day
-            st.session_state['history_v386_years']=3
+with safe_section('Saved slate snapshot'):  # V6.1: a malformed snapshot shows a warning; tabs keep their own empty states
+    if np_snapshot is not None:
+        _previous=st.session_state.get('v44_snapshot_at')
+        if _previous != (np_day, np_snapshot['updated_at']):
+            st.session_state['signals_ranked']=pd.DataFrame(np_snapshot['rankings'])
+            st.session_state['signals_day']=np_day
+            st.session_state['v44_snapshot_at']=(np_day,np_snapshot['updated_at'])
+            st.session_state['v42_last_rank']={'key':(np_day,3,True),'at':datetime.now(timezone.utc),'snapshot':True}
+            if np_snapshot.get('history'):
+                st.session_state['history_v386']=pd.DataFrame(np_snapshot['history'])
+                st.session_state['history_v386_day']=np_day
+                st.session_state['history_v386_years']=3
 
 def np_goalie_columns(ranked, day, games):
     """V5.8: rankings 'Starting goalie' / 'Goalie adjustment' from the SAME probable-starter source (starters_cached) and
@@ -196,19 +200,19 @@ def np_goalie_columns(ranked, day, games):
 
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=32)
 def schedule_cached(day):
     return get_schedule(day)
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=256)
 def team_cached(team, day):
     return load_team(team, day, SEASON)
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=256)
 def defense_cached(team, day):
     return defense_summary(team, day, SEASON)
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=64)
 def goalies_cached(teams, season):
     """V5.4: NHL club-stats goalie rows for the given teams (parallel, cached 30 min). Never raises."""
     rows, errors = [], []
@@ -224,7 +228,7 @@ def goalies_cached(teams, season):
                 errors.append(f'{futures[f]}: {type(exc).__name__}')
     return rows, sorted(errors)
 
-@st.cache_data(ttl=3 * 3600, show_spinner=False)
+@st.cache_data(ttl=3 * 3600, show_spinner=False, max_entries=8)
 def situ_cached(day, season, parts, cutoff=None):
     """V5.8: situational next-goal inputs (NHL stats API: PP / TOI / goalie / team PP reports, games before ``day``).
     Cached 3 h. Never raises: a failed report leaves its adjustment neutral.
@@ -241,28 +245,28 @@ def xg_cutoff(day, games):
     except Exception:
         return None
 
-@st.cache_data(ttl=6 * 3600, show_spinner=False)
+@st.cache_data(ttl=6 * 3600, show_spinner=False, max_entries=2)
 def xg_cached(season):
     """V5.9: MoneyPuck season skater xG summary (one listed CSV, credited on screen). Cached 6 h. Never raises."""
     return xgm.fetch(season)
 
-@st.cache_data(ttl=pgk.STARTER_TTL_SECONDS, show_spinner=False)
+@st.cache_data(ttl=pgk.STARTER_TTL_SECONDS, show_spinner=False, max_entries=32)
 def starters_cached(day, games_key):
     """V5.4: probable/confirmed starters, cached 5 min (pregame starters change slowly). Never raises."""
     games = [dict(zip(('key','game_id','away','home','status'), g)) for g in games_key]
     return pgk.fetch_starters(day, games)
 
-@st.cache_data(ttl=6 * 3600, show_spinner=False)
+@st.cache_data(ttl=6 * 3600, show_spinner=False, max_entries=32)
 def v55_rosters_cached(teams):
     """V5.5: jersey numbers for the Home design (NHL roster feed, parallel, cached 6 h). Never raises."""
     return v5state.safe_many(lambda t: v5state.fetch_roster_numbers(t, requests.get), teams)
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False, max_entries=32)
 def v55_logs_cached(pids):
     """V5.5: last-10 game logs for sparklines (parallel, cached 15 min). Never raises."""
     return v5state.safe_many(lambda p: v5state.fetch_game_log(p, SEASON, requests.get), pids)
 
-@st.cache_data(ttl=7 * 24 * 3600, show_spinner=False)
+@st.cache_data(ttl=7 * 24 * 3600, show_spinner=False, max_entries=4)
 def historical_cached(day, years, player_ids, games_signature, _ranked_rows, _games):
     return fetch_multi_history(_ranked_rows, _games, day, max_players=len(_ranked_rows), years=years)
 
@@ -275,7 +279,7 @@ def _v56_read(name):
     with open(os.path.join(_V56_DIR,name),encoding='utf-8') as fh:
         return _json.load(fh)
 
-@st.cache_data(ttl=25, show_spinner=False)
+@st.cache_data(ttl=25, show_spinner=False, max_entries=16)
 def v56_scores_cached(day):
     """Official score endpoint (states, scores, clock) for the board/live strip. Cached 25 s. Never raises."""
     try:
@@ -283,7 +287,7 @@ def v56_scores_cached(day):
     except Exception as exc:
         return {}, f'{type(exc).__name__}'
 
-@st.cache_data(ttl=25, show_spinner=False)
+@st.cache_data(ttl=25, show_spinner=False, max_entries=64)
 def v56_pbp_raw(game_id):
     """Raw play-by-play, cached 25 s (live cadence is 30 s). Raises on failure (exceptions are not cached)."""
     return _v56_read(f'{game_id}.json') if _V56_DIR else lf.fetch_pbp(game_id, requests.get)
@@ -299,11 +303,13 @@ def v56_poll(game_id, force=False):
         p = pollers.get(str(game_id))
         if p is None:
             p = pollers[str(game_id)] = ng.Poller(str(game_id), v56_pbp_raw)
+            for _old in list(pollers)[:-64]:   # V6.1: bound the process-wide poller map (oldest games first; ~16 per slate)
+                pollers.pop(_old, None)
         if force:
             v56_pbp_raw.clear()
         return p.poll(force=force), p
 
-@st.cache_data(ttl=6 * 3600, show_spinner=False)
+@st.cache_data(ttl=6 * 3600, show_spinner=False, max_entries=16)
 def v56_h2h_cached(matchups, day, season):
     """REAL shooter-vs-goalie H2H from past meetings' PBP for every (away, home) pair (local file cache, 5 MB cap).
     Parallel across games, cached 6 h (completed games never change). Never raises."""
@@ -317,13 +323,13 @@ def v56_h2h_cached(matchups, day, season):
     with ThreadPoolExecutor(max_workers=min(6, len(matchups))) as pool:
         return dict(zip(matchups, pool.map(one, matchups)))
 
-@st.cache_data(ttl=6 * 3600, show_spinner=False)
+@st.cache_data(ttl=6 * 3600, show_spinner=False, max_entries=256)
 def v59_goalie_weak_cached(goalie_id, team, day, season):
     """V5.9: REAL goalie game logs + PBP of his games vs ``team`` (goalie_weak_v59; disk cache). Never raises."""
     return gweak.load(goalie_id, team, day, season, requests.get)
 
 
-@st.cache_data(ttl=6 * 3600, show_spinner=False)
+@st.cache_data(ttl=6 * 3600, show_spinner=False, max_entries=128)
 def v59_goalie_pos_cached(goalie_id, day, season):
     """V5.9: REAL goalie game logs + PBP of his games, goals/shots by shooter position (goalie_pos_v59; disk cache)."""
     return gpos.load(goalie_id, day, season, requests.get)
@@ -339,6 +345,7 @@ def history_executor():
     return ThreadPoolExecutor(max_workers=2, thread_name_prefix='playbook-history')
 
 @st.fragment(run_every='10s')
+@safe_section('History status')
 def history_status(day, quiet=False):
     job=st.session_state.get('v43_history_job')
     if not job or job['day'] != day:
@@ -400,6 +407,10 @@ if _np_key:
     except (OddsFeedError,ValueError,KeyError,TypeError) as _exc:
         _np_live_error=str(_exc)
         _np_feed_status=dict(getattr(_exc,'status',{}) or {},state=getattr(_exc,'code','malformed'))
+    except Exception as _exc:  # V6.1: any other provider/cache failure = no live prices, never a dead page
+        _np_live_quotes,_np_live_warnings=pd.DataFrame(),[]
+        _np_live_error=f'Odds feed unavailable ({type(_exc).__name__}).'
+        _np_feed_status={'state':'network','quotes':0}
 _np_csv_quotes=st.session_state.get('playbook_odds_data')
 _np_source=st.session_state.get('v46_source','Automatic API')
 _np_frames=[]
@@ -421,10 +432,12 @@ if not _np_shared_quotes.empty:
         _np_shared_clean,_np_shared_discrepancies=compare_odds(_np_shared_quotes)
     except (ValueError,KeyError,TypeError) as _exc:
         _np_shared_error=str(_exc)
+    except Exception as _exc:  # V6.1: never let the price comparison take the page down
+        _np_shared_error=f'Price comparison unavailable ({type(_exc).__name__}).'
 
 # V5.9: Projected scorers (odds) - one shared data load for Home + Odds. Source order: the Odds API quotes above (same
 # 30-min cache, no extra credits) -> free ESPN DraftKings props (cached 30 min) -> empty state. Odds only, never the model.
-@st.cache_data(ttl=1800,show_spinner=False)
+@st.cache_data(ttl=1800,show_spinner=False, max_entries=16)
 def np_espn_scorer_quotes(day, idx):
     return oddsc.fetch_espn(day, idx)
 
@@ -437,7 +450,7 @@ if np_flags.show_odds_scorers(st.secrets):
         _np_odds_scorers=None
 # V6.0: First Goal Intelligence (firstgoal_v60) - separate market board for Prediction Models + Research. Only with
 # ODDS_API_KEY; tonight's events only; cached 30 min like the anytime feed (~2 credits per game per refresh).
-@st.cache_data(ttl=1800,show_spinner=False)
+@st.cache_data(ttl=1800,show_spinner=False, max_entries=8)
 def np_firstgoal_cached(api_key, day, _games, _rankings, sig):
     return fgv.fetch_board(api_key, day, _games, _rankings)
 
@@ -454,6 +467,45 @@ if _np_key:
 else:
     _np_firstgoal_error='No ODDS_API_KEY in Streamlit secrets: first-goal prices are not loaded (no demo prices are shown).'
 _np_scorer_slot=st.container()  # V5.8: 'Scored tonight' header chip (filled after the live state below)
+# V6.1 white-screen hardening: every tab body (and the shared live state) runs inside safe_section, so one failing
+# section shows a compact warning and the other tabs still render. Some tabs publish names that later tabs read; when a
+# tab fails before defining them, these empty/neutral defaults are filled in (setdefault only, so nothing the tab DID
+# define is touched, and nothing at all changes when no section fails).
+def _np_tab_defaults(name):
+    if name == 'live':
+        _games = [g for g in ((np_snapshot or {}).get('games') or []) if isinstance(g, dict)]
+        return {'_v56_games': mc.slate_games(_games), '_v56_rows': [], '_v56_priors': {}, '_v56_scores': {}, '_v56_scores_err': 'unavailable',
+                '_v56_pbp': {}, '_v56_pollers': {}, '_v56_situ': None, '_v56_results': [], '_v56_by_key': {}, '_v56_live_n': 0,
+                '_v56_mem': st.session_state.setdefault('v56_rank_mem', {}),
+                'v56_collect': lambda force=False, scores=None: ({}, {}), 'v56_slate_results': lambda *a, **k: [],
+                'v56_model': lambda game, use_form=False: None, 'v56_updated': lambda gid: None}
+    if name == 'home':
+        _games = [g for g in ((np_snapshot or {}).get('games') or []) if isinstance(g, dict)]
+        return {'np_games': _games, 'np_ranked': st.session_state.get('signals_ranked'), 'np_ready': False,
+                '_home_targets': [], '_home_leaders': {}, '_trk_badges': None, '_v5_st': {}}
+    if name == 'research':
+        from home_leaders_v52 import TEAM_NAMES as _tn   # identical to the dict tabs/research.py defines last
+        return {'_TEAM_NAMES': dict(_tn)}
+    return {}
+
+
+def np_run_section(name, label):
+    with safe_section(label) as _sec:
+        run_tab(name, globals())
+    if _sec.failed is not None:
+        try:
+            for _k, _v in _np_tab_defaults(name).items():
+                globals().setdefault(_k, _v)
+        except Exception:   # defaults are best effort; later tabs are wrapped too
+            pass
+
+
+def np_run_tab(name, label):
+    np_run_section(name, f'The {label} tab')
+    with safe_section(f'{label} footer'):
+        app_footer.render(st)  # audit P1.7d: shared footer on every tab
+
+
 # V5.8: Track Record is hidden behind one feature flag (feature_flags_v58); its tracker/DB/auto-save keep running.
 np_show_track=np_flags.show_track_record(st.secrets)
 _np_tab_labels=['🏠 Home','🎯 Matchup Center','⚡ Odds','📊 Research','🔮 Numbers']+(['📈 Track Record'] if np_show_track else [])+['🧪 EdgeLab','⏱ Live Next Goal','🚩 Edge Flags','📰 Storylines','🧠 Prediction Models']
@@ -463,17 +515,20 @@ np_track_tab=_np_tab_map.get('📈 Track Record')
 np_edgelab_tab,np_nextgoal_tab,np_edgeflags_tab,np_storylines_tab,np_predmodels_tab=(_np_tab_map[k] for k in
     ('🧪 EdgeLab','⏱ Live Next Goal','🚩 Edge Flags','📰 Storylines','🧠 Prediction Models'))
 # V5.8: rankings 'Starting goalie' / 'Goalie adjustment' read the same starter source as the model
-if st.session_state.get('signals_day')==np_day and 'signals_ranked' in st.session_state:
-    st.session_state['signals_ranked']=np_goalie_columns(st.session_state['signals_ranked'],np_day,
-        np_snapshot['games'] if np_snapshot is not None else schedule_cached(np_day))
-run_tab('live', globals())  # V5.6: shared live state (scores, PBP, next-goal model) for Home, Matchup Center and the new tabs
+with safe_section('Starting goalie columns'):
+    if st.session_state.get('signals_day')==np_day and 'signals_ranked' in st.session_state:
+        st.session_state['signals_ranked']=np_goalie_columns(st.session_state['signals_ranked'],np_day,
+            np_snapshot['games'] if np_snapshot is not None else schedule_cached(np_day))
+np_run_section('live', 'Live scores and next-goal data')  # V5.6: shared live state (scores, PBP, next-goal model) for Home, Matchup Center and the new tabs
 # V5.8: one scorer record per slate date from the same polled play-by-play (a new date starts empty).
-sctn.for_slate(st.session_state, np_day, sctn.from_pbp(_v56_pbp, np_day, demo=bool(_V56_DIR)))
+with safe_section('Scored tonight record'):
+    sctn.for_slate(st.session_state, np_day, sctn.from_pbp(_v56_pbp, np_day, demo=bool(_V56_DIR)))
 
 def np_scorer_signature(rec):
     return tuple(sorted((p, r['goals']) for p, r in ((rec or {}).get('players') or {}).items()))
 
 @st.fragment(run_every=('45s' if _v56_live_n else None))
+@safe_section('Scored tonight ticker')   # V6.1: st.rerun() inside still propagates (control flow is never caught)
 def np_scorer_watch():
     """Header chip; while a game is live it re-polls PBP (cached ~25 s) and reruns the app only when a new goal lands."""
     rec = st.session_state.get(sctn.STATE_KEY)
@@ -517,47 +572,36 @@ def np_track_state():
         return conn, [], pd.DataFrame(), f'{type(exc).__name__}: {exc}'
 
 with np_home_tab:
-    run_tab('home', globals())
-    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+    np_run_tab('home', 'Home')  # V6.1: tab body + shared footer, each in safe_section
 
 with np_odds_tab:
-    run_tab('odds', globals())
-    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+    np_run_tab('odds', 'Odds')  # V6.1: tab body + shared footer, each in safe_section
 
 with np_research_tab:
-    run_tab('research', globals())
-    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+    np_run_tab('research', 'Research')  # V6.1: tab body + shared footer, each in safe_section
 
 with np_numbers_tab:
-    run_tab('numbers', globals())
-    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+    np_run_tab('numbers', 'Numbers')  # V6.1: tab body + shared footer, each in safe_section
 
 with np_mc_tab:
-    run_tab('matchup', globals())
-    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+    np_run_tab('matchup', 'Matchup Center')  # V6.1: tab body + shared footer, each in safe_section
 
 with np_edgelab_tab:
-    run_tab('edgelab', globals())
-    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+    np_run_tab('edgelab', 'EdgeLab')  # V6.1: tab body + shared footer, each in safe_section
 
 if np_track_tab is not None:  # V5.8: hidden unless FEATURE_TRACK_RECORD is on
     with np_track_tab:
-        run_tab('track', globals())
-        app_footer.render(st)  # audit P1.7d
+        np_run_tab('track', 'Track Record')  # V6.1: tab body + shared footer, each in safe_section
 
 with np_nextgoal_tab:
-    run_tab('nextgoal', globals())
-    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+    np_run_tab('nextgoal', 'Live Next Goal')  # V6.1: tab body + shared footer, each in safe_section
 
 with np_edgeflags_tab:
-    run_tab('edgeflags', globals())
-    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+    np_run_tab('edgeflags', 'Edge Flags')  # V6.1: tab body + shared footer, each in safe_section
 
 with np_storylines_tab:
-    run_tab('storylines', globals())
-    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+    np_run_tab('storylines', 'Storylines')  # V6.1: tab body + shared footer, each in safe_section
 
 with np_predmodels_tab:  # V5.9: model vs NP leaderboard vs experimental blend (prediction_models_v59)
-    run_tab('predmodels', globals())
-    app_footer.render(st)  # audit P1.7d: shared footer on every tab
+    np_run_tab('predmodels', 'Prediction Models')  # V6.1: tab body + shared footer, each in safe_section
 

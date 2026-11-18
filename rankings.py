@@ -1,4 +1,9 @@
 """Transparent descriptive goal-scoring form rankings, not probabilities."""
+def _jersey(v):
+    from jersey_v61 import norm
+    return norm(v)
+
+
 def rank_players(rows, min_gp=3):
     ranked = []
     for r in rows:
@@ -26,6 +31,7 @@ def rank_players(rows, min_gp=3):
             "Goals/G L5": round(g5_rate, 3),
             "Prior GP": gp,
             "Data status": r["Data status"],
+            "Jersey": _jersey(r.get("Jersey")),   # t201: sweater number (int) or None
         })
     ranked.sort(key=lambda x: (-x["Form Index"], -x["Shots/G L5"], x["Player"]))
     return ranked

@@ -10,6 +10,7 @@ import pos_tag_v59 as _pos   # V5.9: position tag after names (display only)
 from numerology_v48 import gematria
 from player_targets_v49 import METHODS
 import venue_v58 as vn
+import jersey_v61 as _jy
 
 MATCH_TYPES = ('date', 'arena')   # the ONLY match types the table may show
 COLUMNS = ('Player', 'Match type', 'Number')
@@ -101,9 +102,12 @@ def match_table(slate_targets, day_num):
                 continue
             seen.add(key)
             for m in player_matches(t.get('player', ''), day_num, an, g.get('arena'), ar):
-                rows.append({'Player': t.get('player', ''), 'Match type': m['type'], 'Number': m['number'],
-                             'player_id': t.get('player_id', ''), 'team': t.get('team', ''),
-                             'calc': m['cells'], 'arena': m['arena']})
+                row = {'Player': t.get('player', ''), 'Match type': m['type'], 'Number': m['number'],
+                       'player_id': t.get('player_id', ''), 'team': t.get('team', ''),
+                       'calc': m['cells'], 'arena': m['arena']}
+                if 'jersey' in t:   # t201: display only ('#21' / '—'); never changes which rows match
+                    row['jersey'] = t.get('jersey')
+                rows.append(row)
     rows = [r for r in rows if r['Match type'] in MATCH_TYPES]   # hard filter: nothing but date / arena
     assert all(r['Match type'] in MATCH_TYPES for r in rows)
     rows.sort(key=lambda r: (MATCH_TYPES.index(r['Match type']), r['Number'], r['Player']))
@@ -121,7 +125,7 @@ def table_html(rows, missing, day_num, loaded=True, pmap=None):
         body = '<div class="gm-empty">No player matches tonight’s date or arena numbers.</div>'
     else:
         ptag = (lambda r: _pos.tag_for(pmap, r.get('player_id'), r.get('team'), r.get('Player'))) if pmap is not None else (lambda r: '')
-        trs = ''.join(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(r["Player"]))}</b>{ptag(r)}'
+        trs = ''.join(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(r["Player"]))}</b>{_jy.tag(r)}{ptag(r)}'
                       + f'</td><td><span class="gm-t {r["Match type"]}">{r["Match type"]}</span></td>'
                       f'<td class="gm-n">{int(r["Number"])}</td></tr>'
                       + (f'<tr class="gm-c"><td colspan="3" title="{e(calc_title(r))}">{e(calc_line(r))}</td></tr>' if r.get('calc') else '')

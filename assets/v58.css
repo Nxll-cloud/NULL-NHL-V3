@@ -88,6 +88,8 @@
 .v58-num .mc.d{border-color:color-mix(in srgb,var(--stat) 55%,transparent);background:rgba(255,210,74,.08)}.v58-num .mc.d b{color:var(--stat)}
 .v58-num .mc.a{border-color:color-mix(in srgb,var(--overlap) 55%,transparent);background:rgba(53,240,192,.07)}.v58-num .mc.a b{color:var(--overlap)}
 .v58-num .mc.t{border-color:color-mix(in srgb,var(--gem) 55%,transparent);background:rgba(192,139,255,.07)}.v58-num .mc.t b{color:var(--gem)}
+.v58-num .mc.j{border-color:rgba(56,189,248,.6);background:rgba(56,189,248,.09)}.v58-num .mc.j b{color:#7dd3fc}
+.npr-jn{color:#7dd3fc;font-weight:700;font-size:.78em;margin-left:6px;white-space:nowrap;font-variant-numeric:tabular-nums}.npr-jn.none{color:#94a3b8;font-weight:600}
 .v58-num .mc.none{color:var(--dim);border-style:dashed}
 .v58-num .ngrid{grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
 .v58-num .ngb{margin:0;padding:14px;border-radius:20px;border:1px solid var(--line);background:var(--glass);min-width:0}

@@ -57,4 +57,8 @@ def test_lockfile_agrees_with_requirements():
         assert r.name.lower() in pins, r.name
         assert r.specifier.contains(pins[r.name.lower()]), (r.name, pins[r.name.lower()], str(r.specifier))
     st = next(r for r in reqs if r.name == 'streamlit')
-    assert not st.specifier.contains('1.49.9') and st.specifier.contains('1.50.0')   # st.fragment + st.button(width=)
+    assert not st.specifier.contains('1.49.9')   # st.fragment + st.button(width=)
+    # V6.1: Community Cloud installs requirements.txt, so the server stack is pinned to the tested lock versions
+    for name in ('streamlit', 'starlette'):
+        r = next(r for r in reqs if r.name == name)
+        assert str(r.specifier) == f'=={pins[name]}', (name, str(r.specifier), pins[name])

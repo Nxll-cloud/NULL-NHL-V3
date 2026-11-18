@@ -2,6 +2,8 @@
 import math
 import pandas as pd
 from numerology_v48 import gematria, universal_day
+import jersey_v61 as _jy
+from daily_patterns_v60 import numbers_for as _day_numbers
 
 METHODS=(('ordinal_root','English'),('reduction_root','Reduction'),('reverse_root','Reverse'))  # display order (all three digits)
 # The three digits are not independent: Reduction always equals English (both are the name total reduced mod 9), and
@@ -27,6 +29,7 @@ def target_rows(ranked, team, team_name, arena, day):
     team_values=gematria(team_name)
     arena_values=gematria(arena) if arena else None
     out=[]; seen=set()
+    jersey_numbers=_day_numbers(day)  # t201: raw jersey vs this date's daily pattern numbers (additive signal)
     for _,row in subset.iterrows():
         name=str(row.get('Player','')).strip()
         if not name or name.lower()=='nan': continue
@@ -55,7 +58,10 @@ def target_rows(ranked, team, team_name, arena, day):
                     'day':day_matches,'team_matches':team_matches,'arena_matches':arena_matches,
                     'matches':total,'form':form,'form_known':form_known,'shot_rate':shot_rate,'values':values,
                     # raw cipher totals before the one-digit reduction: unique-ish per name, shown and used for ties
-                    'eng_total':values['ordinal'],'rev_total':values['reverse'],'letters':values['letters']})
+                    'eng_total':values['ordinal'],'rev_total':values['reverse'],'letters':values['letters'],
+                    # t201: raw sweater number (None when unknown) + hit vs the date's pattern numbers; 'matches' stays name-only
+                    'jersey':_jy.norm(row.get('Jersey')),
+                    'jersey_hit':[_jy.label(row.get('Jersey'))] if _jy.hit(row.get('Jersey'),jersey_numbers) else []})
     out.sort(key=lambda x:(-x['matches'],-len(x['day']),-len(x['arena_matches']),-x['form'],x['player']))
     return out
 
