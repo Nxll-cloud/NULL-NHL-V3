@@ -138,7 +138,13 @@ else:
     except (ValueError, KeyError, TypeError):
         _mc_ranked = None
     _pick_ids = [p.get('Player ID') for p in _mc_picks.values() if p]
-    _targets = mc.matchup_targets(_home_targets, _game, _mc_ranked, _np_shared_discrepancies, _trk_badges, _pick_ids)
+    # V6.1: Odds badges use the same filtered prices as Home (Yes side of anytime goal, no line, this slate, unstarted games,
+    # names matched within the game's two teams). Odds tab / exports keep the full shared comparison.
+    try:
+        _mc_disc=hpg.scope(_np_shared_quotes,np_games,np_day,datetime.now(timezone.utc))[1]
+    except Exception:   # never break the tab: no filtered prices = no Odds badges
+        _mc_disc=pd.DataFrame()
+    _targets = mc.matchup_targets(_home_targets, _game, _mc_ranked, _mc_disc, _trk_badges, _pick_ids)
     _weak = mc.weaker_goalie_side(_gk_rows, _game)
     _order = [_weak] + [t for t in (_game['away'], _game['home']) if t != _weak] if _weak else [_game['away'], _game['home']]
     _cols = st.columns(2)
@@ -170,7 +176,8 @@ else:
                       +'<h4 class="np-rv-h">Reverse view · each shooter’s hardest goalie</h4>'+v56.reverse_view(_v56_v['reverse'],SEASON))
     st.caption('Starter status comes only from the feeds (NHL boxscore starter flag once a game begins; ESPN probables pregame), cached 5 min. '
                'The leakiest-goalie card is team season stats and is never labelled the starter. Badges: Stats = top-20 Form; Numbers = ≥2 symbolic matches; '
-               'Overlap = both; Odds = validated price gap. None is a scoring probability.')
+               'Overlap = both; Odds = pre-game price gap on the Yes side of anytime goal for this game (none shown once the game starts or without 2+ books). '
+               +hpg.matchup_odds_note(_np_shared_quotes,_mc_disc,_game)+' None is a scoring probability.')
     if _gk_err or _st_err:
         with st.expander('Data warnings'):
             st.write(list(_gk_err) + list(_st_err))

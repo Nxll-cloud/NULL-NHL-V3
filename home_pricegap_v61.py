@@ -112,3 +112,15 @@ def empty_reason(source, has_key, live_error, shared_error, quotes, report, disc
                 'No player on tonight\u2019s unstarted games has a Yes anytime-goal price at 2+ books.' + (f' Excluded: {detail}.' if detail else ''))
     return ('No distinct match for the gap',
             'Price gaps exist, but none maps to a unique player in that game who is not already a leader above.')
+
+
+def matchup_odds_note(quotes, discrepancies, game):
+    """One honest sentence on Odds-badge availability for a Matchup Center game ({'away','home'})."""
+    if not isinstance(quotes, pd.DataFrame) or quotes.empty:
+        return 'No sportsbook prices loaded, so no Odds badges.'
+    teams = {str((game or {}).get('away') or '').upper(), str((game or {}).get('home') or '').upper()} - {''}
+    if isinstance(discrepancies, pd.DataFrame) and not discrepancies.empty and 'home_team_code' in discrepancies:
+        n = sum(1 for h, a in zip(discrepancies['home_team_code'], discrepancies['away_team_code']) if {h, a} == teams)
+        if n:
+            return f'{n} comparable pre-game price{"" if n == 1 else "s"} for this game.'
+    return 'No pre-game price gap for this game right now, so no Odds badges.'

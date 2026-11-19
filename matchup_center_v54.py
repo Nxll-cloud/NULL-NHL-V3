@@ -80,12 +80,16 @@ def game_for_pick(pick, games):
     return {**game, 'focus_team': team, 'opponent': game['home'] if game['away'] == team else game['away']}
 
 
-def _odds_names(discrepancies):
+def _odds_names(discrepancies, teams=None):
     out = {}
     if isinstance(discrepancies, pd.DataFrame) and not discrepancies.empty and 'player' in discrepancies:
         gap = pd.to_numeric(discrepancies.get('decimal_price_improvement_pct'), errors='coerce') \
             if 'decimal_price_improvement_pct' in discrepancies else pd.Series([float('nan')] * len(discrepancies))
         for (_, row), g in zip(discrepancies.iterrows(), gap):
+            # V6.1: game-scoped rows (home_pricegap_v61) only badge players in THAT game; unscoped rows behave as before.
+            gt = {_code(row.get(c)) for c in ('home_team_code', 'away_team_code')} - {'', 'NAN', 'NONE'}
+            if gt and teams and gt != set(teams):
+                continue
             key = normalized_name(row.get('player', ''))
             if key and pd.notna(g):
                 best = out.get(key)
@@ -109,7 +113,7 @@ def matchup_targets(targets, game, ranked=None, discrepancies=None, track_badges
     names = {}
     for p in players:
         names.setdefault(normalized_name(p.get('player', '')), []).append(p)
-    odds = _odds_names(discrepancies)
+    odds = _odds_names(discrepancies, teams)
     leader_ids = {_pid(x) for x in leaders if _pid(x)}
     out = {t: [] for t in teams}
     seen = set()
