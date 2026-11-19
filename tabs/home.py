@@ -24,7 +24,12 @@ if not np_games:
     st.info('No NHL games are scheduled for this date. Pick another date above.')
 # V5.2: four genuinely distinct leaders, computed from the selected day's slate.
 _home_targets=home_all_targets(np_games,np_ranked if np_ready else None,np_day)
-_home_leaders=home_choose_leaders(np_ranked if np_ready else None,_home_targets,_np_shared_discrepancies)
+# V6.1: Home price gaps use only Yes anytime-goal quotes for this slate's unstarted games (Odds tab keeps the full comparison).
+try:
+    _hpg_clean,_hpg_disc,_hpg_report=hpg.scope(_np_shared_quotes,np_games,np_day,datetime.now(timezone.utc))
+except Exception:   # the price-gap scope must never break Home
+    _hpg_clean,_hpg_disc,_hpg_report=pd.DataFrame(),pd.DataFrame(),{'received':0,'accepted':0,'excluded':{}}
+_home_leaders=home_choose_leaders(np_ranked if np_ready else None,_home_targets,_hpg_disc)
 # V5.4: Research's Player Intelligence picks, from the SAME shared function.
 _np_intel,_=intel_from_state(st.session_state,np_day)
 _np_picks=intel_four_picks(_np_intel)
@@ -40,9 +45,11 @@ _v5_gk,_v5_gk_err=goalies_cached((_v5_fg['away'],_v5_fg['home']),SEASON) if _v5_
 _v5_st,_v5_st_err,_v5_st_at=starters_cached(np_day,tuple((g['key'],g['game_id'],g['away'],g['home'],g['status']) for g in _v5_mg)) if _v5_mg else ({},[],None)
 _v5_state=v5state.build_state(day=np_day,season=SEASON,games=np_games,ranked=np_ranked if np_ready else None,targets=_home_targets,
     leaders=_home_leaders,picks=_np_picks,ranked_with_stat=_v5_ranked,goalie_rows=_v5_gk,starters=_v5_st,starters_fetched_at=_v5_st_at,
-    discrepancies=_np_shared_discrepancies,track=v5state.track_summary(_trk_evals,trk.model_rolling),
+    discrepancies=_hpg_disc,track=v5state.track_summary(_trk_evals,trk.model_rolling),
     snapshot_at=np_snapshot['updated_at'] if np_snapshot is not None else None,
     rosters_fn=v55_rosters_cached,logs_fn=v55_logs_cached,price_label=price_label,track_badges=None)  # V5.8: no track badges on Home
+_v5_state['odds_empty']=hpg.empty_reason(_np_source,bool(_np_key),_np_live_error,_np_shared_error,_np_shared_quotes,_hpg_report,_hpg_disc,
+                                          bool(_home_leaders.get('odds')))
 # V5.9: goalie weak-spot identifier on the Matchup targets rows (display only; goalie = the same listed starter the model uses).
 if np_flags.show_goalie_weak(st.secrets):
     try:
@@ -191,9 +198,9 @@ else:
         st.dataframe(_board,hide_index=True,use_container_width=True,column_config=_cfg)
         # V5.3.1: historical coverage is shown in Research only, never on Home.
 st.markdown(ui.section('Sportsbook price intelligence','Best available anytime-goal prices across books','📈','odds'),unsafe_allow_html=True)
-if not _np_shared_discrepancies.empty:
-    st.caption(f"{len(_np_shared_clean):,} validated quotes · {_np_shared_clean['sportsbook'].nunique()} sportsbooks · {len(_np_shared_discrepancies)} comparable props")
-    _np_home_best=_np_shared_discrepancies.assign(_gap=pd.to_numeric(_np_shared_discrepancies['decimal_price_improvement_pct'],errors='coerce')).sort_values('_gap',ascending=False,na_position='last').head(3)
+if not _hpg_disc.empty:
+    st.caption(f"{len(_hpg_clean):,} pre-game quotes for this slate · {_hpg_clean['sportsbook'].nunique()} sportsbooks · {len(_hpg_disc)} comparable props")
+    _np_home_best=_hpg_disc.assign(_gap=pd.to_numeric(_hpg_disc['decimal_price_improvement_pct'],errors='coerce')).sort_values('_gap',ascending=False,na_position='last').head(3)
     _rows=[]
     for _,_np_o in _np_home_best.iterrows():
         _rows.append(f'<div class="np-orow"><div><b>{ui.esc(_np_o["player"])}</b><br/><small>{ui.esc(_np_o["best_sportsbook"])} · +{ui.fmt_num(_np_o["_gap"])}% payout gap</small></div><strong>{ui.esc(price_label(_np_o["best_odds"]))}</strong></div>')
@@ -203,6 +210,8 @@ elif _np_live_error:
     st.warning(f'Odds feed unavailable: {_np_live_error}')
 elif _np_shared_error:
     st.warning(f'Odds validation issue: {_np_shared_error}')
+elif not _np_shared_discrepancies.empty:
+    st.info('No pre-game price gaps for this slate’s unstarted games (only the Yes side of anytime goal counts). Odds lists every event.')
 elif _np_key and _np_source != 'Uploaded CSV':
     st.info('Odds API connected, but no comparable goal-scorer quotes are currently available. Check Odds for coverage details.')
 else:

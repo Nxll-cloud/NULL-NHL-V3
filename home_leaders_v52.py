@@ -57,6 +57,9 @@ def choose_leaders(ranked,targets,discrepancies=None):
             if pd.isna(row['_gap']): continue
             key=normalized_name(row.get('player',''))
             matches=names.get(key,[]) if key else []
+            # V6.1: Home-scoped rows carry their slate game's teams; a name may only match a player in THAT game.
+            game_teams={str(row.get(c) or '').upper() for c in ('home_team_code','away_team_code')}-{'','NAN','NONE'}
+            if game_teams: matches=[m for m in matches if str(m.get('team') or '').upper() in game_teams]
             if len(matches)==1:
                 odds.append({**matches[0], 'best_odds':row.get('best_odds'), 'best_sportsbook':row.get('best_sportsbook'), 'gap_pct':row.get('decimal_price_improvement_pct')})
     take('odds',odds)

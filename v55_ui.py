@@ -542,7 +542,8 @@ def leaders_row(data):
         cards.append(player_card(season, 'Price-gap leader', 'odds', od, f'<span class="pnum">{esc(od.get("best_odds_label"))}</span>',
                                  f'best at {esc(od.get("best_sportsbook"), "sportsbook")}', chips([(f'+{_fmt(od.get("gap_pct"))}% gap', 'odds'), ('Unverified identity', '')])))
     else:
-        cards.append(player_card(season, 'Price-gap leader', 'odds', None, '', '', ''))
+        et, eb = (data.get('odds_empty') or (None, None))[:2]
+        cards.append(player_card(season, 'Price-gap leader', 'odds', None, '', '', '', empty_title=et, empty_body=eb))
     n = 1 + sum(1 for p in P.values() if p and pid_str(p.get('player_id')) == lead_id) if lead else 0
     lede = (f'<b>{esc(lead.get("player"))}</b> leads {n} of 8 categories and is featured above; the rest are tonight’s other distinct names.'
             if lead else 'Leaders appear when this slate’s rankings load. Empty categories stay empty.')

@@ -102,6 +102,7 @@ from snapshot_store import load_snapshot
 from numerology_v48 import universal_day as num_universal_day, gematria as num_gematria, analyze_game as num_analyze_game
 from player_targets_v49 import slate_targets as num_slate_targets
 from home_leaders_v52 import all_targets as home_all_targets, choose_leaders as home_choose_leaders, gematria_shortlist as home_gematria_shortlist
+import home_pricegap_v61 as hpg   # V6.1: Home-only price-gap scope (Yes side, this slate, unstarted games)
 from streamlit_autorefresh import st_autorefresh
 import scorers_tonight_v58 as sctn
 import parlay_v58 as parlay
