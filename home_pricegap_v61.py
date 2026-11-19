@@ -15,6 +15,11 @@ from playbook_odds import compare_odds
 from v55_ui import game_state
 
 ANYTIME = {elp.name_key(m) for m in elp.MARKETS}
+TEAM_ALIASES = {'utahhockeyclub': 'UTA', 'utahhc': 'UTA', 'utah': 'UTA'}   # provider names the NHL table lacks
+
+
+def _team(value):
+    return elp.team(value) or TEAM_ALIASES.get(elp.name_key(value).replace(' ', ''), '')
 
 
 def _slate_games(games):
@@ -30,7 +35,7 @@ def _slate_games(games):
 
 
 def _map(q, slate, day):
-    home, away = elp.team(q.get('home_team')), elp.team(q.get('away_team'))
+    home, away = _team(q.get('home_team')), _team(q.get('away_team'))
     if (elp.text(q.get('home_team')) and not home) or (elp.text(q.get('away_team')) and not away):
         return None, 'unknown event team'
     at = elp.stamp(q.get('commence_time'))
@@ -42,7 +47,7 @@ def _map(q, slate, day):
     if home and away:
         hits = [s for s in slate if (s['home'], s['away']) == (home, away)]
     else:
-        code = elp.team(q.get('team'))
+        code = _team(q.get('team'))
         hits = [s for s in slate if code and code in (s['home'], s['away'])]
     if len(hits) != 1:
         return None, 'event not on this slate'
@@ -103,7 +108,9 @@ def empty_reason(source, has_key, live_error, shared_error, quotes, report, disc
         if source == 'Uploaded CSV':
             return 'No uploaded prices', 'Upload a CSV in Odds to compare books. Nothing is invented.'
         if not has_key:
-            return 'Load sportsbook odds to unlock', 'No odds feed configured: add ODDS_API_KEY to Streamlit Secrets or upload a CSV in Odds. Nothing is invented.'
+            return ('Odds key not found',
+                    'ODDS_API_KEY was not found in this app\u2019s Streamlit secrets (top level, an odds section, or the environment). '
+                    'Check the key name in the app\u2019s Secrets settings, or upload a CSV in Odds. Nothing is invented.')
         return 'No live quotes right now', 'The odds feed returned no anytime-goal quotes (markets may be posted later or suspended).'
     ex = (report or {}).get('excluded') or {}
     detail = '; '.join(f'{k} ({v})' for k, v in sorted(ex.items(), key=lambda kv: -kv[1])[:3])

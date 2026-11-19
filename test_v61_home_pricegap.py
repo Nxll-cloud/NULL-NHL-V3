@@ -108,7 +108,7 @@ def test_bad_inputs_never_raise():
 
 def test_empty_reasons_are_honest():
     no = pd.DataFrame()
-    assert hpg.empty_reason('Automatic API', False, None, None, no, {}, no, False)[0] == 'Load sportsbook odds to unlock'
+    assert hpg.empty_reason('Automatic API', False, None, None, no, {}, no, False)[0] == 'Odds key not found'
     assert hpg.empty_reason('Automatic API', True, 'Provider timed out.', None, no, {}, no, False)[0] == 'Odds feed unavailable'
     assert hpg.empty_reason('Automatic API', True, None, None, no, {}, no, False)[0] == 'No live quotes right now'
     late = datetime(2026, 11, 20, 4, 0, tzinfo=timezone.utc)
@@ -128,3 +128,11 @@ def test_card_renders_leader_and_reasoned_empty_state():
     html = v55_ui.leaders_row(empty)
     assert 'No pre-game price gap tonight' in html and 'Load sportsbook odds to unlock' not in html
     assert 'Load sportsbook odds to unlock' in v55_ui.leaders_row(dict(base, leaders=dict(base['leaders'], odds=None)))   # legacy default kept
+
+
+def test_legacy_utah_provider_name_maps_to_uta():
+    games = [{'Game ID': 9, 'Away': 'UTA', 'Home': 'SEA', 'Start (UTC)': '2026-11-20T03:00:00Z', 'Status': 'FUT'}]
+    quotes = pd.DataFrame([dict(q('Gem Guy', 'Yes', b, p, 'VAN', 'SEA', '2026-11-20T03:00:00Z', 'u1'), away_team='Utah Hockey Club')
+                           for b, p in (('A', 200), ('B', 250))])
+    _, disc, rep = hpg.scope(quotes, games, DAY, NOW)
+    assert disc.iloc[0][['home_team_code', 'away_team_code']].tolist() == ['SEA', 'UTA'] and not rep['excluded']

@@ -148,6 +148,7 @@ with st.sidebar:
     st.divider()
     st.markdown('**Sportsbook intelligence**')
     st.caption('Automatic odds and optional CSV import.')
+    _np_sidebar_status=st.empty()   # V6.1: build commit + where the odds key was found (filled after the key is read)
 
 
 # Session-local 30-minute timer: reruns only while this Streamlit page is open.
@@ -386,11 +387,15 @@ def np_live_odds_cached(api_key, regions, markets):
     return np_quote_cache().get(fetch_odds,api_key,regions,markets)
 
 def np_api_key():
+    # V6.1: runtime read on every rerun. Top-level ODDS_API_KEY as before; when absent, case/alias names, an odds-named
+    # section or the environment (deploy_info_v61.find_odds_key). Only the location is kept, never the value.
+    from deploy_info_v61 import find_odds_key
     try:
-        value=st.secrets.get('ODDS_API_KEY','')
-        return value.strip() if isinstance(value,str) else value
-    except (FileNotFoundError, KeyError):
-        return ''
+        value,where=find_odds_key(st.secrets)
+    except Exception:
+        value,where='',None
+    st.session_state['v61_odds_key_where']=where
+    return value
 
 
 _np_live_quotes=pd.DataFrame()
@@ -398,6 +403,11 @@ _np_live_error=None
 _np_live_warnings=[]
 _np_feed_status={'state':'missing_key','quotes':0}
 _np_key=np_api_key()
+try:   # V6.1: deploy freshness + key location (never the value) in the sidebar
+    import deploy_info_v61 as _np_deploy
+    _np_sidebar_status.caption(_np_deploy.sidebar_caption(_np_deploy.build_stamp(),st.session_state.get('v61_odds_key_where')))
+except Exception:
+    pass
 if _np_key is not None and not isinstance(_np_key,str):
     _np_feed_status={'state':'configuration','quotes':0}
     _np_key=''
