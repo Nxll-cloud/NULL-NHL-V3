@@ -104,3 +104,38 @@ if selected_frames:
         st.warning(f'Unable to validate current quotes: {exc}')
 else:
     st.info('No sportsbook quotes available for the selected source.')
+# V6.1: Multi-book odds board (new section; nothing above changes). Props reuse the shared quotes; game lines are
+# fetched only when a game-line market is selected (same 30-min QuoteCache). Display only.
+import odds_board_v61 as _obd
+with safe_section('Multi-book odds board'):
+    st.markdown(ui.section('Multi-book odds board','Same line across every sportsbook · best / worst · tight & discrepancy flags','📊','odds'),unsafe_allow_html=True)
+    _obd_c1,_obd_c2=st.columns([3,2])
+    with _obd_c1:
+        _obd_market=st.selectbox('Market',list(_obd.MARKET_FILTERS),index=0,key='v61_obd_market')
+    with _obd_c2:
+        _obd_flag=(st.segmented_control('Show',list(_obd.FLAG_FILTERS),default='All',key='v61_obd_flag') if hasattr(st,'segmented_control')
+                   else st.radio('Show',list(_obd.FLAG_FILTERS),horizontal=True,key='v61_obd_flag')) or 'All'
+    _obd_c3,_obd_c4,_obd_c5=st.columns([2,1,1])
+    with _obd_c3:
+        _obd_q=st.text_input('Team or game search',value='',key='v61_obd_search',placeholder='e.g. NYR, Rangers, CAR @ NYR, a player')
+    with _obd_c4:
+        _obd_tight=st.number_input('Tight under (¢)',min_value=0,max_value=200,value=_obd.TIGHT_DEFAULT,step=1,key='v61_obd_tight')
+    with _obd_c5:
+        _obd_disc=st.number_input('Discrepancy over (¢)',min_value=0,max_value=1000,value=_obd.DISC_DEFAULT,step=1,key='v61_obd_disc')
+    _obd_games=(np_snapshot or {}).get('games') or []
+    _obd_quotes,_obd_lerr,_obd_notes=_np_shared_quotes,None,[]
+    if _obd_market in _obd.LINE_FILTERS:
+        _obd_lines,_obd_notes,_obd_lerr=_obd.load_lines(lambda f,k,r,m:np_quote_cache().get(f,k,r,m),_np_key if isinstance(_np_key,str) else '',_np_extra_keys)
+        _obd_parts=[q for q in ((_np_shared_quotes,) if _obd_market=='Everything' else ())+(_obd_lines,) if isinstance(q,pd.DataFrame) and not q.empty]
+        _obd_quotes=pd.concat(_obd_parts,ignore_index=True) if _obd_parts else pd.DataFrame()
+    _obd_canon,_obd_rep=_obd.normalize(_obd_quotes,_obd_games,np_day,market_filter=_obd_market)
+    _obd_all=_obd.build_rows(_obd_canon,tight=_obd_tight,disc=_obd_disc)
+    _obd_rows=_obd.filter_rows(_obd_all,_obd_flag,_obd_q)
+    _obd_empty=None if _obd_rows else _obd.empty_reason(_obd_market,_np_source,bool(_np_key),_np_live_error,_np_shared_error,_np_shared_quotes,
+                                                        _obd_rep,_obd_games,lines_error=_obd_lerr,n_rows_unfiltered=len(_obd_all))
+    _obd_t=sum(r['flag']=='tight' for r in _obd_all); _obd_d=sum(r['flag']=='disc' for r in _obd_all)
+    _obd_note=(f'{len(_obd_rows)} of {len(_obd_all)} lines · {_obd_t} tight · {_obd_d} discrepanc{"y" if _obd_d==1 else "ies"}'+(' · '+'; '.join(_obd_notes) if _obd_notes else '')
+               +(f' · {st.session_state["v61_odds_failover"]}' if st.session_state.get('v61_odds_failover') else '')) if _obd_all else ''
+    if _obd_disc<_obd_tight:
+        st.caption('Discrepancy threshold is below the tight threshold; a line can only carry one flag (tight is checked first).')
+    v5.html_block(st,_obd.table_html(_obd_rows,_obd.books(_obd_rows),tight=_obd_tight,disc=_obd_disc,empty=_obd_empty,note=_obd_note),extra_class='v61-obdw')

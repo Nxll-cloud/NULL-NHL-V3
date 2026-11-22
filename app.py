@@ -410,9 +410,18 @@ _np_live_error=None
 _np_live_warnings=[]
 _np_feed_status={'state':'missing_key','quotes':0}
 _np_key=np_api_key()
+def np_extra_keys():
+    # V6.1 odds board: second odds credentials (backup The Odds API key = failover; SGO_API_KEY = SportsGameOdds game
+    # lines). Locations only are kept in session state; values stay in this rerun's locals.
+    from deploy_info_v61 import find_extra_keys
+    try:
+        return find_extra_keys(st.secrets,primary=_np_key if isinstance(_np_key,str) else '')
+    except Exception:
+        return {'backup':None,'sgo':None,'other':[]}
+_np_extra_keys=np_extra_keys()
 try:   # V6.1: deploy freshness + key location (never the value) in the sidebar
     import deploy_info_v61 as _np_deploy
-    _np_sidebar_status.caption(_np_deploy.sidebar_caption(_np_deploy.build_stamp(),st.session_state.get('v61_odds_key_where')))
+    _np_sidebar_status.caption(_np_deploy.sidebar_caption(_np_deploy.build_stamp(),st.session_state.get('v61_odds_key_where'),_np_extra_keys))
 except Exception:
     pass
 if _np_key is not None and not isinstance(_np_key,str):
@@ -420,7 +429,14 @@ if _np_key is not None and not isinstance(_np_key,str):
     _np_key=''
 if _np_key:
     try:
-        _np_live_quotes,_np_live_warnings=np_live_odds_cached(_np_key,'us','player_goal_scorer_anytime')
+        st.session_state.pop('v61_odds_failover',None)
+        try:
+            _np_live_quotes,_np_live_warnings=np_live_odds_cached(_np_key,'us','player_goal_scorer_anytime')
+        except OddsFeedError as _exc0:   # V6.1: backup Odds API key only when the primary is rejected / out of quota
+            if _exc0.code not in ('auth','quota') or not _np_extra_keys.get('backup'):
+                raise
+            _np_live_quotes,_np_live_warnings=np_live_odds_cached(_np_extra_keys['backup'][0],'us','player_goal_scorer_anytime')
+            st.session_state['v61_odds_failover']=f'primary key {_exc0.code}; using backup ({_np_extra_keys["backup"][1]})'
         _np_feed_status=dict(_np_live_quotes.attrs.get('feed_status') or {})
     except (OddsFeedError,ValueError,KeyError,TypeError) as _exc:
         _np_live_error=str(_exc)
