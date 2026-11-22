@@ -222,7 +222,7 @@ def app(tmp_path_factory):
     m.undo()
 
 
-def test_tab_renders_with_three_sections_summary_and_patterns(app):
+def test_tab_renders_with_three_sections_and_summary(app):
     at = app
     assert not at.exception
     labels = [t.label for t in at.tabs]
@@ -233,7 +233,7 @@ def test_tab_renders_with_three_sections_summary_and_patterns(app):
     txt = ' '.join([m.value for m in tab.markdown] + [h.value for h in tab.get('html')])
     assert 'Prediction Models' in txt and ('Which system' in txt or 'scored night' in txt)
     assert txt.count('class="pmc"') == 3 and 'Books top picks' in txt and 'Model' in txt and 'NP leaderboard' in txt and 'EXPERIMENTAL' not in txt
-    assert 'Scorer patterns' in txt and ('aria-label="Scorer patterns"' in txt or 'Scorer patterns unavailable' in txt)
+    assert 'aria-label="Anytime goal tonight"' not in txt and 'Most likely to score' not in txt   # V6.2: engine lives on EdgeLab
     caps = ' '.join(c.value for c in tab.caption)
     assert '801' not in caps and 'Weights:' not in caps
 

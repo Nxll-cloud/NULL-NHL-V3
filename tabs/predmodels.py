@@ -2,7 +2,7 @@
 
 Three systems side by side (stacked on phones and tablets): the model (goal chance), the NP statistical leaderboard
 and the books top picks (odds_scorers_v59 consensus, books_picks_v59). V6.2: the experimental gematria blend column was
-retired and replaced by the Scorer Patterns section (scorer_patterns_v62), shown under the overall accuracy table. Display only: reads the frozen logs (snapshots/accuracy/,
+retired; its replacement (scorer_patterns_v62, anytime goal · tonight's patterns) lives on the EdgeLab tab. Display only: reads the frozen logs (snapshots/accuracy/,
 accuracy_blend/, accuracy_books/) through short caches and reuses the app's already-loaded _np_odds_scorers; no git
 history, no extra odds call and no network work at page load.
 Nothing here feeds the model, the NP ranks, the parlay or the accuracy card."""
@@ -46,17 +46,9 @@ def _pm_card(yday, sig):
     return pmv.acc.home_html()
 
 
-@st.cache_data(ttl=3 * 3600, show_spinner=False, max_entries=2)
-def _sp_patterns(day, sig):
-    """Scorer patterns learned from the recent scored nights; sig = window file names + mtimes, so a newly scored
-    night re-learns at once. Small result (trait stats + compact score feeds); rows are discarded after learning."""
-    import scorer_patterns_v62 as _sp
-    return _sp.build_patterns(day)
-
-
 st.markdown(v5.tab_head('NULL’S PLAYBOOK · PREDICTION MODELS', 'Prediction Models',
     'Testing three ways to rank tonight’s goal scorers, each scored the same way: how many of its top 10 actually scored',
-    chips=[('Model · NP · Books', 'team'), ('Scored by player ID', 'odds'), ('Scorer patterns · pattern fit', 'warn')], tone='neon'),
+    chips=[('Model · NP · Books', 'team'), ('Scored by player ID', 'odds'), ('Testing · not betting advice', 'warn')], tone='neon'),
     unsafe_allow_html=True)
 try:
     _pm_recs, _pm_accs, _pm_books = _pm_logs(_pm_sig())
@@ -115,22 +107,6 @@ try:
     v5.html_block(st, oav.section_html(oav.aggregate(_pm_accs, _pm_recs, _pm_books,
                                                    _oa_firstgoal, _oa_gematria, pmv.acc.eastern_today().isoformat(),
                                                    model_top_ids=pmv.model_top_ids)))
-    # V6.2: Scorer Patterns (scorer_patterns_v62) - replaces the retired blend; own try so it can never hide the page.
-    st.markdown(v5.sec_head('Scorer patterns · who fits what recent scorers had in common',
-                            'Traits over-represented among real scorers on recent nights + tonight’s goals so far · pattern fit, not a probability'),
-                unsafe_allow_html=True)
-    try:
-        import scorer_patterns_v62 as _sp
-        _sp_pat = _sp_patterns(np_day, _sp.signature(np_day))
-        _sp_feed = _sp.fetch_score(np_day)   # 60 s process cache while games are unfinished
-        _sp_lv = _sp.tonight_live(_sp_feed, globals().get('_v56_pbp'))
-        _sp_lv['feed_ok'] = _sp_feed is not None
-        _sp_rows, _sp_info = _sp.suggest(_pm_rows, _pm_games, _sp_pat, _sp_lv, np_day)
-        v5.html_block(getattr(st, '_st', st), _sp.section_html(_sp_pat, _sp_rows, _sp_info, _sp_lv,
-                                                             _sp.tonight_check(_pm_rows, _pm_games, _sp_pat, _sp_lv), np_day))
-    except Exception as _sp_exc:
-        st.markdown(v5.empty_state('Scorer patterns unavailable', f'{type(_sp_exc).__name__}: recent scorer data could not be read.'),
-                    unsafe_allow_html=True)
 except Exception as _pm_exc:  # never break the app
     st.markdown(v5.empty_state('Prediction models unavailable', f'{type(_pm_exc).__name__}: the frozen logs could not be read.'),
                 unsafe_allow_html=True)

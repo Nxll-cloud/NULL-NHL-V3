@@ -142,7 +142,7 @@ def test_placement_preserves_original_nightly_table_and_both_visible():
     assert src.index('pmv.nights_table(_pm_ns)') < src.index('oav.section_html(oav.aggregate(')
     assert 'f\'Top-10 hits for each system over the last {pmv.TREND_N} nights\'' in src
     assert '_oa_firstgoal, _oa_gematria, pmv.acc.eastern_today().isoformat()' in src
-    block=src[src.index('# Cumulative companion'):src.index('# V6.2: Scorer Patterns')]
+    block=src[src.index('# Cumulative companion'):src.index('except Exception as _pm_exc:')]
     assert 'st.tabs' not in block and 'checkbox' not in block and 'st.expander' not in block
     html=oa.section_html(list(indexed(acc_entries=[entry('2026-11-01',2,1)]).values()))
     assert '.oa60 table' in html and 'overflow-x:auto' in html and 'max-width:100%' in html

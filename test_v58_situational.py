@@ -296,4 +296,4 @@ def test_apptest_rankings_label_matches_espn_probables_and_tabs_render(monkeypat
     assert checked > 0
     page = kit.markdown(at)
     assert 'Unconfirmed' not in ' '.join(ranked[ranked['Starting goalie'] != 'Unconfirmed']['Starting goalie'])
-    assert 'title="base' in page   # EdgeLab model-p cell carries the situational "why"
+    # V6.2 (t233): the EdgeLab model-p table is no longer rendered; its situational 'why' is unit-tested on edgelab_v58.

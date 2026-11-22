@@ -15,7 +15,7 @@ LABELS = {
     'books': 'Books', 'firstgoal': 'First Goal',
     'gematria': 'Gematria matches · research signals', 'nextgoal': 'Live Next Goal',
     'winprob': 'Game winner', 'storyline': 'Research Storylines', 'overlap': 'Research Overlap',
-    'sleepers': 'Research Statistical Sleepers', 'scorerpat': 'Scorer Patterns · pattern fit',
+    'sleepers': 'Research Statistical Sleepers', 'scorerpat': 'Anytime goal · tonight’s patterns (EdgeLab)',
 }
 CAPTION = ('Correct ÷ all completed tracked predictions, pooled across nights (not an average of nightly rates). '
            'Model/NP/Books: frozen top-10 anytime scorers; First Goal: one favourite per game; '
@@ -25,8 +25,8 @@ SCOPE = ('Available saved history only, including already-saved rebuilt nights; 
          'Model accuracy logs have no scheduled pruning. Missing/pending/void results are excluded. '
          'Research Statistical shares NP; threat badges, EdgeLab and Edge Flags share Model. '
          'Cards, goalie/shot statistics and offline audit backtests are not independent production model histories.')
-UNTRACKED = ('Live next-goal events, game-winner forecasts, the Research Storylines/Overlap/Sleepers lists and the new '
-             'Scorer Patterns suggestions have no independently saved graded selection history here. The retired experimental '
+UNTRACKED = ('Live next-goal events, game-winner forecasts, the Research Storylines/Overlap/Sleepers lists and the EdgeLab '
+             'anytime-goal estimates (tonight’s patterns) have no independently saved graded selection history here. The retired experimental '
              'Blend is no longer listed.')
 
 

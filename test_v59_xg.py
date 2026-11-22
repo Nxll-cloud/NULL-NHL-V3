@@ -228,4 +228,4 @@ def test_apptest_xg_layer_renders_with_credit(monkeypatch, tmp_path):
     assert not at.exception
     caps = ' '.join(c.value for c in at.caption)
     assert xgm.CREDIT in caps
-    assert 'xG ×' in kit.markdown(at)   # EdgeLab model-p tooltip carries the xG bit
+    # V6.2 (t233): the EdgeLab model-p table (xG tooltip) is no longer rendered; covered by elv.table_html above.

@@ -2,6 +2,28 @@
 
 Newest first. Model details: [MODEL_CARD.md](MODEL_CARD.md). Older release notes: [docs/notes/](docs/notes/).
 
+## EdgeLab: anytime-goal engine (tonight's patterns) is now the whole tab (2026-11-22)
+
+* EdgeLab now shows only "Anytime goal · tonight's patterns": the estimated chance each skater still in play
+  (unstarted or live) scores 1+ goal tonight. The old EdgeLab view is gone from the page (book price status / price
+  gaps card, Model-vs-price table, stat strip, settled-results line and captions). Its modules stay because other
+  pages use them (edgelab_prices_v60 → home price gap and odds board; edgelab_v58/v55 → edge flags and price helpers).
+  The MoneyPuck xG credit caption moved with the tab.
+* Prediction Models no longer shows the engine (the Scorer Patterns section added earlier today is removed there).
+* Method: L2 logistic fit (lambda 50) over the last 14 scored nights on 12 pre-game traits plus the app Model's logit,
+  so overlapping traits (shots, form, forward, top-50) count once and only what each adds on top of the others is
+  weighed. Tonight's scorers so far are the live input: a MAP update shrinks the recent fit toward tonight's
+  scorers vs non-scorers in started games (time-weighted), prior strength tau 100 (about 4-5% of the weights tonight),
+  needs 3+ scorers. Live games are scaled by minutes left. Tonight's scorers are listed separately with their shared
+  traits; finished games are skipped. Live chips (assists, shots, leaky goalie) are context only, not in the %.
+* Walk-forward check, 19 saved nights (later games of each night, earlier games as "tonight so far"): log loss 0.3530
+  vs 0.3552 for the app Model alone, AUC 0.712 vs 0.706, top-10 hits 59/190 vs 55/190 (old pattern-fit list 48/190).
+  A heavy tonight weight (tau 3, ~55%) was worse (log loss 0.3623, AUC 0.684), so it is kept modest. Platt
+  re-calibration was tested and rejected (worse log loss). Accurate variants still rank stars high (stars do score
+  more); the joint fit removes the double counting but does not add star lean versus the old score.
+* Overall accuracy label: "Anytime goal · tonight's patterns (EdgeLab)" (not tracked yet). Display only: no change to
+  the model, NP ranks, threat weights or logs.
+
 ## Prediction Models: Scorer Patterns replaces the experimental Blend (2026-11-22)
 
 * Retired the EXPERIMENTAL Blend column (model chance × gematria layer hits) from every view: the page column, the

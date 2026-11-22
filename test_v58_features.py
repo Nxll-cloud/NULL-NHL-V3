@@ -165,7 +165,7 @@ def test_scorer_badges_in_home_mc_numbers_edgelab(monkeypatch, tmp_path):
                  pbp_files={'score.json': F / 'score_20261022_live.json', '2026020164.json': F / 'pbp_live_2026020164.json',
                             '2026020154.json': F / 'pbp_2026020154.json'})
     assert not at.exception
-    for label in ('🏠 Home', '🎯 Matchup Center', '🔮 Numbers', '🧪 EdgeLab'):
+    for label in ('🏠 Home', '🎯 Matchup Center', '🔮 Numbers'):   # V6.2: EdgeLab lists tonight's scorers in its own section
         html = _md(_tab(at, label))
         assert 'class="npsc' in html, label
     assert 'DEMO replay' in markdown(at)   # fixture feeds are labelled DEMO

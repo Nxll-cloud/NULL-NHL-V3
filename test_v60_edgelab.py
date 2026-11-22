@@ -249,12 +249,19 @@ def fetch_odds(key,**kw):
  return api.fetch_odds(key,session=Transport(st.session_state.get('case','valid')),**kw)
 '''+loader+'''
 st.session_state['shared_schema']=list(_np_shared_quotes.columns)
-exec(compile(open('tabs/edgelab.py').read(),'tabs/edgelab.py','exec'),globals())
+# V6.2 (t233): the EdgeLab TAB now shows only the anytime-goal engine; the shared loader + price modules it used are still
+# exercised here through the same calls the former tab made (status card, scoped prices, model-vs-price table).
+_el_prices,_el_quote_report=scope.prepare(globals().get('_np_edge_quotes',_np_shared_quotes),_v56_results,np_day,_np_source)
+v5.html_block(st,scope.status_html(_el_quote_report,globals().get('_np_feed_status')),extra_class='v58-el')
+_el_priced,_el_unpriced=elv58.model_rows(_v56_results,_el_prices,set())
+if not _el_prices:
+    st.markdown(v5.empty_state(elv58.NO_PRICES_TITLE,'no prices','◎'),unsafe_allow_html=True)
+v5.html_block(st,elv58.table_html(_el_priced,_el_unpriced,logo=lambda t:'',limit_unpriced=None if not _el_prices else 30),extra_class='v58-el')
 '''
 
 
 @pytest.mark.parametrize('mode',['missing','401','403','429','503','timeout','network','bad_json','no_events','empty','live_omitted','event403','wrong_market','valid'])
-def test_actual_edgelab_tab_and_shared_loader_render_correct_safe_status(mode):
+def test_shared_loader_and_price_modules_render_correct_safe_status(mode):
     import streamlit as st
     from streamlit.testing.v1 import AppTest
     st.cache_resource.clear()
@@ -301,7 +308,7 @@ def test_malformed_event_list_or_payload_returns_safe_typed_diagnostics():
     assert warnings and 'DO_NOT_LEAK' not in json.dumps(frame.attrs)
 
 
-def test_scoped_tab_null_source_frame_and_csv_schema_warning_render():
+def test_scoped_prices_null_source_frame_and_csv_schema_warning_render():
     import streamlit as st
     from streamlit.testing.v1 import AppTest
     for frame in (pd.DataFrame([quote(player=pd.NA)]),pd.DataFrame([{'player':'Unknown','best_odds':220}])):

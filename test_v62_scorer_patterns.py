@@ -40,7 +40,8 @@ def _write_window(tmp, nights, scorers_fn):
         games, rows = _slate(i)
         (snap_dir / f'{d}.json').write_text(json.dumps({'day': d, 'games': games, 'rankings': rows}))
         sc = [[p, f'P{p}', 'X', 1] for p in scorers_fn(i)]
-        (acc_dir / f'{d}.json').write_text(json.dumps({'day': d, 'games': ['1', '2'], 'results': {'scorers': sc}}))
+        players = [[p, f'P{p}', 'X', 0.3 if p <= 10 else 0.1, p] for p in range(1, 41)]   # app Model p (pre-game)
+        (acc_dir / f'{d}.json').write_text(json.dumps({'day': d, 'games': ['1', '2'], 'players': players, 'results': {'scorers': sc}}))
     return acc_dir, snap_dir
 
 
@@ -61,7 +62,7 @@ def window(tmp_path, monkeypatch):
     return acc_dir, snap_dir, feeds, nights
 
 
-def test_learns_over_represented_trait_and_rejects_flat_ones(window):
+def test_descriptive_lifts_and_recent_fit(window):
     acc_dir, snap_dir, feeds, nights = window
     pat = sp.build_patterns(TODAY, acc_dir, snap_dir, feeds)
     st = {s['key']: s for s in pat['stats']}
@@ -73,12 +74,6 @@ def test_learns_over_represented_trait_and_rejects_flat_ones(window):
     assert pat['stats'][0]['key'] == 'shots3'                       # kept traits first
 
 
-def test_insufficient_window_suggests_nothing(tmp_path):
-    acc_dir, snap_dir = _write_window(tmp_path, _days(3), lambda i: [1, 2])
-    pat = sp.build_patterns(TODAY, acc_dir, snap_dir, _feeds(_days(12)))
-    assert pat['status'] == 'insufficient'
-    h = sp.section_html(pat, [], {}, sp.tonight_live(None), [], TODAY)
-    assert 'Not enough scored nights yet' in h and 'Who fits' not in h
 
 
 def test_window_excludes_today_and_future_and_signature_changes(window, tmp_path):
@@ -144,6 +139,7 @@ def test_fetch_score_caches_and_fails_soft(monkeypatch):
     assert sp.fetch_score('2026-11-02', boom) is None
 
 
+
 def _live_ctx():
     feed = {'games': {'1': {'state': 'LIVE', 'away': 'AAA', 'home': 'HHH'}, '2': {'state': 'OFF', 'away': 'BBB', 'home': 'CCC'}},
             'goals': [(1, 'AAA', 'ev', 'none', (5,), '1'), (13, 'HHH', 'ev', 'none', (), '1'), (13, 'HHH', 'pp', 'none', (), '1'),
@@ -156,71 +152,132 @@ def _live_ctx():
     return sp.tonight_live(feed, pbp)
 
 
-def test_suggest_excludes_scorers_and_final_games_and_adds_live_signals(window):
+
+def test_insufficient_window_shows_no_probabilities(tmp_path):
+    acc_dir, snap_dir = _write_window(tmp_path, _days(3), lambda i: [1, 2])
+    pat = sp.build_patterns(TODAY, acc_dir, snap_dir, _feeds(_days(12)))
+    assert pat['status'] == 'insufficient' and pat['w_traits'] is None
+    h = sp.section_html(pat, [], {}, {}, [], [], sp.tonight_live(None), TODAY)
+    assert 'Not enough scored nights yet' in h and 'Most likely' not in h
+
+
+def test_joint_fit_counts_overlap_once(window):
+    """Two perfectly overlapping traits: a joint fit splits the weight instead of double-counting it."""
+    import numpy as np
+    rows = []
+    rng = np.random.default_rng(0)
+    for _ in range(4000):
+        a = rng.random() < 0.2
+        y = rng.random() < (0.35 if a else 0.10)
+        rows.append(({'shots3': a, 'hot': a}, y))
+    X = [[1.0, 1.0 if t['shots3'] else 0.0, 1.0 if t['hot'] else 0.0] for t, _y in rows]
+    w, _ = sp.fit(X, [1.0 if y else 0.0 for _t, y in rows], lam=1.0)
+    single, _ = sp.fit([x[:2] for x in X], [1.0 if y else 0.0 for _t, y in rows], lam=1.0)
+    assert abs((w[1] + w[2]) - single[1]) < 0.05 and abs(w[1] - w[2]) < 1e-6   # shared, not added twice
+
+
+def test_map_update_shrinks_small_tonight_samples():
+    import numpy as np
+    w0 = [-2.0, 0.5]
+    X = [[1.0, 1.0]] * 3 + [[1.0, 0.0]] * 3
+    y = [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+    w_small, eff_small = sp.fit(X, y, w0=w0, tau=sp.TAU)
+    w_big, eff_big = sp.fit(X * 50, y * 50, w0=w0, tau=sp.TAU)
+    assert eff_small < 0.05 < eff_big < 1 and abs(w_small[1] - 0.5) < abs(w_big[1] - 0.5)
+
+
+def _results(phases):
+    """Minimal _v56_results: {team pair: (phase, elapsed, remaining)} with lam_game per player."""
+    out = []
+    for (away, home), (ph, el, rem), players in phases:
+        out.append({'slate': {'away': away, 'home': home}, 'result': {'phase': ph, 'elapsed': el, 'remaining': rem,
+                                                                      'players': [{'pid': p, 'lam_game': lam} for p, lam in players]}})
+    return out
+
+
+def _tonight(window, phases=('live', 'final')):
     acc_dir, snap_dir, feeds, _ = window
     pat = sp.build_patterns(TODAY, acc_dir, snap_dir, feeds)
     games, rows = _slate(0)
-    games[0]['Status'] = 'LIVE'
     lv = _live_ctx()
-    assert lv['goalie']['HHH'] == ('Leaky Goalie', 3) and lv['shots'][9] == 4
-    out, info = sp.suggest(rows, games, pat, lv, TODAY)
-    pids = [r['pid'] for r in out]
-    assert 1 not in pids and 13 not in pids and info['excluded_scored'] >= 1     # scored tonight -> left out
-    assert not any(r['team'] in ('BBB', 'CCC') for r in out) and info['final_skipped'] == 20
-    r9 = next(r for r in out if r['pid'] == 9)                                     # shooter on HHH, 4 SOG tonight
-    assert any('Leaky Goalie, 3 allowed' in x for x in r9['live']) and any('4 SOG tonight' in x for x in r9['live'])
-    r5 = next(r for r in out if r['pid'] == 5)
-    assert any('Assisted tonight' in x for x in r5['live'])
-    assert all(0 <= r['fit'] <= 100 for r in out) and [r['fit'] for r in out] == sorted((r['fit'] for r in out), reverse=True)
-    assert all(r['matched'] or r['live'] for r in out)
+    res = _results([(('AAA', 'HHH'), (phases[0], 30.0, 30.0), [(p, 0.3 if p <= 10 else 0.1) for p in range(1, 41)]),
+                    (('BBB', 'CCC'), (phases[1], 60.0, 0.0), [])])
+    tr = sp.tonight_rows(rows, games, pat, lv, res)
+    return pat, tr, lv
 
 
-def test_pregame_games_get_no_live_signals(window):
+def test_probabilities_exclude_scorers_and_finals_and_scale_live_minutes(window):
+    pat, tr, lv = _tonight(window)
+    assert pat['status'] == 'ok' and pat['w_model'] and pat['w_traits']
+    w = sp.update_tonight(pat, tr)
+    assert w['k_sig'] == 3 and w['eff'] > 0             # 3 scorers on the slate list -> tonight's data used
+    preds, info = sp.predict(tr, w, lv)
+    pids = {r['pid'] for r in preds}
+    assert not pids & {1, 13, 17} and info['scored'] == 3 and info['final_skipped'] == 20
+    for r in preds:
+        assert 0 < r['p'] < 1 and r['p'] <= r['p_full'] + 1e-12
+        assert abs(r['p'] - (1 - (1 - r['p_full']) ** 0.5)) < 1e-9          # 30 of 60 minutes left
+    assert [r['p'] for r in preds] == sorted((r['p'] for r in preds), reverse=True)
+    r9 = next(r for r in preds if r['pid'] == 9)
+    assert any('SOG tonight' in c for c in r9['live']) and any('Facing Leaky Goalie' in c for c in r9['live'])
+
+
+def test_tonight_update_needs_enough_scorers_and_moves_toward_their_traits(window):
+    pat, tr, lv = _tonight(window)
+    for r in tr:
+        r['goals'] = 0
+    w0 = sp.update_tonight(pat, tr)
+    assert w0['eff'] == 0 and w0['w_model'] == pat['w_model']                 # no scorers yet -> recent fit only
+    for r in tr:                                                              # shooters (1-10) on AAA/HHH all score
+        if r['pid'] <= 10 and r['team'] in ('AAA', 'HHH'):
+            r['goals'] = 1
+    w1 = sp.update_tonight(pat, tr, tau=1.0)
+    i = sp.KEYS.index('shots3') + 1
+    assert w1['w_traits'][i] > pat['w_traits'][i]
+
+
+def test_scorer_profile_lists_tonight_scorers_and_shared_traits(window):
+    pat, tr, lv = _tonight(window)
+    sc, shared = sp.scorer_profile(tr)
+    assert {s['name'] for s in sc} == {'P1', 'P13', 'P17'} and next(s for s in sc if s['name'] == 'P13')['goals'] == 2
+    lab, a, b = next(x for x in shared if x[0] == '3+ SOG/G L5')
+    assert abs(a - 1 / 3) < 1e-9 and 0 < b < 1
+
+
+def test_pregame_rows_use_full_game_and_no_live_chips(window):
     acc_dir, snap_dir, feeds, _ = window
     pat = sp.build_patterns(TODAY, acc_dir, snap_dir, feeds)
     games, rows = _slate(0)
     for g in games:
         g['Status'] = 'FUT'
-    out, info = sp.suggest(rows, games, pat, sp.tonight_live(None), TODAY)
-    assert out and all(not r['live'] and r['phase'] == 'pregame' for r in out)
-    assert {r['pid'] for r in out} == set(range(1, 11))          # only the shooters match the kept trait
-    assert info['excluded_scored'] == 0
+    tr = sp.tonight_rows(rows, games, pat, sp.tonight_live(None), [])
+    preds, info = sp.predict(tr, sp.update_tonight(pat, tr), sp.tonight_live(None), top=50)
+    assert len(preds) == 40 and all(r['phase'] == 'pregame' and not r['live'] and abs(r['p'] - r['p_full']) < 1e-12 for r in preds)
+    assert all(r['mp'] is None for r in preds)                                # no Model p -> traits-only fit
+    assert {r['pid'] for r in preds[:10]} == set(range(1, 11))
 
 
-def test_tonight_check_needs_enough_scorers(window):
-    acc_dir, snap_dir, feeds, _ = window
-    pat = sp.build_patterns(TODAY, acc_dir, snap_dir, feeds)
-    games, rows = _slate(0)
-    lv = _live_ctx()
-    assert sp.tonight_check(rows, games, pat, lv) == []           # 3 scorers < TONIGHT_MIN_SCORERS
-    for p in (2, 6, 10):
-        lv['scorers'][p] = 1
-    chk = sp.tonight_check(rows, games, pat, lv)
-    lab, share, slate, k = next(c for c in chk if c[0] == '3+ SOG/G L5')
-    assert k == 6 and abs(share - 4 / 6) < 1e-9 and abs(slate - 5 / 20) < 1e-9
+def test_section_html_probability_framing_escapes_and_mobile(window):
+    pat, tr, lv = _tonight(window)
+    next(r for r in tr if r['pid'] == 9)['name'] = '<b>X</b>'
+    w = sp.update_tonight(pat, tr)
+    preds, info = sp.predict(tr, w, lv)
+    sc, shared = sp.scorer_profile(tr)
+    h = sp.section_html(pat, preds, info, w, sc, shared, lv, TODAY)
+    assert 'Most likely to score' in h and 'Tonight’s scorers so far · primary live input' in h and 'LIVE · 30 min left' in h
+    assert '&lt;b&gt;X&lt;/b&gt;' in h and '<b>X</b>' not in h
+    assert 'estimate' in h.lower() and 'Fit ' not in h and 'pattern fit' not in h.lower()
+    assert '@media (max-width:420px)' in h and 'overflow-x:auto' in h and 'With tonight' in h
+    assert sp.BACKTEST_NOTE in h.replace('&quot;', '"').replace('&#x27;', "'")
 
 
-def test_section_html_labels_escapes_and_is_mobile_safe(window):
-    acc_dir, snap_dir, feeds, _ = window
-    pat = sp.build_patterns(TODAY, acc_dir, snap_dir, feeds)
-    games, rows = _slate(0)
-    rows[0]['Player'] = '<b>X</b>'
-    for g in games:
-        g['Status'] = 'FUT'
-    out, info = sp.suggest(rows, games, pat, sp.tonight_live(None), TODAY)
-    h = sp.section_html(pat, out, info, sp.tonight_live(None), [], TODAY)
-    assert 'Pattern fit, not a probability' in h and 'Fit ' in h and '&lt;b&gt;X&lt;/b&gt;' in h and '<b>X</b>' not in h
-    assert '@media (max-width:420px)' in h and 'overflow-x:auto' in h and 'Lift' in h
-    assert 'probability of' not in h.lower() and '%' in h
-    none = dict(pat, status='none', stats=[dict(s, kept=False, why='x') for s in pat['stats']])
-    assert 'No trait cleared the bar' in sp.section_html(none, [], {}, sp.tonight_live(None), [], TODAY)
-
-
-def test_display_only_and_wired_into_prediction_models():
+def test_display_only_and_wired_into_edgelab_only():
     hits = [f.name for f in ROOT.rglob('*.py') if not f.name.startswith('test_') and f.name != 'scorer_patterns_v62.py'
             and f.parent.name != 'tabs' and re.search(r'^\s*(import|from) scorer_patterns_v62', f.read_text(errors='ignore'), re.M)]
     assert hits == []
-    src = (ROOT / 'tabs' / 'predmodels.py').read_text()
-    assert src.index('oav.section_html(oav.aggregate(') < src.index('# V6.2: Scorer Patterns') and 'pmv.layers_for' not in src
+    el = (ROOT / 'tabs' / 'edgelab.py').read_text()
+    pm = (ROOT / 'tabs' / 'predmodels.py').read_text()
+    assert 'import scorer_patterns_v62' in el and 'scorer_patterns_v62 as' not in pm and '_sp_patterns' not in pm
+    assert 'elv58.table_html' not in el and '_el_scope' not in el           # former EdgeLab view no longer rendered
     mod = (ROOT / 'scorer_patterns_v62.py').read_text()
-    assert 'open(' not in mod.replace('read_text', '') and 'write_text' not in mod     # never writes files
+    assert 'write_text' not in mod and "open(" not in mod.replace('read_text', '')

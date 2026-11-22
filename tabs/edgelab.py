@@ -1,41 +1,41 @@
-"""Null's Playbook V5.8 · EdgeLab tab (read-only). Executed by tabs.run_tab() inside the app's namespace.
-Model p = the Edge Flags computation (edgeflags_v56.player_lambda + live_nextgoal_v56.p_anytime on the shared
-_v56_results); implied = edgelab_v55.american_to_implied of the LIVE price (latest quote per book, averaged across
-books). No manual entry, no bankroll / sizing, no moneylines, no DEMO prices. See edgelab_v58."""
-# ============================================================ V5.8 EdgeLab (read-only)
-st.markdown(v5.tab_head('NULL’S PLAYBOOK · EDGELAB','EdgeLab','Next-goal model chance vs mapped anytime-goal quotes · edge = model p − implied',
-    chips=[('Model p = 1 − e^(−λ)','odds'),('Provider / imported quotes','team'),('Read-only · not betting advice','warn')],tone='odds'),unsafe_allow_html=True)
-import edgelab_prices_v60 as _el_scope
-_el_prices,_el_quote_report=_el_scope.prepare(globals().get('_np_edge_quotes',_np_shared_quotes),_v56_results,np_day,_np_source)
-v5.html_block(st,_el_scope.status_html(_el_quote_report,globals().get('_np_feed_status')),extra_class='v58-el')
-_el_scorers=sctn.active(st.session_state,np_day)
-_el_scored=set((_el_scorers or {}).get('players',{}).keys())
-_el_priced,_el_unpriced=elv58.model_rows(_v56_results,_el_prices,_el_scored)
-_el_over=sum(r['result']['phase'] in elv58.OVER for r in _v56_results)
-_el_books=sorted({b for v in _el_prices.values() for b in v['book_names']})
-_el_at=max((v['at'] for v in _el_prices.values() if v['at']),default=None)
-st.markdown(ui.stat_strip([('Priced players',len(_el_priced),'odds' if _el_priced else 'muted'),
-    ('Positive edge',sum(r['edge']>0 for r in _el_priced),'ok' if any(r['edge']>0 for r in _el_priced) else 'muted'),
-    ('Books',len(_el_books),'team'),('Updated',elv58.fmt_time(_el_at),'gem')]),unsafe_allow_html=True)
-if not _el_prices:
-    st.markdown(v5.empty_state(elv58.NO_PRICES_TITLE,'See the source, provider status and mapping exclusions above. EdgeLab never invents prices. The model chance for every slate skater is still listed below, without an edge.','$'),unsafe_allow_html=True)
-if not _v56_results:
-    st.info('No NHL games for this date.')
-elif not (_el_priced or _el_unpriced):
-    st.markdown(v5.empty_state('Nothing open to price','Every game is final (or every listed skater has already scored).','◎'),unsafe_allow_html=True)
-else:
-    v5.html_block(st,elv58.table_html(_el_priced,_el_unpriced,logo=lambda t:v5.logo(t,'el-lg'),limit_unpriced=None if not _el_prices else 30),extra_class='v58-el')
-    if _el_prices and len(_el_unpriced)>30:
-        with st.expander(f'All {len(_el_unpriced)} players without a live price'):
-            st.dataframe(pd.DataFrame([{'Player':r['name'],'Team':r['team'],'Game':r['game'],'Model p':round(r['model_p']*100,1)} for r in _el_unpriced]),hide_index=True,width='stretch')
-if _el_scored:
-    _el_sc=sorted(_el_scorers['players'].values(),key=lambda x:(-x['goals'],x['name']))
-    st.markdown(v5.inline('<p class="el-settled"><span>Settled · already scored, left out of the edges:</span> '+' · '.join(f'<b>{v5.esc(x["name"])}</b>' for x in _el_sc)+'</p>','v58-el'),unsafe_allow_html=True)
-st.caption(('Quote = each sportsbook’s latest mapped affirmative anytime-goal quote for the player, averaged across books ('+', '.join(_el_books)+'; source: '+_np_source+'). ' if _el_books else '')+
-           'Quotes are as-of snapshots, not a guarantee of currently executable live markets. Imported CSV rows are user-supplied, not verified live. Only Yes anytime-goal quotes with a current NHL game mapping are eligible; Over/No are excluded. '
-           'Edge Flags compares the same model with the opener (earliest quote seen); EdgeLab uses the current price. '
-           'λ: pregame = prior shots/game × shrunk sh%; live = current scoring rate × remaining minutes. Final/shootout games'+
-           (f' ({_el_over} tonight)' if _el_over else '')+' and players who already scored are left out. No moneylines: the model has no win probability. '
-           'Form % is never used as a probability. Model estimates are uncalibrated; entertainment and research only.')
-if xgm.attribution(_v56_results): st.caption(xgm.attribution(_v56_results)+' (model chances use shot quality; non-commercial use, see MoneyPuck terms).')  # V5.9 credit
-st.markdown(ui.footer("NULL’S PLAYBOOK · EDGELAB"),unsafe_allow_html=True)
+"""Null's Playbook V6.2 · EdgeLab tab = Anytime goal · tonight's patterns (scorer_patterns_v62), its ONLY content (t233).
+
+The former EdgeLab view (model p vs mapped anytime-goal quotes, price-feed status, edge table) is no longer rendered here.
+Its shared modules stay because other pages use them: edgelab_prices_v60 (Home price-gap leader, Odds board) and
+edgelab_v58 / edgelab_v55 (price helpers, Edge Flags). Executed by tabs.run_tab() inside the app's namespace."""
+import scorer_patterns_v62 as _ag
+import accuracy_v58 as _ag_acc
+
+st.markdown(v5.tab_head('NULL’S PLAYBOOK · EDGELAB', 'Anytime goal · tonight’s patterns',
+    'Chance each skater still in play scores 1+ goal tonight · recent-games fit updated by tonight’s scorers',
+    chips=[('Probability estimate', 'odds'), ('Tonight’s scorers = live input', 'team'), ('Not betting advice', 'warn')], tone='odds'),
+    unsafe_allow_html=True)
+
+
+@st.cache_data(ttl=3 * 3600, show_spinner=False, max_entries=2)
+def _ag_patterns(day, sig):
+    """Recent-games joint fit; sig = window file names + mtimes, so a newly scored night re-fits at once (small result)."""
+    return _ag.build_patterns(day)
+
+
+try:
+    _ag_rank_df = st.session_state.get('signals_ranked')
+    _ag_rows = (_ag_rank_df.to_dict('records') if isinstance(_ag_rank_df, pd.DataFrame) and st.session_state.get('signals_day') == np_day
+                else ((np_snapshot or {}).get('rankings') or []))
+    _ag_games = (np_snapshot or {}).get('games') or []
+    _ag_pat = _ag_patterns(np_day, _ag.signature(np_day))
+    _ag_feed = _ag.fetch_score(np_day)   # 60 s process cache while games are unfinished
+    _ag_lv = _ag.tonight_live(_ag_feed, globals().get('_v56_pbp'))
+    _ag_lv['feed_ok'] = _ag_feed is not None
+    _ag_trows = _ag.tonight_rows(_ag_rows, _ag_games, _ag_pat, _ag_lv, globals().get('_v56_results') or [],
+                                 _ag_acc.load_entry(np_day) if _ag_pat.get('status') == 'ok' else None)
+    _ag_w = _ag.update_tonight(_ag_pat, _ag_trows) if _ag_pat.get('status') == 'ok' else {}
+    _ag_preds, _ag_info = _ag.predict(_ag_trows, _ag_w, _ag_lv) if _ag_w else ([], {})
+    _ag_sc, _ag_shared = _ag.scorer_profile(_ag_trows)
+    v5.html_block(getattr(st, '_st', st), _ag.section_html(_ag_pat, _ag_preds, _ag_info, _ag_w, _ag_sc, _ag_shared, _ag_lv, np_day))
+except Exception as _ag_exc:   # never break the app
+    st.markdown(v5.empty_state('Anytime-goal estimates unavailable', f'{type(_ag_exc).__name__}: recent or tonight’s scorer data could not be read.'),
+                unsafe_allow_html=True)
+if xgm.attribution(globals().get('_v56_results') or []):   # the app Model chance (an input here) uses shot quality
+    st.caption(xgm.attribution(_v56_results) + ' (the Model chance used here uses shot quality; non-commercial use, see MoneyPuck terms).')
+st.markdown(ui.footer("NULL’S PLAYBOOK · EDGELAB"), unsafe_allow_html=True)

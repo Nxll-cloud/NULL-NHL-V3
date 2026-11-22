@@ -101,29 +101,13 @@ def _text(tab):
     return ' '.join(parts)
 
 
-def test_apptest_no_prices_empty_state_lists_model_p(mp, tmp_path_factory):
+def test_apptest_edgelab_tab_is_only_the_anytime_goal_engine(mp, tmp_path_factory):
+    """V6.2 (t233): the EdgeLab tab renders only 'Anytime goal · tonight's patterns'; the old price/edge table is gone."""
     at = run_app(mp, tmp_path_factory.mktemp('el0'), session={'playbook_v42_date':date(2026,10,22)})
     assert not at.exception
     txt = _text(_tab(at, '🧪 EdgeLab'))
-    assert elv.NO_PRICES_TITLE in txt and 'class="el-t"' in txt and elv.NO_PRICE in txt
-    assert ' pts<' not in txt                             # no edge numbers without prices
+    assert 'Anytime goal · tonight’s patterns' in txt
+    assert 'aria-label="Anytime goal tonight"' in txt or 'Anytime-goal estimates unavailable' in txt
+    assert 'class="el-t"' not in txt and elv.NO_PRICES_TITLE not in txt and 'EdgeLab price feed status' not in txt
     for word in BANNED:
         assert word not in txt, word
-
-
-def test_apptest_with_fixture_live_prices(mp, tmp_path_factory):
-    f = pd.DataFrame([q('Auston Matthews', 140, 'DraftKings', '2026-10-22T21:00:00Z'), q('Auston Matthews', 120, 'FanDuel', '2026-10-22T21:05:00Z'),
-                      q('Macklin Celebrini', 300, 'DraftKings', '2026-10-22T21:00:00Z')])
-    # These are imported quotes: explicit team/game-date mapping, never inferred from quote time alone.
-    f['team']=f['player'].map({'Auston Matthews':'TOR','Macklin Celebrini':'SJS'})
-    f['game_date']='2026-10-22'
-    at = run_app(mp, tmp_path_factory.mktemp('el1'), session={'playbook_odds_data': f, 'v46_source': 'Uploaded CSV',
-                                                           'playbook_v42_date':date(2026,10,22)})
-    assert not at.exception
-    txt = _text(_tab(at, '🧪 EdgeLab'))
-    assert elv.NO_PRICES_TITLE not in txt and elv.LIVE_LABEL in txt
-    assert txt.count(' pts<') == 2 and '2 books' in txt and 'Auston Matthews' in txt
-    assert txt.index('Matthews') < txt.index(elv.NO_PRICE + ' · model chance only')
-    for word in BANNED:
-        assert word not in txt, word
-    assert not any(k and str(k).startswith('edgelab_') for k in (getattr(w, 'key', None) for w in list(at.button) + list(at.slider)))
