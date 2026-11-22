@@ -1,4 +1,4 @@
-"""V6.0: scored-tonight pills on the Prediction Models tab's four top-10 lists (display only, player-ID match).
+"""V6.0: scored-tonight pills on the Prediction Models tab's top-10 lists (three since V6.2 retired the blend) (display only, player-ID match).
 Reuses scorers_tonight_v58 (the record built from the polled play-by-play). Offline."""
 import json
 import re
@@ -19,7 +19,6 @@ def _rows(pids, prefix):
 def _t():
     return {'model': {'source': 'frozen pre-game model', 'rows': _rows([1, 2, 3, 4], 'Model')},
             'np': {'source': 'NP', 'rows': _rows([5, 1, 6, 7], 'Np')},
-            'blend': {'source': 'frozen', 'rows': _rows([2, 8, 1, 9], 'Blend')},
             'books': {'source': 'books', 'rows': _rows([10, 11, 1, 12], 'Books')}}
 
 
@@ -44,13 +43,13 @@ def _badged(col):
     return [int(m) for m in re.findall(r' (\d+)</b><span class="npsc', col)]
 
 
-def test_scored_rows_badged_in_all_four_systems_by_id():
-    h = pm.page_html(_t(), [], record=_rec({1: 1, 8: 2}))
+def test_scored_rows_badged_in_all_three_systems_by_id():
+    h = pm.page_html(_t(), [], record=_rec({1: 1, 5: 2}))
     cols = _cols(h)
-    assert len(cols) == 4
-    assert [sorted(_badged(c)) for c in cols] == [[1], [1], [1, 8], [1]]   # model, np, blend, books
-    assert h.count('class="npsc') == 5 and h.count('class="npsc multi') == 1 and '🚨 2G' in h and h.count('🚨 G<') == 4
-    assert h.count('class="pmr sc"') == 5                                  # same rows keep the green name
+    assert len(cols) == 3
+    assert [sorted(_badged(c)) for c in cols] == [[1], [1, 5], [1]]   # model, np, books
+    assert h.count('class="npsc') == 4 and h.count('class="npsc multi') == 1 and '🚨 2G' in h and h.count('🚨 G<') == 3
+    assert h.count('class="pmr sc"') == 4                                  # same rows keep the green name
     assert 'Scored tonight (AAA @ HHH)' in h                               # shared tooltip
 
 
@@ -115,22 +114,21 @@ def _t10():
     t = _t()
     t['model']['rows'] = _rows([1, 2, 3, 4, 13, 14, 15, 16, 17, 18], 'Model')
     t['np']['rows'] = _rows([5, 1, 6, 7, 19, 20, 21, 22, 23, 24], 'Np')
-    t['blend']['rows'] = _rows([2, 8, 1, 9, 13, 25, 26, 27, 28, 29], 'Blend')
     t['books']['rows'] = _rows([10, 11, 1, 12, 30, 31, 32], 'Books')     # only 7 priced
     return t
 
 
-def test_live_stat_counts_and_percent_across_all_four_systems():
+def test_live_stat_counts_and_percent_across_all_three_systems():
     h = pm.page_html(_t10(), [], record=_rec({1: 1, 8: 2, 13: 1, 99: 3}))
     got = [_live(c) for c in _cols(h)]
-    assert got == [(2, 10, 20, 'live'), (1, 10, 10, 'live'), (3, 10, 30, 'live'), (1, 7, 14, 'live (7 listed)')]
-    assert h.count('Tonight (live)') == 4 and h.count('class="pmlv hit"') == 4
+    assert got == [(2, 10, 20, 'live'), (1, 10, 10, 'live'), (1, 7, 14, 'live (7 listed)')]
+    assert h.count('Tonight (live)') == 3 and h.count('class="pmlv hit"') == 3
 
 
 def test_live_stat_zero_before_goals_and_after_unrelated_goals():
     for rec, hint in ((None, 'no goals yet'), (_rec({}), 'no goals yet'), (_rec({99: 1}), 'live')):
         cols = _cols(pm.page_html(_t10(), [], record=rec))
-        assert [_live(c) for c in cols] == [(0, 10, 0, hint)] * 3 + [(0, 7, 0, hint + ' (7 listed)')]
+        assert [_live(c) for c in cols] == [(0, 10, 0, hint)] * 2 + [(0, 7, 0, hint + ' (7 listed)')]
         assert 'pmlv hit' not in ''.join(cols)
     assert _live(_cols(pm.page_html(_t10(), [], record=_rec({1: 1}, demo=True)))[0])[3] == 'DEMO replay'
 
@@ -142,11 +140,11 @@ def test_live_stat_matches_by_id_not_name_and_skips_empty_lists():
     assert pm.live_count([{'pid': '1'}], _rec({1: 1})) == (1, 1) and pm.live_count([{'pid': None}], _rec({1: 1})) == (0, 1)
     assert pm.live_html([], _rec({1: 1})) == ''
     t['books']['rows'] = []
-    assert 'Tonight (live)' not in _cols(pm.page_html(t, [], record=_rec({1: 1})))[3]
+    assert 'Tonight (live)' not in _cols(pm.page_html(t, [], record=_rec({1: 1})))[2]
 
 
 def test_live_stat_leaves_night_record_and_frozen_logs_unchanged():
-    ns = [{'day': '2026-10-23', 'kind': 'saved', 'saved': True, 'model': 3, 'np': 4, 'blend': 4, 'books': None, 'top_n': 10}]
+    ns = [{'day': '2026-10-23', 'kind': 'saved', 'saved': True, 'model': 3, 'np': 4, 'books': None, 'top_n': 10}]
     lines = {s: pm.acc_line(ns, s) for s in pm.SYSTEMS}
     h = pm.page_html(_t10(), ns, record=_rec({1: 1, 8: 1}))
     for s, col in zip(pm.SYSTEMS, _cols(h)):

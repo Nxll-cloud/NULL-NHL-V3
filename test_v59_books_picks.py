@@ -94,7 +94,7 @@ def test_tab_column_and_nights_include_books():
     rec = bp.score(bp.build(_data('2026-10-23'), '2026-10-23'), [[2, 'B', 'HHH', 1]])
     ent = {'day': '2026-10-23', 'results': {'scorers': []}, 'summary': {'top_hits': 3, 'np_top_hits': 4, 'np_top_n': 10}}
     ns = pm.nights([], [ent], '2026-10-24', books_recs=[rec])
-    assert ns[0]['books'] == 1 and ns[0]['books_n'] == 2 and ns[0]['model'] == 3 and ns[0]['blend'] is None
+    assert ns[0]['books'] == 1 and ns[0]['books_n'] == 2 and ns[0]['model'] == 3 and 'blend' not in ns[0]
     t = pm.totals(ns)
     assert t['books'] == {'hits': 1, 'n': 2, 'nights': 1} and pm.leader(t) == ['books']   # 50% vs 30%
     assert '<th>Books</th>' in pm.nights_table(ns) and '1/2' in pm.nights_table(ns)
@@ -105,4 +105,4 @@ def test_tab_column_and_nights_include_books():
     assert live['source'].startswith('live') and [r['pid'] for r in live['rows']] == [2, 1]
     assert bp.tonight_rows('2026-10-24', None, _data('2026-10-23'))['rows'] == []       # another day's prices: nothing
     page = pm.page_html({s: (tr if s == 'books' else {'source': 'x', 'rows': []}) for s in pm.SYSTEMS}, ns)
-    assert page.count('class="pmc"') == 4 and 'Books top picks' in page and 'B Two' in page
+    assert page.count('class="pmc"') == 3 and 'Books top picks' in page and 'B Two' in page

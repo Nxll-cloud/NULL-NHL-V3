@@ -70,7 +70,7 @@ def test_grid_and_choose_tie_break():
 def test_documented_weights_are_in_the_grid_and_footnote():
     assert (pm.BLEND_KIND, pm.BLEND_W) in pm.GRID
     assert f'{pm.BLEND_W}' in pm.WEIGHT_NOTE and 'w = 0' in pm.WEIGHT_NOTE
-    assert '801' in pm.EXPERIMENTAL_NOTE and 'overfit' in pm.EXPERIMENTAL_NOTE
+    assert not hasattr(pm, 'EXPERIMENTAL_NOTE')   # V6.2: blend retired from display; note no longer shown
 
 
 # ------------------------------------------------------------------ layers reuse the Numbers code
@@ -161,24 +161,24 @@ def test_saved_logs_are_small_valid_and_labelled():
 
 # ------------------------------------------------------------------ tab view
 def _ns():
-    return [{'day': '2026-10-22', 'kind': 'rebuilt', 'top_n': 10, 'model': 3, 'np': 2, 'blend': 3, 'saved': False},
-            {'day': '2026-10-23', 'kind': 'rebuilt', 'top_n': 10, 'model': 3, 'np': 4, 'blend': 4, 'saved': True}]
+    return [{'day': '2026-10-22', 'kind': 'rebuilt', 'top_n': 10, 'model': 3, 'np': 2, 'saved': False},
+            {'day': '2026-10-23', 'kind': 'rebuilt', 'top_n': 10, 'model': 3, 'np': 5, 'saved': True}]
 
 
 def test_summary_states_n_and_caveat():
     h = pm.summary_html(_ns())
-    assert 'last 2 scored nights' in h and '7/20' in h and '6/20' in h and 'Small sample' in h and 'in-sample' in h
-    assert 'Blend (experimental) leads' in h and '801' in h
-    assert pm.leader(pm.totals(_ns())) == ['blend']
-    assert 'No scored night yet' in pm.summary_html([])
-    tie = [dict(_ns()[0], blend=3, np=3)]
+    assert 'last 2 scored nights' in h and '7/20' in h and '6/20' in h and 'Small sample' in h and 'in-sample' not in h
+    assert 'NP leaderboard leads' in h and 'Blend' not in h and '801' not in h
+    assert pm.leader(pm.totals(_ns())) == ['np']
+    assert 'No scored night yet' in pm.summary_html([]) and 'Blend' not in pm.summary_html([])
+    tie = [dict(_ns()[0], np=3)]
     assert 'All systems are level' in pm.summary_html(tie)
     assert 'Books has only the nights frozen' in h          # no books night in _ns()
 
 
 def test_nights_table_labels_rebuilt_and_saved():
     t = pm.nights_table(_ns())
-    assert 'rebuilt' in t and 'saved · blend rebuilt' in t and t.index('Oct 23') < t.index('Oct 22')
+    assert 'rebuilt' in t and 'saved' in t and 'Blend' not in t and 'blend' not in t and t.index('Oct 23') < t.index('Oct 22')
     assert pm.skipped_days(_ns(), '2026-10-24', 3) == ['2026-10-21']
     assert '(rebuilt)' in pm.acc_line(_ns(), 'model') and pm.acc_line(_ns(), 'model').count('(rebuilt)') == 1
 
@@ -187,26 +187,27 @@ def test_nights_prefers_saved_accuracy_numbers():
     recs = [{'day': '2026-10-23', 'kind': 'rebuilt', 'results': {'model_hits': 9, 'np_hits': 9, 'blend_hits': 4, 'top_n': 10}}]
     ent = {'day': '2026-10-23', 'results': {'scorers': []}, 'summary': {'top_hits': 3, 'np_top_hits': 4, 'np_top_n': 10}}
     ns = pm.nights(recs, [ent], '2026-10-24')
-    assert ns[0]['model'] == 3 and ns[0]['np'] == 4 and ns[0]['saved'] and ns[0]['blend'] == 4
+    assert ns[0]['model'] == 3 and ns[0]['np'] == 4 and ns[0]['saved'] and 'blend' not in ns[0]
     assert pm.nights(recs, [ent], '2026-10-23') == []                # tonight is never in the trend
 
 
-def test_tonight_four_lists_from_frozen_logs():
+def test_tonight_three_lists_from_frozen_logs():
+    """V6.2: the blend column is retired; Model / NP / Books remain. The record writer (shared rebuilt Model/NP data) still builds."""
     day = '2026-10-23'
     snap = acc._load_snap(day, SNAP)
     ent = acc.load_entry(day, SNAP / 'accuracy')
     rec = pm.build(ent, snap, 'rebuilt', 'test')
-    t = pm.tonight(day, snap['rankings'], snap['games'], ent, rec)
-    assert set(t) == set(pm.SYSTEMS) and all(len(t[s]['rows']) == 10 for s in ('model', 'np', 'blend'))
+    assert rec['model_top'] and rec['np_top']          # shared data for rebuilt Model / NP nights
+    t = pm.tonight(day, snap['rankings'], snap['games'], ent)
+    assert set(t) == set(pm.SYSTEMS) == {'model', 'np', 'books'} and all(len(t[s]['rows']) == 10 for s in ('model', 'np'))
     assert [r['pid'] for r in t['model']['rows']] == pm.model_top_ids(ent['players'])
     assert [r['pid'] for r in t['np']['rows']] == acc.np_top_ids(ent, snap)
     assert all(r['stat'].startswith('Form ') for r in t['np']['rows'])
-    assert all('layer' in r['layers'] for r in t['blend']['rows'])
-    live = pm.tonight(day, snap['rankings'], snap['games'], None, None,
+    live = pm.tonight(day, snap['rankings'], snap['games'], None,
                       [{'pid': p[0], 'name': p[1], 'team': p[2], 'p': p[3], 'model_rank': p[4]} for p in ent['players']])
-    assert [r['pid'] for r in live['blend']['rows']] == [t_[0] for t_ in rec['top']]   # on-the-fly == frozen ranking
+    assert [r['pid'] for r in live['model']['rows']] == pm.model_top_ids(ent['players'])
     h = pm.page_html(t, _ns())
-    assert h.count('class="pmc"') == 4 and 'EXPERIMENTAL' in h and 'Books top picks' in h and 'Circa' in h
+    assert h.count('class="pmc"') == 3 and 'EXPERIMENTAL' not in h and 'Blend' not in h and 'Books top picks' in h and 'Circa' in h
     assert t['books']['rows'] == [] and t['books']['source'] == 'no book prices loaded'   # never invented
 
 
@@ -221,7 +222,7 @@ def app(tmp_path_factory):
     m.undo()
 
 
-def test_tab_renders_with_four_sections_and_summary(app):
+def test_tab_renders_with_three_sections_summary_and_patterns(app):
     at = app
     assert not at.exception
     labels = [t.label for t in at.tabs]
@@ -231,9 +232,10 @@ def test_tab_renders_with_four_sections_and_summary(app):
     from v54_testkit import markdown
     txt = ' '.join([m.value for m in tab.markdown] + [h.value for h in tab.get('html')])
     assert 'Prediction Models' in txt and ('Which system' in txt or 'scored night' in txt)
-    assert txt.count('class="pmc"') == 4 and 'Books top picks' in txt and 'Model' in txt and 'NP leaderboard' in txt and 'EXPERIMENTAL' in txt
+    assert txt.count('class="pmc"') == 3 and 'Books top picks' in txt and 'Model' in txt and 'NP leaderboard' in txt and 'EXPERIMENTAL' not in txt
+    assert 'Scorer patterns' in txt and ('aria-label="Scorer patterns"' in txt or 'Scorer patterns unavailable' in txt)
     caps = ' '.join(c.value for c in tab.caption)
-    assert '801' in caps and 'Weights:' in caps
+    assert '801' not in caps and 'Weights:' not in caps
 
 
 def test_blend_module_is_display_only():

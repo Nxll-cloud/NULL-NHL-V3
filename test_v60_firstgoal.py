@@ -103,7 +103,7 @@ def test_tabs_show_first_goal_separately():
     i = rs.index("st.subheader('🥅 First Goal Intelligence')")
     assert rs.index('Top 10 Statistical Sleepers') < i
     import prediction_models_v59 as pmv
-    assert pmv.SYSTEMS == ('model', 'np', 'blend', 'books')     # not blended into the four systems
+    assert pmv.SYSTEMS == ('model', 'np', 'books')     # not a system column (V6.2: blend column retired)
 
 
 def test_display_only_no_writes_to_accuracy_logs():

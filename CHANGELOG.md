@@ -2,6 +2,22 @@
 
 Newest first. Model details: [MODEL_CARD.md](MODEL_CARD.md). Older release notes: [docs/notes/](docs/notes/).
 
+## Prediction Models: Scorer Patterns replaces the experimental Blend (2026-11-22)
+
+* Retired the EXPERIMENTAL Blend column (model chance × gematria layer hits) from every view: the page column, the
+  "which system leads" summary, the night-by-night table and the overall accuracy table. Its own docs said it "adds
+  nothing measurable"; over the saved history it hit 106/300 vs the plain Model's 108/300. The nightly record writer
+  (snapshots/accuracy_blend/) is kept because those records also carry the rebuilt Model / NP top-10s used for nights
+  without a saved accuracy entry. The page no longer computes gematria layers at load.
+* New `scorer_patterns_v62` section under the overall accuracy table: learns which pre-game traits were over-represented
+  among real scorers over the last 14 scored nights (saved slate snapshots + accuracy results, plus the NHL score feed
+  for PP goals / points / assists in the prior 7 days), keeps a trait only with enough sample, lift ≥ 1.2 and a 95%
+  Wilson lower bound above the base rate, then lists skaters in unfinished games who fit (Fit 0-100, plus live signals
+  from tonight's goals: assists, shots, leaky goalie, PP). Tonight's scorers are left out. Pattern fit, not a
+  probability; display only (no effect on the model, NP ranks, threat score weights or logs).
+* Overall accuracy: the Blend row is replaced by "Scorer Patterns · pattern fit" (not tracked yet); The List / Nyah
+  reference-only row was removed (separate commit).
+
 ## Numbers: English-only day match re-applied (2026-10-24)
 
 * Re-applied the day-match rule from fbcef82 at the owner's request: a day match counts only when the player's English

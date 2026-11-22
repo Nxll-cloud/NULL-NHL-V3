@@ -1,4 +1,9 @@
-"""V5.9 Prediction Models tab: three systems side by side + a separate, frozen log for the EXPERIMENTAL blend.
+"""V5.9 Prediction Models tab: three systems side by side (Model, NP, Books) + the frozen nightly record log.
+
+V6.2: the EXPERIMENTAL blend column was RETIRED from every view (page column, summary, night table, overall accuracy):
+it never beat the plain model (see WEIGHT_NOTE) and is replaced on the page by scorer_patterns_v62. The nightly record
+writer below is kept unchanged because its records also carry the rebuilt Model / NP top-10s that the night table and
+the overall accuracy table use for nights without a saved accuracy entry (shared data, not a displayed system).
 
 Systems (each ranks tonight's skaters; top TOP_N scored like the Home accuracy card, by player ID vs real scorers):
   model  - accuracy_v58.predictions() / parlay_v58.candidates model_rank: P(anytime goal) = 1 - exp(-lambda_game).
@@ -56,16 +61,13 @@ _NAME = re.compile(r'^(\d{4}-\d{2}-\d{2})\.json$')
 # rate 0 / 0.05 / 0.1 / 0.2 all hit 31/100 and w=0 has the best log loss, i.e. the blend adds nothing measurable.
 BLEND_KIND = 'rate'
 BLEND_W = 0.2
-WEIGHTS_CHOSEN_THROUGH = '2026-10-23'   # nights up to here were used to pick w (in-sample for the blend)
 GRID = [('rate', w) for w in (0.0, 0.05, 0.1, 0.2, 0.35, 0.5)] + [('logit', w) for w in (0.05, 0.1, 0.2, 0.35, 0.5)]
 WEIGHT_NOTE = ('Blend = model goal rate × (1 + 0.2 × layer hits), layer hits 0–5 (Day, Position, Arena, Reverse, English); '
                'w = 0.2 won a small grid on the 2 clean nights (Oct 22 rebuilt, Oct 23 saved): 7/20 top-10 hits vs 6/20 for '
                'the plain model (w = 0), a single extra hit on one night. On 10 nights incl. 8 point-in-time reconstructions it '
                'tied w = 0 (31/100) with a worse log loss (0.396 vs 0.374), so treat it as a coin-flip, not an edge.')
-EXPERIMENTAL_NOTE = ('Experimental: gematria layers showed no statistical association with scoring in our 801-player check, '
-                     'and weights tuned on a few nights may be overfit.')
-SYSTEMS = ('model', 'np', 'blend', 'books')
-LABEL = {'model': 'Model', 'np': 'NP leaderboard', 'blend': 'Blend (experimental)', 'books': 'Books top picks'}
+SYSTEMS = ('model', 'np', 'books')   # V6.2: 'blend' retired from display (record writer kept, see module doc)
+LABEL = {'model': 'Model', 'np': 'NP leaderboard', 'books': 'Books top picks'}
 HASHED_KEYS = ('schema', 'day', 'kind', 'source', 'method', 'weights', 'model_entry_hash', 'frozen_at', 'snapshot_at',
                'first_start', 'day_num', 'top', 'players', 'model_top', 'np_top')
 
@@ -387,7 +389,7 @@ def nights(blend_recs, acc_entries, today, n=TREND_N, books_recs=()):
                     'n_scorers': res.get('n_scorers') or (kr or {}).get('n_scorers'),
                     'model': es['top_hits'] if es else res.get('model_hits'),
                     'np': (es.get('np_top_hits') if es and es.get('np_top_n') else res.get('np_hits')),
-                    'blend': res.get('blend_hits'), 'books': kr['books_hits'] if kr else None,
+                    'books': kr['books_hits'] if kr else None,
                     'books_n': kr['top_n'] if kr else None, 'saved': bool(es)})
     return out[-n:]
 
@@ -426,8 +428,8 @@ def np_top(rankings, n=TOP_N):
     return [got[r] for r in sorted(got)]
 
 
-CSS = ('<style>.v55 .pm{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:10px 0}'
-       '@media (max-width:1180px){.v55 .pm{grid-template-columns:repeat(2,minmax(0,1fr))}}'
+CSS = ('<style>.v55 .pm{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:10px 0}'
+       '@media (max-width:980px){.v55 .pm{grid-template-columns:minmax(0,1fr)}}'
        '@media (max-width:700px){.v55 .pm{grid-template-columns:minmax(0,1fr)}}'
        '.v55 .pmc{min-width:0;padding:12px 14px;border-radius:18px;border:1px solid color-mix(in srgb,var(--pc,var(--neon)) 32%,transparent);'
        'background:linear-gradient(135deg,rgba(56,225,255,.06),rgba(178,107,255,.07))}'
@@ -460,7 +462,7 @@ CSS = ('<style>.v55 .pm{display:grid;grid-template-columns:repeat(4,minmax(0,1fr
        '.v55 .pmf{margin:8px 0 0;color:var(--dim);font-size:.74rem;line-height:1.45}'
        '.v55 .pmx{color:var(--warn,#ffb347);font-weight:800;letter-spacing:.06em;font-size:.66rem;border:1px solid currentColor;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle}'
        '@media (max-width:360px){.v55 .pmc{padding:10px}.v55 .pmt th,.v55 .pmt td{padding:4px 2px}}</style>')
-TONE = {'model': 'var(--neon)', 'np': 'var(--vio,#b26bff)', 'blend': '#ff5fd2', 'books': 'var(--ok,#3dffa8)'}
+TONE = {'model': 'var(--neon)', 'np': 'var(--vio,#b26bff)', 'books': 'var(--ok,#3dffa8)'}
 
 
 def _e(x):
@@ -472,8 +474,7 @@ def summary_html(ns, n=TREND_N):
     lead = leader(tot)
     if not ns:
         return (f'{CSS}<section class="pms" aria-label="Prediction systems summary"><div class="pmh">Which system is hitting best</div>'
-                f'<p>No scored night yet. Each system’s top-{TOP_N} hit count appears here once a slate is final.</p>'
-                f'<p>{_e(EXPERIMENTAL_NOTE)}</p></section>')
+                f'<p>No scored night yet. Each system’s top-{TOP_N} hit count appears here once a slate is final.</p></section>')
     parts = ' · '.join(f'{LABEL[s]} <b>{tot[s]["hits"]}/{tot[s]["n"]}</b>' + (f' ({tot[s]["nights"]} nights)' if tot[s]['nights'] != len(ns) else '')
                        for s in SYSTEMS)
     if len(lead) == len([s for s in SYSTEMS if tot[s]['n']]):
@@ -484,12 +485,10 @@ def summary_html(ns, n=TREND_N):
     bn = tot['books']['nights']
     books = (' Books has only the nights frozen since its log started (no odds were saved before), so compare it on '
              'those nights only.' if bn < len(ns) else '')
-    ins = sum(1 for x in ns if x['day'] <= WEIGHTS_CHOSEN_THROUGH)
-    insample = (f' The blend’s weight was picked on {ins} of these nights, so its record there is in-sample.' if ins else '')
     return (f'{CSS}<section class="pms" aria-label="Prediction systems summary"><div class="pmh">{_e(verdict)} over the last '
             f'{len(ns)} scored night{"s" if len(ns) != 1 else ""}</div><p>Top-{TOP_N} hits: {parts}.</p>'
             f'<p>Small sample: {len(ns)} night{"s" if len(ns) != 1 else ""} ({rebuilt} rebuilt) of ~{TOP_N} picks each, so a gap of a '
-            f'few hits is noise.{insample}{books} {_e(EXPERIMENTAL_NOTE)}</p></section>')
+            f'few hits is noise.{books}</p></section>')
 
 
 def _row(rank, name, team, pos_html, stat, layers='', scored=False, badge=''):
@@ -504,7 +503,7 @@ def rebuilt_for(x, sys_):
     """Is this system's number on this night a rebuild (not a pre-game freeze)?"""
     if sys_ == 'books':
         return False   # books nights are always frozen pre-game
-    return x['kind'] == 'rebuilt' if sys_ == 'blend' else not x.get('saved')
+    return not x.get('saved')
 
 
 def acc_line(ns, sys_):
@@ -525,8 +524,7 @@ def skipped_days(ns, today, n=TREND_N):
 
 
 def column_html(sys_, rows_html, ns, sub, extra='', live=''):
-    x = '<span class="pmx">EXPERIMENTAL</span>' if sys_ == 'blend' else ''
-    return (f'<div class="pmc" style="--pc:{TONE[sys_]}"><h3>{_e(LABEL[sys_].replace(" (experimental)", ""))}{x}</h3><p class="pmk">{_e(sub)}</p>'
+    return (f'<div class="pmc" style="--pc:{TONE[sys_]}"><h3>{_e(LABEL[sys_])}</h3><p class="pmk">{_e(sub)}</p>'
             f'{live}{rows_html or "<p class=pmk>No ranking for this slate yet.</p>"}{acc_line(ns, sys_)}{extra}</div>')
 
 
@@ -553,9 +551,7 @@ def live_html(rows, record):
 
 
 def night_label(x):
-    if x.get('saved'):
-        return 'saved' + (' · blend rebuilt' if x['kind'] == 'rebuilt' else '')
-    return 'rebuilt'
+    return 'saved' if x.get('saved') else 'rebuilt'
 
 
 def nights_table(ns):
@@ -564,7 +560,7 @@ def nights_table(ns):
     body = ''.join(f'<tr><td>{_e(acc.short_day(x["day"]))} <span class="kd">{_e(night_label(x))}</span></td>'
                    + ''.join(f'<td>{"—" if x.get(s) is None else str(x[s]) + "/" + str(_n(x, s))}</td>' for s in SYSTEMS) + '</tr>'
                    for x in reversed(ns))
-    return (f'<table class="pmt"><thead><tr><th>Night</th><th>Model</th><th>NP</th><th>Blend</th><th>Books</th></tr></thead>'
+    return (f'<table class="pmt"><thead><tr><th>Night</th><th>Model</th><th>NP</th><th>Books</th></tr></thead>'
             f'<tbody>{body}</tbody></table>')
 
 
@@ -572,10 +568,10 @@ def _pct(p):
     return '—' if p is None else f'{100 * float(p):.1f}%'
 
 
-def tonight(day, rankings, games, entry=None, rec=None, cands=None, layers=None, books_rec=None, books_live=None):
+def tonight(day, rankings, games, entry=None, cands=None, books_rec=None, books_live=None):
     """Tonight's three top-N lists -> {sys: {'rows': [{'rank','name','team','pos','stat','layers','pid'}], 'source': str}}.
     Model: the frozen pre-game accuracy entry for `day` (else parlay_v58.candidates rows, live). NP: Statistical rank
-    1..N, Form %. Blend: the frozen blend record for `day` (else computed now from the same model rows + layers)."""
+    1..N, Form %. Books: books_picks_v59 (frozen pre-game record, else the live consensus)."""
     import pandas as pd
     import pos_tag_v59 as pt
     import ui_theme_v53 as ui
@@ -593,21 +589,6 @@ def tonight(day, rankings, games, entry=None, rec=None, cands=None, layers=None,
         {'rank': r['_rank'], 'pid': r['_pid'], 'name': r.get('Player'), 'team': r.get('Team'),
          'pos': pt.lookup(pmap, r['_pid'], r.get('Team'), r.get('Player'), r) or '',
          'stat': 'Form ' + ui.format_form_pct(r.get('V3.2 Adjusted Index')), 'layers': ''} for r in np_top(rankings)]}
-    if rec and rec.get('day') == day and rec.get('top'):
-        brows = [{'rank': i, 'pid': t[0], 'name': t[1], 'team': t[2], 'pos': t[3], 'stat': _pct(t[7]),
-                  'layers': f'{t[6]} layer{"s" if t[6] != 1 else ""}' + (' · ' + ' · '.join(t[8]) if t[8] else '') + f' · model {_pct(t[4])}'}
-                 for i, t in enumerate(rec['top'], 1)]
-        bsrc = f'frozen pre-game · w = {rec["weights"]["w"]} ({rec["weights"]["kind"]})'
-    else:
-        lay = layers if layers is not None else (layers_for({'day': day, 'rankings': rankings, 'games': games}, day) if rankings else {})
-        brows = [{'rank': r['rank'], 'pid': r['pid'], 'name': r['name'], 'team': r['team'],
-                  'pos': (lay.get(r['pid']) or {}).get('pos') or pt.lookup(pmap, r['pid'], r['team'], r['name']) or '',
-                  'stat': _pct(r['pb']),
-                  'layers': f'{r["hits"]} layer{"s" if r["hits"] != 1 else ""}'
-                            + (' · ' + ' · '.join(met_labels((lay.get(r['pid']) or {}).get('met'))) if r['hits'] else '') + f' · model {_pct(r["p"])}'}
-                 for r in rank_blend(players, {k: v['n'] for k, v in lay.items()})[:TOP_N]]
-        bsrc = f'computed now · w = {BLEND_W} ({BLEND_KIND})'
-    out['blend'] = {'source': bsrc, 'rows': brows}
     import books_picks_v59 as bp
     bt = bp.tonight_rows(day, books_rec, books_live)
     for r in bt['rows']:
@@ -618,7 +599,6 @@ def tonight(day, rankings, games, entry=None, rec=None, cands=None, layers=None,
 
 SUBS = {'model': 'Ranked by goal chance, 1 − e^(−λ) for tonight’s game',
         'np': 'Statistical rank · V3.2 Adjusted Index as Form %',
-        'blend': 'Model chance boosted per gematria layer hit',
         'books': 'Median no-vig anytime-goal chance across books (odds only)'}
 
 
@@ -631,7 +611,7 @@ def scored_badge(record, pid):
 
 
 def page_html(t, ns, scored=(), record=None):
-    """The four columns (2 x 2 under 1180 px, stacked under 700 px). ``record`` (V6.0) is tonight's scorer record
+    """The three columns (stacked under 980 px). ``record`` (V6.0) is tonight's scorer record
     (scorers_tonight_v58, from the live play-by-play): rows whose player ID scored get the shared 🚨 pill (🚨 nG for 2+)
     and each card's header shows 'Tonight (live) · X/N scored · Y%' from the same record."""
     import pos_tag_v59 as pt
