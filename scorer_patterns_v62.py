@@ -627,6 +627,8 @@ CSS = ('<style>.v55 .spx{margin:10px 0;padding:12px 14px;border-radius:18px;bord
        '.v55 .spr .ch{grid-column:2/4;display:flex;flex-wrap:wrap;gap:4px}'
        '.v55 .spr .ch span{padding:1px 7px;border-radius:999px;font-size:.68rem;color:var(--mut);border:1px solid var(--line)}'
        '.v55 .spr .ch span.lv{color:#1a0710;border-color:transparent;background:linear-gradient(90deg,#38e1ff,#3dffa8)}'
+       '.v55 .spr .ch span.nu{color:#e6dcff;border-color:rgba(155,92,255,.55);background:rgba(155,92,255,.16)}'
+       '.v55 .spx p.spn{color:#e6dcff;padding:5px 9px;border-radius:10px;background:rgba(155,92,255,.12);border:1px solid rgba(155,92,255,.35)}'
        '.v55 .spr .lvp{font-size:.66rem;font-weight:800;color:#ff3d7f;margin-left:5px}'
        '.v55 .spr.sc .nm b{color:var(--ok,#3dffa8)}'
        '@media (max-width:420px){.v55 .spx{padding:10px}.v55 .spx th,.v55 .spx td{padding:4px 3px}.v55 .spx .hide-sm{display:none}}</style>')
@@ -644,7 +646,8 @@ def _odds(w):
     return f'{math.exp(w):.2f}×'
 
 
-def section_html(patterns, preds, info, weights, scorers, shared, lv, day):
+def section_html(patterns, preds, info, weights, scorers, shared, lv, day, num_head='', empty_msg=None):
+    """num_head / empty_msg / row 'num' + 'rank': numerology overlay (numerology_overlay_v62), display only; absent = unchanged."""
     import accuracy_v58 as acc
     prof = patterns.get('profile') or {}
     nights = prof.get('nights') or []
@@ -660,16 +663,17 @@ def section_html(patterns, preds, info, weights, scorers, shared, lv, day):
             + ('' if k_sig >= TONIGHT_MIN_SCORERS else f' (starts at {TONIGHT_MIN_SCORERS} scorers)') + '</span></div>')
     # remaining players
     if not preds:
-        body = '<p>No skaters left to estimate (every game is final, or the slate list is not loaded yet).</p>'
+        body = f'<p>{_e(empty_msg)}</p>' if empty_msg else '<p>No skaters left to estimate (every game is final, or the slate list is not loaded yet).</p>'
     else:
         def _row(i, r):
             live = (f'<span class="lvp">LIVE · {r["remaining"]:.0f} min left</span>' if r['phase'] == 'live' else '')
             sub = (f'full game {_pct(r["p_full"])}' if r['phase'] == 'live' else '') + \
                   (f'{" · " if r["phase"] == "live" else ""}Model {_pct(r["mp"])}' if r.get('mp') is not None else ' · no Model p')
-            return (f'<div class="spr"><span class="rk">{i}</span><span class="nm"><b>{_e(r["name"])}</b><small>{_e(r["pos"])} · '
+            return (f'<div class="spr"><span class="rk">{r.get("rank", i)}</span><span class="nm"><b>{_e(r["name"])}</b><small>{_e(r["pos"])} · '
                     f'{_e(r["team"])}{" vs " + _e(r["opp"]) if r.get("opp") else ""}</small>{live}</span>'
                     f'<span class="ft">{_pct(r["p"])}<small>{_e(sub)}</small></span><span class="ch">'
                     + ''.join(f'<span>{_e(c)}</span>' for c in r['chips']) + ''.join(f'<span class="lv">{_e(c)}</span>' for c in r['live'])
+                    + ''.join(f'<span class="nu">{_e(c)}</span>' for c in r.get('num') or ())
                     + '</span></div>')
         body = ''.join(_row(i, r) for i, r in enumerate(preds, 1))
     # tonight's scorers
@@ -699,4 +703,4 @@ def section_html(patterns, preds, info, weights, scorers, shared, lv, day):
              f'{info.get("final_skipped", 0)} in final games are skipped. Live chips are context only, not in the %.</p>'
              f'<p>{_e(CAPTION)}</p>' + (f'<p>{_e(BACKTEST_NOTE)}</p>' if BACKTEST_NOTE else ''))
     return (f'{CSS}<section class="spx" aria-label="Anytime goal tonight">{head}<h4>Most likely to score · '
-            f'{_e(acc.short_day(str(day)))} · still in play</h4>{body}{tn}{wt}{notes}</section>')
+            f'{_e(acc.short_day(str(day)))} · still in play</h4>{num_head}{body}{tn}{wt}{notes}</section>')

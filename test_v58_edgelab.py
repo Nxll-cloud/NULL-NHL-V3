@@ -111,3 +111,21 @@ def test_apptest_edgelab_tab_is_only_the_anytime_goal_engine(mp, tmp_path_factor
     assert 'class="el-t"' not in txt and elv.NO_PRICES_TITLE not in txt and 'EdgeLab price feed status' not in txt
     for word in BANNED:
         assert word not in txt, word
+
+
+def test_apptest_edgelab_numerology_overlay_default_off_then_on(mp, tmp_path_factory):
+    """t234: numerology overlay toggle is OFF by default; turning it (and the tighter list) on never errors."""
+    at = run_app(mp, tmp_path_factory.mktemp('el1'), session={'playbook_v42_date':date(2026,10,22)})
+    assert not at.exception
+    tab = _tab(at, '🧪 EdgeLab')
+    tg = next(t for t in tab.toggle if t.label.startswith('Show numerology matches'))
+    assert tg.value is False and 'Numerology overlay ON' not in _text(tab)
+    tg.set_value(True).run()
+    assert not at.exception
+    tab = _tab(at, '🧪 EdgeLab')
+    tight = next(t for t in tab.toggle if t.label.startswith('Tighter list'))
+    assert tight.value is False
+    tight.set_value(True).run()
+    assert not at.exception
+    txt = _text(_tab(at, '🧪 EdgeLab'))
+    assert 'Anytime goal · tonight’s patterns' in txt and 'display and filter only' in txt
