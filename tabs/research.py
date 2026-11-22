@@ -439,6 +439,7 @@ if _intel is not None:
             job=history_executor().submit(historical_cached, day, 3, _v42_ids,
                 _v42_games_sig, _v42_ranked.to_dict('records'), games)
             st.session_state['v43_history_job']={'day':day,'key':_v42_hist_key,'future':job}
+            history_status(day, quiet=True)  # V6.1: start the 10 s collector now (Home ran before this job existed)
         if _rx and st.session_state.get('history_v386_day')!=day:
             st.caption('Three-season opponent history is updating separately; statistical rankings are available.')
     if _rx:

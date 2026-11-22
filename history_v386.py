@@ -10,9 +10,22 @@ import pandas as pd
 from nhl_data import get_game_log
 from storyline_v38 import normalize_team, opponent_lookup
 
-@lru_cache(maxsize=6000)
+# V6.1 (resource limits): past-season logs are immutable, but each full NHL game log is ~85 KB of Python objects and
+# the cache used to hold up to 6000 of them for the life of the process. Keep the fields any consumer reads
+# (summarize_player here; vs/former-team facts in storylines_v58) and at most 1500 logs.
+LOG_KEYS = ('gameId', 'gameDate', 'gameTypeId', 'teamAbbrev', 'opponentAbbrev', 'homeRoadFlag',
+            'goals', 'assists', 'points', 'shots')
+
+
+def compact_log(log):
+    if not isinstance(log, list):
+        return log
+    return [{k: g[k] for k in LOG_KEYS if k in g} if isinstance(g, dict) else g for g in log]
+
+
+@lru_cache(maxsize=1500)
 def season_log(player_id, season):
-    return get_game_log(int(player_id), str(season))
+    return compact_log(get_game_log(int(player_id), str(season)))
 
 def prior_seasons(day, count=3):
     year = date.fromisoformat(day).year

@@ -196,6 +196,7 @@ def needs_point_in_time(gated):
 
 
 _PIT_CACHE = {}
+PIT_MAX_SEASONS = 1   # V6.1 (resource limits): one season of parsed per-shot rows in memory, not every season seen
 
 
 def point_in_time(day, season, getter=None, cache=_PIT_CACHE):
@@ -213,6 +214,8 @@ def point_in_time(day, season, getter=None, cache=_PIT_CACHE):
             rows = read_shots(raw, SHOT_COLUMNS) if isinstance(raw, (bytes, bytearray)) else []
             if not dates or not rows:
                 return empty('point-in-time data unavailable', season)
+            while len(cache) >= PIT_MAX_SEASONS:
+                cache.pop(next(iter(cache)))
             cache[season] = (rows, dates)
         rows, dates = cache[season]
         out = aggregate_shots(rows, str(day)[:10], dates, season)

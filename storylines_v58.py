@@ -607,29 +607,36 @@ def job_for(key, fn, force=False):
 
 # ------------------------------------------------------------------------------------------------- runtime fetchers (TTL)
 _TTL = {'landing': 12 * 3600, 'roster': 6 * 3600, 'standings': 3600, 'log': 3600, 'espn': 900}
-_CACHE, _CLOCK = {}, threading.Lock()
+# V6.1 (resource limits): expired entries are now evicted on write and the map is capped at 1500 entries (it used to
+# keep up to 6000 ~170 KB landings for days); landings keep only the fields this module reads.
+import resource_guard_v61 as _rg
+_STORE = _rg.BoundedTTL(_TTL, cap=1500)
+_CACHE, _CLOCK = _STORE.data, _STORE.lock
 ESPN = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/'
+LANDING_KEYS = ('firstName', 'lastName', 'birthDate', 'birthCity', 'birthStateProvince', 'birthCountry',
+                'seasonTotals', 'careerTotals', 'last5Games')
+
+
+def slim_landing(data):
+    """Only the landing fields read by landing_rows / build (absent keys stay absent; non-dicts unchanged)."""
+    return _rg.compact(data, LANDING_KEYS) if isinstance(data, dict) else data
 
 
 def _cached(kind, key, fn):
     """Thread-safe TTL cache (the build runs in a worker thread, outside Streamlit's script context)."""
     now = time.time()
-    with _CLOCK:
-        hit = _CACHE.get((kind, key))
-        if hit and now - hit[0] < _TTL[kind]:
-            return hit[1]
+    ok, val = _STORE.get(kind, key)
+    if ok:
+        return val
     val = fn()
-    with _CLOCK:
-        _CACHE[(kind, key)] = (now, val)
-        if len(_CACHE) > 6000:
-            for k in sorted(_CACHE, key=lambda k: _CACHE[k][0])[:2000]:
-                _CACHE.pop(k, None)
-    return val
+    return _STORE.put(kind, key, val, now=now)
 
 
 def nhl_fetch(path):
     import nhl_data
     kind = 'landing' if path.endswith('/landing') else 'roster' if path.startswith('roster/') else 'standings'
+    if kind == 'landing':
+        return _cached(kind, path, lambda: slim_landing(nhl_data.fetch_json(path)))
     return _cached(kind, path, lambda: nhl_data.fetch_json(path))
 
 

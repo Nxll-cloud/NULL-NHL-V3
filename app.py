@@ -34,6 +34,14 @@ def _np_drop_stale_modules():
         if (reg.seen[name] != mt) if name in reg.seen else (reg.last and mt > reg.last):
             stale = True
     if stale:
+        try:   # V6.1: let the dropped module objects be collected (resource_guard_v61 re-freezes after re-import)
+            _gcs = sys.modules.get('_np_gc_state')
+            if _gcs is not None and getattr(_gcs, 'frozen', False):
+                import gc
+                gc.unfreeze()
+                _gcs.frozen = False
+        except Exception:
+            pass
         for name in local:
             sys.modules.pop(name, None)
         reg.seen = {}
@@ -123,6 +131,8 @@ import winprob_v59 as winprob
 import parlay_tracker_v59 as ptrack
 import situational_v58 as sit
 import xg_v59 as xgm
+import resource_guard_v61 as np_rguard
+np_rguard.freeze_imports()   # V6.1 resource limits: once per process; post-run gc.collect(2) then skips import-time objects
 # V5.8: display-only 'Scored tonight' badges in every model view (markdown/html/dataframe pass-through proxy).
 st = sctn.MarkingStreamlit(st)
 
@@ -353,9 +363,8 @@ def format_game_time(raw):
 def history_executor():
     return ThreadPoolExecutor(max_workers=2, thread_name_prefix='playbook-history')
 
-@st.fragment(run_every='10s')
 @safe_section('History status')
-def history_status(day, quiet=False):
+def _history_status_body(day, quiet=False):
     job=st.session_state.get('v43_history_job')
     if not job or job['day'] != day:
         return
@@ -379,6 +388,21 @@ def history_status(day, quiet=False):
         st.session_state['v531_history_error']=f'{type(exc).__name__}: {exc}'
         if not quiet:
             st.warning(f'History unavailable: {type(exc).__name__}: {exc}')
+
+_history_status_poll=st.fragment(run_every='10s')(_history_status_body)
+
+def history_pending(day):
+    """True only while this day's background history job still has a result to collect."""
+    job=st.session_state.get('v43_history_job')
+    return bool(job) and job['day'] == day and st.session_state.get('v43_history_completed') != job['key']
+
+def history_status(day, quiet=False):
+    """V6.1 resource limits: the 10-second polling fragment exists only while a history job is pending for this day.
+    Before, it re-ran every 10 s in every open session forever (each run = a full gc.collect(2) on the server) although
+    the body returns at once, with no output, when there is nothing to collect. Same body, same output."""
+    if history_pending(day):
+        return _history_status_poll(day, quiet)
+    return _history_status_body(day, quiet)
 
 
 # V5.1: Load sportsbook data once for all tabs, not only inside Odds.
