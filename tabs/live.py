@@ -40,6 +40,24 @@ def v56_collect(force=False, scores=None):
 
 
 _v56_pbp,_v56_pollers=v56_collect(_v56_force)
+
+
+def v56_pbp_due(scores=None, now=None):
+    """V6.1: ids of the slate games that need play-by-play right now (the same rule v56_collect polls by)."""
+    now = now or datetime.now(timezone.utc)
+    due = []
+    for g in _v56_games:
+        gid = str(g.get('game_id') or '')
+        state = ((_v56_scores if scores is None else scores).get(gid) or {}).get('state')
+        if state is None and v5.game_state(g, now) in ('live', 'done'):
+            state = 'LIVE'
+        if gid and lstate.needs_pbp(state, g.get('status')):
+            due.append(gid)
+    return tuple(due)
+
+
+_v56_pbp_due0=v56_pbp_due(now=_v56_now)   # V6.1: what this full run saw; the go-live watcher reruns when it changes
+_v56_pbp_live0=tuple(sorted(gid for gid,g in _v56_pbp.items() if ng.phase(g) in ('live','shootout')))
 _v56_mem=st.session_state.setdefault('v56_rank_mem',{})
 ng.D_ATTEMPTS=np_flags.model_d_attempts(st.secrets)   # audit D1: MODEL_D_ATTEMPTS (secrets/env/default) for every surface
 _v56_situ=None   # V5.8: situational layer (PP split, opposing goalie, TOI deployment); off -> the V5.6 model exactly
@@ -64,6 +82,7 @@ def v56_model(game, use_form=False):
 _v56_results=v56_slate_results()
 _v56_by_key={r['slate']['key']:r for r in _v56_results}
 _v56_live_n=sum(1 for r in _v56_results if r['result'].get('display_phase',r['result']['phase'])=='live')
+_v56_go_live=(not _v56_live_n) and (lstate.awaiting_live(_v56_games,_v56_pbp_due0,_v56_now) or len(_v56_pbp_live0)>0)
 
 
 def v56_updated(gid):

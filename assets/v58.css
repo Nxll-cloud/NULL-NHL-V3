@@ -122,6 +122,7 @@
 /* Numbers: per-team TOP PICK (filled, glow) and RUNNER-UP (outlined, smaller, no glow). Icon + text, never colour alone. */
 .v58-num .npr-nl{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0}
 .v58-num .npr-nl .npr-name{flex:0 1 auto;min-width:0;max-width:100%}
+.v58-num .npr-name:has(.npsc){white-space:normal;overflow:visible;text-overflow:clip}   /* V6.1: scored badge never clipped */
 .v55 .npk{display:inline-flex;align-items:center;gap:4px;flex:none;border-radius:999px;white-space:nowrap;font-family:var(--fb);letter-spacing:.06em}
 .v55 .npk.pk1{padding:3px 9px;font-size:.7rem;font-weight:800;color:#1a1204;background:linear-gradient(90deg,var(--stat),#ffb648);box-shadow:0 0 12px rgba(255,210,74,.45)}
 .v55 .npk.pk2{padding:1px 7px;font-size:.64rem;font-weight:700;color:var(--mut);background:transparent;border:1px solid color-mix(in srgb,var(--mut) 70%,transparent)}

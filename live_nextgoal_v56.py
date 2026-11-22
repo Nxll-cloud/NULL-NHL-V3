@@ -564,6 +564,15 @@ def cadence(phase_name, minutes_to_start=None):
     return 600
 
 
+def minutes_to_start(game, now_ts):
+    """Minutes from ``now_ts`` (epoch seconds) to the game's startTimeUTC; None when unknown."""
+    from datetime import datetime
+    try:
+        return (datetime.fromisoformat(str(game.get('start') or '').replace('Z', '+00:00')).timestamp() - now_ts) / 60.0
+    except (TypeError, ValueError):
+        return None
+
+
 def backoff(attempt, base=30, cap=600, rand=random.random):
     """Exponential backoff with full-range jitter in [50%, 100%] of min(cap, base * 2^attempt)."""
     d = min(cap, base * (2 ** max(0, attempt)))
@@ -609,7 +618,7 @@ class Poller:
         game['events'] = sorted(self.events.values(), key=lambda e: (e['period'], e['secs'], e.get('order', 0)))
         self.last_good, self.failures, self.last_error, self.updated_at = game, 0, None, self.clock()
         game['pbp_fetched_at'] = self.updated_at
-        c = cadence(phase(game))
+        c = cadence(phase(game), minutes_to_start(game, self.clock()))   # V6.1: pregame near puck drop polls at 120 s, not 600 s
         self.next_due = float('inf') if c is None else self.clock() + c
         return game
 

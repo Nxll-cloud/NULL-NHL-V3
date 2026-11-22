@@ -16,6 +16,27 @@ def needs_pbp(score_state, slate_status=''):
     return st in ('LIVE', 'CRIT', 'OFF', 'FINAL', 'OVER')
 
 
+def awaiting_live(games, due_ids, now, lead_hours=12, grace_hours=6):
+    """V6.1: True while a slate game has not reached play-by-play yet (not in ``due_ids``) but its puck drop is at most
+    ``lead_hours`` away or passed less than ``grace_hours`` ago. A session opened before puck drop then keeps a light
+    watcher that reruns the page once the game goes live (otherwise nothing refreshed until the 30-minute timer)."""
+    from datetime import datetime, timedelta, timezone
+    due = {str(x) for x in due_ids or ()}
+    for g in games or []:
+        gid = str(g.get('game_id') or '')
+        if not gid or gid in due or str(g.get('status') or '').upper() in ('OFF', 'FINAL', 'OVER'):
+            continue
+        try:
+            start = datetime.fromisoformat(str(g.get('start') or '').replace('Z', '+00:00'))
+        except ValueError:
+            continue
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        if start - timedelta(hours=lead_hours) <= now <= start + timedelta(hours=grace_hours):
+            return True
+    return False
+
+
 def game_label(game):
     ph = ng.phase(game)
     if ph == 'final':

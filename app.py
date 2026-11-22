@@ -536,7 +536,8 @@ def _np_tab_defaults(name):
                 '_v56_pbp': {}, '_v56_pollers': {}, '_v56_situ': None, '_v56_results': [], '_v56_by_key': {}, '_v56_live_n': 0,
                 '_v56_mem': st.session_state.setdefault('v56_rank_mem', {}),
                 'v56_collect': lambda force=False, scores=None: ({}, {}), 'v56_slate_results': lambda *a, **k: [],
-                'v56_model': lambda game, use_form=False: None, 'v56_updated': lambda gid: None}
+                'v56_model': lambda game, use_form=False: None, 'v56_updated': lambda gid: None,
+                'v56_pbp_due': lambda scores=None, now=None: (), '_v56_pbp_due0': (), '_v56_pbp_live0': (), '_v56_go_live': False}
     if name == 'home':
         _games = [g for g in ((np_snapshot or {}).get('games') or []) if isinstance(g, dict)]
         return {'np_games': _games, 'np_ranked': st.session_state.get('signals_ranked'), 'np_ready': False,
@@ -585,11 +586,28 @@ with safe_section('Scored tonight record'):
 def np_scorer_signature(rec):
     return tuple(sorted((p, r['goals']) for p, r in ((rec or {}).get('players') or {}).items()))
 
-@st.fragment(run_every=('45s' if _v56_live_n else None))
+# V6.1 fix: a session opened before puck drop had NO live timer (run_every was decided when no game was live), so goals,
+# scored-tonight badges and the live panels stayed empty until a manual reload or the 30-minute timer. While a slate game
+# is still to go live, a light watcher (60 s; score feed cached 25 s) reruns the page once, the moment one does.
+_np_watch_go_live = bool(not _v56_live_n and globals().get('_v56_go_live'))
+
+def np_go_live_changed():
+    try:
+        _due = v56_pbp_due(v56_scores_cached(np_day)[0])
+        if _due != _v56_pbp_due0:
+            return True
+        _pbp, _ = v56_collect(False)
+        return tuple(sorted(g for g, v in _pbp.items() if ng.phase(v) in ('live', 'shootout'))) != _v56_pbp_live0
+    except Exception:
+        return False
+
+@st.fragment(run_every=('45s' if _v56_live_n else '60s' if _np_watch_go_live else None))
 @safe_section('Scored tonight ticker')   # V6.1: st.rerun() inside still propagates (control flow is never caught)
 def np_scorer_watch():
     """Header chip; while a game is live it re-polls PBP (cached ~25 s) and reruns the app only when a new goal lands."""
     rec = st.session_state.get(sctn.STATE_KEY)
+    if _np_watch_go_live and np_go_live_changed():
+        st.rerun()
     if _v56_live_n:
         _pbp = None
         try:
