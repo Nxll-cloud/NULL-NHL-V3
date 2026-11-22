@@ -75,7 +75,17 @@ with _num_lp_box:
     st.caption(_num_lp.CAPTION+' ON: By Game rows are filtered to Life Path matches (union with any applied daily pattern) and the '
                'Date & arena match rows show each player’s Life Path. Rankings, threat scores and badges are unchanged.')
     _num_lp_rows,_num_lp_n,_num_lp_miss=_num_lp.table_rows(_gm_targets,_num_lp_entry) if _gm_targets is not None else ([],0,0)
-    v5.html_block(st,_num_lp.table_html(_num_lp_rows,_num_lp_entry,_num_lp_n,_num_lp_miss,loaded=_gm_targets is not None),extra_class='v58-num')
+    _num_lp_fk=_num_lp.filter_key(np_day)
+    _num_lp_fc,_num_lp_gc=st.columns([3,2],vertical_alignment='bottom')
+    with _num_lp_gc:
+        _num_lp_g=st.toggle(_num_lp.GROUP_LABEL,value=False,key=_num_lp.group_key(np_day))
+    with _num_lp_fc:
+        _num_lp_f=(st.segmented_control('Life Path matches',list(_num_lp.FILTERS),default='All',key=_num_lp_fk) if hasattr(st,'segmented_control')
+                   else st.radio('Life Path matches',list(_num_lp.FILTERS),horizontal=True,key=_num_lp_fk)) or 'All'
+    st.caption(_num_lp.FILTER_CAPTION)
+    v5.html_block(st,(_num_lp.table_html(_num_lp_rows,_num_lp_entry,_num_lp_n,_num_lp_miss,loaded=_gm_targets is not None) if _num_lp_f=='All' and not _num_lp_g
+                      else _num_lp.table_html(_num_lp.filter_rows(_num_lp_rows,_num_lp_entry,_num_lp_f),_num_lp_entry,_num_lp_n,_num_lp_miss,
+                                              loaded=_gm_targets is not None,which=_num_lp_f,total=len(_num_lp_rows),group=_num_lp_g)),extra_class='v58-num')
 if _analyses:  # V5.8: Player | Match type (date / arena) | Number
     if np_flags.show_gem_history(st.secrets):  # V5.9: saved-history strip (last 3 nights' arena-match scorers); hidden on any error
         try:

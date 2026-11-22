@@ -244,3 +244,90 @@ def test_apptest_numbers_tab_table_and_overlay_toggle(monkeypatch, tmp_path):
     tab = next(t for t in at.tabs if t.label == '🔮 Numbers')
     on = ' '.join([m.value for m in tab.markdown] + [h.value for h in tab.get('html')]) + ' '.join(c.value for c in tab.caption)
     assert 'Overlay ON (Life Path' in on
+
+
+# --- t213/t214: All/Day/Month/Year filter and Group by Life Path ---
+def _today_rows():
+    e = dp.entry_for(DAY)
+    ts = [{'player': f'P{i}', 'player_id': str(i), 'team': 'TOR', 'jersey': i, 'life_path': lp.chain(d), 'birth_date': d,
+           'values': {'ordinal': 100 + i, 'ordinal_root': 1}} for i, d in enumerate(
+           ['1989-09-29', '1997-07-26', None, '1989-07-18', '2004-07-09', '1990-12-24', '1992-01-16', '1995-03-12'])]
+    return e, *lp.table_rows(_slate(ts), e)
+
+
+def test_filter_rows_day_month_year_and_calendar_only_under_all():
+    e, rows, n, miss = _today_rows()
+    assert lp.filter_rows(rows, e, 'All') == rows
+    pl = lambda f: {r['player']: r['matched'] for r in lp.filter_rows(rows, e, f)}
+    assert pl('Day') == {'P3': ['Universal Day 43/7']}                       # 1989-07-18 -> 43/7
+    assert pl('Month') == {'P0': ['Month 11'], 'P6': ['Month 11'], 'P7': ['Universal Month 21/3']}   # which one is shown
+    assert pl('Year') == {'P5': ['Universal Year 10/1']}
+    assert 'P4' not in pl('Day') | pl('Month') | pl('Year')                   # Calendar Day 22/4 only under All
+    assert any(r['player'] == 'P4' for r in rows)
+    # a player matching several values appears under each relevant filter
+    multi = [dict(rows[0], player='M', life_path=(21, 3), steps=[21, 3], matched=['x'])]
+    multi.append(dict(rows[0], player='Y', life_path=(43, 7), steps=[43, 7], matched=['x']))
+    assert [r['player'] for r in lp.filter_rows(multi, e, 'Month')] == ['M'] and lp.filter_rows(multi, e, 'Month')[0]['matched'] == ['Universal Month 21/3']
+    assert [r['player'] for r in lp.filter_rows(multi, e, 'Day')] == ['Y']
+    both = [dict(rows[0], player='B', life_path=(10, 1), steps=[10, 1], matched=['x'])]   # 1 is in UY 10/1 (and UM? no: 21/3)
+    assert lp.filter_rows(both, e, 'Year')[0]['steps'] == [10, 1]
+
+
+def test_filter_table_counts_empty_states_and_all_identical():
+    e, rows, n, miss = _today_rows()
+    flat = lp.table_html(rows, e, n, miss)
+    assert lp.table_html(rows, e, n, miss, which='All', total=len(rows), group=False) == flat   # All = identical
+    d = lp.table_html(lp.filter_rows(rows, e, 'Day'), e, n, miss, which='Day', total=len(rows))
+    assert f'1 of {len(rows)} matches (Day)' in d and d.count('<tr><td>') == 1
+    empty = lp.table_html([], e, n, miss, which='Day', total=len(rows))
+    assert 'No player’s Life Path matches today’s Day filter (Universal Day 43/7).' in empty and f'0 of {len(rows)} matches' in empty
+    m = lp.table_html([], e, n, miss, which='Month', total=0)
+    assert 'Universal Month 21/3 or Month 11' in m
+    custom = {'date': DAY, 'label': 'Saved', 'numbers': (5,), 'breakdown': ()}
+    assert 'no Year value in this pattern' in lp.table_html([], custom, 3, 0, which='Year', total=0)
+    assert 'Calendar Day' in lp.FILTER_CAPTION and 'only under All' in lp.FILTER_CAPTION
+    assert lp.filter_key(DAY) != lp.group_key(DAY) != lp.toggle_key(DAY)
+
+
+def test_group_by_life_path_order_counts_master_tag_and_off_identical():
+    e, rows, n, miss = _today_rows()
+    g = lp.groups(rows)
+    assert [k for k, _ in g] == sorted(k for k, _ in g) and all(rs for _, rs in g)
+    assert [k for k, _ in lp.groups([{'life_path': (33,)}, {'life_path': (22,)}, {'life_path': (11,)}, {'life_path': (9,)}, {'life_path': (1,)}])] == [1, 9, 11, 22, 33]
+    html = lp.table_html(rows, e, n, miss, group=True)
+    assert html.count('class="lp-grp"') == len(g) and html.count('<tr><td>') == len(rows)
+    assert 'Life Path 11</b> <span class="lp-master">Master</span> · 2 players' in html
+    assert 'Life Path 7</b> · 1 player<' in html and '<span class="lp-master">Master</span> · 1 player</td></tr><tr><td><b>P4' in html
+    assert html.index('Life Path 1</b>') < html.index('Life Path 7</b>') < html.index('Life Path 11</b>') < html.index('Life Path 22</b>')
+    assert lp.GROUP_STYLE in html and lp.GROUP_STYLE not in lp.table_html(rows, e, n, miss)
+    assert 'lp-grp' not in lp.table_html(rows, e, n, miss, group=False)
+    fg = lp.table_html(lp.filter_rows(rows, e, 'Month'), e, n, miss, which='Month', total=len(rows), group=True)
+    assert fg.count('class="lp-grp"') == 2 and 'Life Path 3</b> · 1 player' in fg and 'Life Path 11' in fg
+
+
+def test_numbers_tab_filter_and_group_wiring():
+    src = open('tabs/numbers.py', encoding='utf-8').read()
+    assert "default='All',key=_num_lp_fk" in src and "_num_lp_fk=_num_lp.filter_key(np_day)" in src
+    assert "st.toggle(_num_lp.GROUP_LABEL,value=False,key=_num_lp.group_key(np_day))" in src
+    assert "if _num_lp_f=='All' and not _num_lp_g" in src
+
+
+def test_apptest_lifepath_filter_and_group(monkeypatch, tmp_path):
+    """Offline AppTest: filter defaults to All, Day narrows the table, grouping adds group headers; no exception."""
+    import streamlit as st
+    from v54_testkit import run_app
+    st.cache_data.clear()
+    monkeypatch.setattr(lp, 'fetch_map', lambda teams, getter=None, pids=(), cap=80: ({str(p): '1989-09-29' for p in pids}, []))
+    at = run_app(monkeypatch, tmp_path)
+    assert not at.exception
+    sc = next(w for w in at.get('button_group') if str(w.key).startswith('v61_lifepath_filter:'))
+    assert sc.value in ('All', ['All'])
+    html = lambda: ' '.join(h.value for t in at.tabs if t.label == '🔮 Numbers' for h in t.get('html'))
+    sc.set_value('Day').run()
+    assert not at.exception and '(Day)' in html()
+    g = next(t for t in at.get('toggle') if str(t.key).startswith('v61_lifepath_group:'))
+    assert g.value is False
+    g.set_value(True).run()
+    assert not at.exception
+    h = html()
+    assert '(Day)' in h and ('class="lp-grp"' in h or 'Day filter' in h)

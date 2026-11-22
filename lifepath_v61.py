@@ -238,6 +238,57 @@ def table_rows(slate_targets, entry):
     return rows, n, miss
 
 
+FILTERS = ('All', 'Day', 'Month', 'Year')
+FILTER_VALUES = {'Day': ('universal day',), 'Month': ('universal month', 'month'), 'Year': ('universal year',)}
+FILTER_CAPTION = ('Filter: Day = Universal Day chain · Month = Universal Month chain or the plain Month · '
+                  'Year = Universal Year chain · All = every match (Calendar Day matches appear only under All).')
+
+
+def filter_key(day):
+    return f'v61_lifepath_filter:{day}'
+
+
+def filter_rows(rows, entry, which='All'):
+    """Rows whose Life Path chain hits the chosen day value(s); matched/steps narrowed to those values. All = rows unchanged."""
+    if which not in FILTER_VALUES:
+        return list(rows)
+    want = FILTER_VALUES[which]
+    vals = [(a, b, nums) for a, b, nums in day_values(entry) if str(a).strip().casefold() in want]
+    out = []
+    for r in rows:
+        c = tuple(r.get('life_path') or ())
+        m = [f'{a} {b}' for a, b, nums in vals if set(c) & nums]
+        if m:
+            out.append(dict(r, matched=m, steps=[x for x in r.get('steps') or () if any(x in nums for _a, _b, nums in vals)]))
+    return out
+
+
+def _filter_target(entry, which):
+    vals = [f'{a} {b}' for a, b, _n in day_values(entry) if str(a).strip().casefold() in FILTER_VALUES.get(which, ())]
+    return ' or '.join(vals) or f'no {which} value in this pattern'
+
+
+GROUP_LABEL = 'Group by Life Path'
+GROUP_STYLE = ('<style>.num-lp tr.lp-grp td{background:rgba(155,92,255,.16);color:#e6dcff;font-size:.8rem;padding:7px 6px;'
+               'border-top:1px solid rgba(155,92,255,.4)}.num-lp .lp-master{display:inline-block;margin-left:4px;padding:0 6px;'
+               'border:1px solid rgba(255,214,102,.6);border-radius:999px;color:#ffd666;font-size:.66rem;letter-spacing:.05em;'
+               'text-transform:uppercase;vertical-align:1px}</style>')
+
+
+def group_key(day):
+    return f'v61_lifepath_group:{day}'
+
+
+def groups(rows):
+    """[(final Life Path, rows)] ordered 1-9 then 11, 22, 33; empty groups omitted, row order kept."""
+    out = {}
+    for r in rows:
+        c = tuple(r.get('life_path') or ())
+        if c:
+            out.setdefault(c[-1], []).append(r)
+    return sorted(out.items())
+
+
 TABLE_STYLE = ('<style>.num-lp{min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;'
                'border:1px solid rgba(155,92,255,.3);background:linear-gradient(135deg,rgba(155,92,255,.09),rgba(0,229,255,.035))}'
                '.num-lp .lp-w{max-height:560px;overflow-y:auto;overflow-x:hidden}'
@@ -254,7 +305,7 @@ TABLE_STYLE = ('<style>.num-lp{min-width:0;max-width:100%;box-sizing:border-box;
                '.num-lp table{font-size:.8rem}}</style>')
 
 
-def table_html(rows, entry, n_players, n_missing, loaded=True):
+def table_html(rows, entry, n_players, n_missing, loaded=True, which='All', total=None, group=False):
     e = lambda x: html.escape(str(x))
     nums = ', '.join(str(x) for x in entry.get('numbers') or ())
     head = (f'<div class="sh"><h3>Life Path matches · {e(entry.get("label", ""))}</h3><p>Every player on this slate whose Life Path '
@@ -263,21 +314,29 @@ def table_html(rows, entry, n_players, n_missing, loaded=True):
         body = '<p class="lp-empty">Life Path matches appear once this slate’s rankings are loaded.</p>'
     elif n_players and n_missing == n_players:
         body = '<p class="lp-empty">No birthdates are available for this slate yet, so no Life Path can match. Nothing is guessed.</p>'
+    elif not rows and which in FILTER_VALUES:
+        body = f'<p class="lp-empty">No player’s Life Path matches today’s {e(which)} filter ({e(_filter_target(entry, which))}).</p>'
     elif not rows:
         body = '<p class="lp-empty">No player’s Life Path matches today’s numbers.</p>'
     else:
         import jersey_v61 as _jy
-        trs = ''.join(
+        tr = lambda r: (
             f'<tr><td><b>{e(r["player"])}</b>{_jy.tag(r)}<span class="lp-sub">Eng {e(r["eng"] if r["eng"] is not None else "—")} → '
             f'{e(r["eng_root"] if r["eng_root"] is not None else "—")}</span></td><td>{e(r["team"])}</td>'
             f'<td class="lp-c" title="Birthdate {e(r["birth_date"] or "")}">{e(text(r["life_path"]))}</td>'
             f'<td class="lp-m">{e("; ".join(r["matched"]))}<br><small>chain step{"s" if len(r["steps"]) != 1 else ""} hit: {e(" · ".join(str(s) for s in r["steps"]))}</small></td>'
-            f'<td class="lp-g lp-hg">Eng {e(r["eng"] if r["eng"] is not None else "—")} → {e(r["eng_root"] if r["eng_root"] is not None else "—")}</td></tr>'
-            for r in rows)
+            f'<td class="lp-g lp-hg">Eng {e(r["eng"] if r["eng"] is not None else "—")} → {e(r["eng_root"] if r["eng_root"] is not None else "—")}</td></tr>')
+        trs = ''.join(tr(r) for r in rows) if not group else ''.join(
+            f'<tr class="lp-grp"><td colspan="5"><b>Life Path {g}</b>'
+            + (' <span class="lp-master">Master</span>' if g in MASTERS else '')
+            + f' · {len(rs)} player{"s" if len(rs) != 1 else ""}</td></tr>' + ''.join(tr(r) for r in rs)
+            for g, rs in groups(rows))
         body = ('<div class="lp-w"><table>'
                 '<thead><tr><th class="lp-wp">Player</th><th class="lp-wt">Team</th><th class="lp-wl">Life Path</th><th>Matched day value</th><th class="lp-hg">Gematria</th></tr></thead>'
                 f'<tbody>{trs}</tbody></table></div>')
-    note = (f'{len(rows)} match{"es" if len(rows) != 1 else ""} · {n_players - n_missing} of {n_players} players have a birthdate'
+    cnt = (f'{len(rows)} of {total} match{"es" if total != 1 else ""} ({which})' if which in FILTER_VALUES and total is not None
+           else f'{len(rows)} match{"es" if len(rows) != 1 else ""}')
+    note = (f'{cnt} · {n_players - n_missing} of {n_players} players have a birthdate'
             + (f' · {n_missing} without a birthdate (never match)' if n_missing else '')) if loaded else ''
-    return (TABLE_STYLE + '<section class="sec num-lp" aria-label="Life Path matches">' + head + body
+    return (TABLE_STYLE + (GROUP_STYLE if group and loaded else '') + '<section class="sec num-lp" aria-label="Life Path matches">' + head + body
             + (f'<p class="lp-note">{e(note)}</p>' if note else '') + f'<p class="lp-note">{e(CAPTION)}</p></section>')
