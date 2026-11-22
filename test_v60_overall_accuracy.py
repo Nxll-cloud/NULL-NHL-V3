@@ -127,11 +127,12 @@ def test_np_preserves_existing_summary_metric_for_old_compacted_entry():
 
 def test_untracked_models_do_not_borrow_static_examples_or_offline_backtests():
     rows=indexed()
-    for k in ('nextgoal','winprob','storyline','overlap','sleepers','thelist','firstgoal'):
+    for k in ('nextgoal','winprob','storyline','overlap','sleepers','firstgoal'):
         assert rows[k]['accuracy'] is None and rows[k]['predictions']==0
     html=oa.section_html(list(rows.values()))
     assert '5/7' not in html and '0.0%' not in html
     assert len(rows)==len(set(r['label'] for r in rows.values()))
+    assert 'The List / Nyah' not in html and 'thelist' not in rows
     assert 'Goal Threat Index' not in html # Not an independent named model in this app.
     assert 'not lifetime accuracy' in html and '90 days' in html and '60 days' in html
 

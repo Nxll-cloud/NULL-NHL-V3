@@ -15,7 +15,7 @@ LABELS = {
     'blend': 'Blend · experimental', 'books': 'Books', 'firstgoal': 'First Goal',
     'gematria': 'Gematria matches · research signals', 'nextgoal': 'Live Next Goal',
     'winprob': 'Game winner', 'storyline': 'Research Storylines', 'overlap': 'Research Overlap',
-    'sleepers': 'Research Statistical Sleepers', 'thelist': 'The List / Nyah · reference only',
+    'sleepers': 'Research Statistical Sleepers',
 }
 CAPTION = ('Correct ÷ all completed tracked predictions, pooled across nights (not an average of nightly rates). '
            'Model/NP/Blend/Books: frozen top-10 anytime scorers; First Goal: one favourite per game; '
