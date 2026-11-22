@@ -38,7 +38,8 @@ def get_roster(team, season=SEASON):
             players.append({'id': p.get('id'),
                             'Player': (p.get('firstName', {}).get('default', '') + ' ' + p.get('lastName', {}).get('default', '')).strip(),
                             'Team': team, 'Position': p.get('positionCode', ''),
-                            'Jersey': p.get('sweaterNumber')})   # t201: raw sweater number (None if absent)
+                            'Jersey': p.get('sweaterNumber'),   # t201: raw sweater number (None if absent)
+                            'Birth date': p.get('birthDate')})   # t209: YYYY-MM-DD for the Life Path layer (None if absent)
     return [p for p in players if p['id']]
 
 

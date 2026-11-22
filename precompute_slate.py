@@ -24,6 +24,19 @@ def fill_jersey(ranked, errors, fetch=None):
         errors.append(f"Jersey: {type(exc).__name__}")
         return [dict(r, Jersey=jy.norm(r.get("Jersey"))) for r in ranked]
 
+def fill_birthdates(ranked, errors, fetch=None):
+    """t209: fill any missing 'Birth date' from the public NHL roster feed (landing page fallback) by Player ID.
+    Never raises; a failed fetch leaves the value null. Life Path display layer only."""
+    import lifepath_v61 as lp
+    try:
+        teams, pids = lp.missing(ranked)
+        bmap, problems = (fetch or lp.fetch_map)(teams, pids=pids) if pids else ({}, [])
+        errors.extend(str(p) for p in problems)
+        return lp.fill_records(ranked, bmap)
+    except Exception as exc:
+        errors.append(f"Birthdates: {type(exc).__name__}")
+        return [dict(r, **{"Birth date": lp.norm_date(r.get("Birth date"))}) for r in ranked]
+
 def compute(day, include_history=True):
     games = get_schedule(day)
     if not games:
@@ -58,6 +71,7 @@ def compute(day, include_history=True):
     if not ranked:
         raise RuntimeError("No eligible rankings; retaining previous snapshot")
     ranked = fill_jersey(ranked, errors)
+    ranked = fill_birthdates(ranked, errors)
     history = []
     if include_history:
         try:

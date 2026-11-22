@@ -54,18 +54,36 @@ _nb_ok=isinstance(_nb_ranked,pd.DataFrame) and st.session_state.get('signals_day
 import jersey_v61 as _num_jy
 if _nb_ok:  # t201: render-time fallback for snapshots saved before the Jersey column (cached NHL roster map, by Player ID; never raises)
     _nb_ranked=_num_jy.fill_frame(_nb_ranked,lambda _t:v55_rosters_cached(_t)[0])
+import lifepath_v61 as _num_lp
+if _nb_ok:  # t209: same render-time fallback for birthdates (cached NHL roster feed + landing fallback, by Player ID; never raises)
+    _nb_ranked=_num_lp.fill_frame(_nb_ranked,lambda _t,_p:v61_births_cached(_t,_p))
 _gm_targets=num_slate_targets(_analyses,_nb_ranked,np_day) if (_nb_ok and _analyses) else None
 _nb_all=numboard.slate_boards(_gm_targets) if _gm_targets is not None else None
 import pos_tag_v59 as _postag
 _num_pmap=_postag.pos_map(_nb_ranked) if _nb_ok else None  # V5.9: real NHL positionCode from rankings -> compact tag after names (display only)
 v5.html_block(st,numv58.tonight_strip(np_day,_day_num,_analyses,_nb_all),extra_class='v58-num')
+# t209/t210/t212: Life Path layer. Independent, default-off overlay (By Game rows + match table) and an always-visible,
+# read-only Life Path match table for the slate date's pattern (saved entry if present, else auto-computed).
+_num_lp_entry=_num_dp.entry_for(np_day,_num_daily)
+_num_lp_box=st.container(border=True)
+with _num_lp_box:
+    st.markdown('**Life Path overlay** · OFF by default; independent of the daily pattern filter')
+    _num_lp_on=st.toggle(f'Show Life Path (birthdate numerology) vs {_num_lp_entry["label"]} ({_num_lp_entry["date"]}) · '
+                         +', '.join(str(_n) for _n in _num_lp_entry['numbers']),value=False,key=_num_lp.toggle_key(np_day))
+    _num_lp_applied=sorted(st.session_state.get(_num_dp.applied_key(np_day)) or ())
+    _num_lp_sel=([_num_lp_entry]+[_num_dp.entry_for(_i,_num_daily) for _i in _num_lp_applied if _i!=_num_lp_entry['date']]) if _num_lp_on else None
+    st.caption(_num_lp.CAPTION+' ON: By Game rows are filtered to Life Path matches (union with any applied daily pattern) and the '
+               'Date & arena match rows show each player’s Life Path. Rankings, threat scores and badges are unchanged.')
+    _num_lp_rows,_num_lp_n,_num_lp_miss=_num_lp.table_rows(_gm_targets,_num_lp_entry) if _gm_targets is not None else ([],0,0)
+    v5.html_block(st,_num_lp.table_html(_num_lp_rows,_num_lp_entry,_num_lp_n,_num_lp_miss,loaded=_gm_targets is not None),extra_class='v58-num')
 if _analyses:  # V5.8: Player | Match type (date / arena) | Number
     if np_flags.show_gem_history(st.secrets):  # V5.9: saved-history strip (last 3 nights' arena-match scorers); hidden on any error
         try:
             v5.html_block(st,gemlog.strip_html(gemlog.last_n_days(3,'arena',np_day),pmap=_num_pmap),extra_class='v58-num')
         except Exception:
             pass
-    v5.html_block(st,gmx.table_html(*gmx.match_table(_gm_targets,_day_num),_day_num,loaded=_gm_targets is not None,pmap=_num_pmap),extra_class='v58-num')
+    v5.html_block(st,(gmx.table_html(*gmx.match_table(_gm_targets,_day_num),_day_num,loaded=_gm_targets is not None,pmap=_num_pmap,lifepath=_num_lp_sel)
+                      if _num_lp_sel else gmx.table_html(*gmx.match_table(_gm_targets,_day_num),_day_num,loaded=_gm_targets is not None,pmap=_num_pmap)),extra_class='v58-num')
 with st.expander('ⓘ How numbers are calculated'):
     st.write('Universal day: sum every digit of YYYY-MM-DD and reduce to one digit. English ordinal: A=1 through Z=26. Full reduction: reduce each letter to a single digit, sum, and reduce again. Reverse ordinal: A=26 through Z=1. Punctuation and spaces are ignored. Arena names come from the game schedule.')
 if not _analyses:
@@ -106,11 +124,17 @@ else:
             st.caption('By Game player rows only, after the existing per-game limit and top-pick pinning. '
                        'No replacement picks or reranking; threat badges and pick labels keep their baseline meaning. '
                        'Other views and the other listed reference patterns are unchanged.')
-            _num_base_count,_num_match_count=numv58.overlay_counts(_nb_boards,_nb_mp,patterns=_num_sel)
-            st.caption(f'Overlay {"ON ("+str(len(_num_sel))+" selected)" if _num_overlay else "OFF"} · Baseline: {_num_base_count} selections · '
-                       f'Matching: {_num_match_count} · Shown: {_num_match_count if _num_overlay else _num_base_count}')
-            _num_board_html=(numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap,overlay=_num_sel) if _num_overlay else
-                             numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap))
+            if _num_lp_sel:   # t210: Life Path overlay on (union with any applied daily pattern)
+                _num_base_count,_num_match_count=numv58.overlay_counts(_nb_boards,_nb_mp,patterns=_num_sel,lifepath=_num_lp_sel)
+                st.caption(f'Overlay ON (Life Path{" + "+str(len(_num_sel))+" daily selected" if _num_sel else ""}) · Baseline: {_num_base_count} selections · '
+                           f'Matching: {_num_match_count} · Shown: {_num_match_count}')
+                _num_board_html=numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap,overlay=_num_sel,lifepath=_num_lp_sel)
+            else:
+                _num_base_count,_num_match_count=numv58.overlay_counts(_nb_boards,_nb_mp,patterns=_num_sel)
+                st.caption(f'Overlay {"ON ("+str(len(_num_sel))+" selected)" if _num_overlay else "OFF"} · Baseline: {_num_base_count} selections · '
+                           f'Matching: {_num_match_count} · Shown: {_num_match_count if _num_overlay else _num_base_count}')
+                _num_board_html=(numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap,overlay=_num_sel) if _num_overlay else
+                                 numv58.boards_html(_nb_boards,_day_num,_nb_mp,pmap=_num_pmap))
             v5.html_block(st,_num_board_html,extra_class='v58-num')
             st.caption('Threat score = min(100, round(100 × (3·D + 2·A + 1·T + 2·J) / 6)): D = day-number match, A = arena match, T = team match, '
                        'J = jersey match (raw sweater number is one of the slate date’s pattern numbers; new, additive only, not part of the historical backtest), each counted once (0 or 1). '
@@ -155,10 +179,10 @@ else:
                 ordered=_v50_sort(targets)
                 st.markdown(ui.team_head(code,name,f'{len(ordered)} roster players shown in ranking'),unsafe_allow_html=True)
                 for ix,t in enumerate(ordered[:_limit],1):
-                    st.markdown(ui.target_row(ix,t['player'],code,t['player_id'],t['matches'],t['form'],len(t['day']),len(t['team_matches']),len(t['arena_matches']),season=SEASON,pos_tag=_postag.tag_for(_num_pmap,t['player_id'],code,t['player'])+_num_jy.tag(t)),unsafe_allow_html=True)
+                    st.markdown(ui.target_row(ix,t['player'],code,t['player_id'],t['matches'],t['form'],len(t['day']),len(t['team_matches']),len(t['arena_matches']),season=SEASON,pos_tag=_postag.tag_for(_num_pmap,t['player_id'],code,t['player'])+_num_jy.tag(t)+_num_lp.tag(t)),unsafe_allow_html=True)
                     _wpc=_postag.lookup(_num_pmap,t['player_id'],code,t['player'])
                     with st.expander(f'Why {t["player"]}{" ("+_wpc+")" if _wpc else ""}? · {code}',expanded=False):
-                        st.caption(f'Player full-name roots: English {t["values"]["ordinal_root"]}, reduction {t["values"]["reduction_root"]}, reverse {t["values"]["reverse_root"]} · Jersey {_num_jy.text(t.get("jersey"))}.')
+                        st.caption(f'Player full-name roots: English {t["values"]["ordinal_root"]}, reduction {t["values"]["reduction_root"]}, reverse {t["values"]["reverse_root"]} · Jersey {_num_jy.text(t.get("jersey"))} · Life Path {_num_lp.text(t.get("life_path"))}'+(f' (born {t["birth_date"]})' if t.get('birth_date') else '')+'.')
                         st.write(f'Jersey: {", ".join(t.get("jersey_hit") or []) or "no match"} (raw number vs the day’s pattern numbers; new, not backtested)')
                         st.write(f'Day {_day_num}: {", ".join(t["day"]) or "no match"}')
                         st.write(f'Team: {", ".join(t["team_matches"]) or "no match"}')
@@ -168,7 +192,7 @@ else:
                     with st.expander(f'See {len(ordered)-_limit} more · {code}'):
                         for t in ordered[_limit:]:
                             _pc=_postag.lookup(_num_pmap,t['player_id'],code,t['player'])
-                            st.write(f'{t["player"]} {_num_jy.text(t.get("jersey"))}{" ("+_pc+")" if _pc else ""} · {t["matches"]} matches · Form {ui.format_form_pct(t["form"])}')
+                            st.write(f'{t["player"]} {_num_jy.text(t.get("jersey"))} · LP {_num_lp.text(t.get("life_path"))}{" ("+_pc+")" if _pc else ""} · {t["matches"]} matches · Form {ui.format_form_pct(t["form"])}')
             for item in _targets:
                 r=item['game']; away,home=r['away'],r['home']
                 st.markdown(ui.matchup_bar(away,home,format_game_time(r['start']),r['arena']),unsafe_allow_html=True)
@@ -200,8 +224,8 @@ else:
                 v=num_gematria(player.get('Player',''))
                 methods=[k.replace('_root','').replace('_',' ') for k in ('ordinal_root','reduction_root') if v[k]==_day_num]  # English only (== reduction); Reverse never counts for the day
                 if methods:
-                    matched.append({'Player':player['Player'],'Jersey':_num_jy.text(player.get('Jersey')),'Pos':_postag.code(player.get('Position')) or '','Team':player.get('Team',''),'Matching methods':', '.join(methods)})
-            st.dataframe(pd.DataFrame(matched,columns=['Player','Jersey','Pos','Team','Matching methods']),hide_index=True,use_container_width=True)
+                    matched.append({'Player':player['Player'],'Jersey':_num_jy.text(player.get('Jersey')),'Life Path':_num_lp.text(_num_lp.chain(player.get(_num_lp.COLUMN))),'Pos':_postag.code(player.get('Position')) or '','Team':player.get('Team',''),'Matching methods':', '.join(methods)})
+            st.dataframe(pd.DataFrame(matched,columns=['Player','Jersey','Life Path','Pos','Team','Matching methods']),hide_index=True,use_container_width=True)
             st.caption('Number matches only, not goal-scoring recommendations.')
         else:
             st.info('Player names will appear after rankings for this date are loaded.')

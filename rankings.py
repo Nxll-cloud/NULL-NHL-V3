@@ -4,6 +4,11 @@ def _jersey(v):
     return norm(v)
 
 
+def _birth(v):
+    from lifepath_v61 import norm_date
+    return norm_date(v)
+
+
 def rank_players(rows, min_gp=3):
     ranked = []
     for r in rows:
@@ -32,6 +37,7 @@ def rank_players(rows, min_gp=3):
             "Prior GP": gp,
             "Data status": r["Data status"],
             "Jersey": _jersey(r.get("Jersey")),   # t201: sweater number (int) or None
+            "Birth date": _birth(r.get("Birth date")),   # t209: 'YYYY-MM-DD' or None (Life Path display layer only)
         })
     ranked.sort(key=lambda x: (-x["Form Index"], -x["Shots/G L5"], x["Player"]))
     return ranked

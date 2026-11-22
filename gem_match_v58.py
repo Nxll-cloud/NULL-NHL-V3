@@ -107,6 +107,8 @@ def match_table(slate_targets, day_num):
                        'calc': m['cells'], 'arena': m['arena']}
                 if 'jersey' in t:   # t201: display only ('#21' / '—'); never changes which rows match
                     row['jersey'] = t.get('jersey')
+                if 'life_path' in t:   # t209: display/overlay only; never changes which rows match
+                    row['life_path'], row['birth_date'] = t.get('life_path'), t.get('birth_date')
                 rows.append(row)
     rows = [r for r in rows if r['Match type'] in MATCH_TYPES]   # hard filter: nothing but date / arena
     assert all(r['Match type'] in MATCH_TYPES for r in rows)
@@ -114,7 +116,16 @@ def match_table(slate_targets, day_num):
     return rows, missing
 
 
-def table_html(rows, missing, day_num, loaded=True, pmap=None):
+def _lp_cell(r, lifepath):
+    """t210: Life Path tag + attribution for one row when the Life Path overlay is on ('' otherwise)."""
+    if not lifepath:
+        return ''
+    import lifepath_v61 as _lp
+    why = _lp.reason(r, lifepath)
+    return _lp.tag(r) + (f'<small class="gm-lp">{html.escape(why)}</small>' if why else '')
+
+
+def table_html(rows, missing, day_num, loaded=True, pmap=None, lifepath=None):
     """Compact three-column table (Player | Match type | Number) for st.html; scrolls vertically, never horizontally."""
     e = html.escape
     head = (f'<div class="sh"><h3>Date &amp; arena matches</h3><p>Players whose name number equals tonight’s universal day '
@@ -125,7 +136,7 @@ def table_html(rows, missing, day_num, loaded=True, pmap=None):
         body = '<div class="gm-empty">No player matches tonight’s date or arena numbers.</div>'
     else:
         ptag = (lambda r: _pos.tag_for(pmap, r.get('player_id'), r.get('team'), r.get('Player'))) if pmap is not None else (lambda r: '')
-        trs = ''.join(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(r["Player"]))}</b>{_jy.tag(r)}{ptag(r)}'
+        trs = ''.join(f'<tr class="gm-r"><td class="gm-p"><b>{e(str(r["Player"]))}</b>{_jy.tag(r)}{_lp_cell(r, lifepath)}{ptag(r)}'
                       + f'</td><td><span class="gm-t {r["Match type"]}">{r["Match type"]}</span></td>'
                       f'<td class="gm-n">{int(r["Number"])}</td></tr>'
                       + (f'<tr class="gm-c"><td colspan="3" title="{e(calc_title(r))}">{e(calc_line(r))}</td></tr>' if r.get('calc') else '')
@@ -136,4 +147,12 @@ def table_html(rows, missing, day_num, loaded=True, pmap=None):
     note = f'{nd} date · {na} arena'
     if missing:
         note += f' · no arena number for {e(", ".join(missing))} (no venue in the NHL schedule)'
+    if lifepath:   # t210: overlay summary; with the Life Path overlay off the section is unchanged
+        import lifepath_v61 as _lp
+        nl = len({r.get('player_id') or r['Player'] for r in rows if _lp.reason(r, lifepath)})
+        note += f' · Life Path overlay ON: {nl} of these players also match by Life Path'
+        style = ('<style>.v58-gm .gm-lp{display:block;color:#c9b6ff;font-size:.74rem;overflow-wrap:anywhere}'
+                 '.v58-gm .npr-lp{color:#d9caff;font-weight:700;font-size:.74em;margin-left:6px;white-space:nowrap}'
+                 '.v58-gm .npr-lp.none{color:#94a3b8;font-weight:600}</style>')
+        return f'{style}<section class="sec v58-gm">{head}{body}<p class="gm-note">{note}</p></section>'
     return f'<section class="sec v58-gm">{head}{body}<p class="gm-note">{note}</p></section>'

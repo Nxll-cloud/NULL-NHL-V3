@@ -279,10 +279,24 @@ def _overlay_reason(p, overlay):
     return _dp.reason(p, overlay)
 
 
-def overlay_counts(boards, model_p=None, pin=True, patterns=None):
+def _lp_reason(p, lifepath):
+    import lifepath_v61 as _lp
+    return _lp.reason(p, lifepath)
+
+
+def _row_reason(p, overlay, lifepath=None):
+    """t210: union of the daily/legacy overlay reason and the independent Life Path overlay reason (None = no match)."""
+    parts = [r for r in ((_overlay_reason(p, overlay) if overlay else None), (_lp_reason(p, lifepath) if lifepath else None)) if r]
+    return '; '.join(parts) or None
+
+
+def overlay_counts(boards, model_p=None, pin=True, patterns=None, lifepath=None):
     """Count the SAME already-selected displayed rows (after limits/pinning), not a fresh candidate pool."""
     ranks = _board_ranks(boards, model_p)
     rows = [p for b in boards for p in _shown_players(b, ranks, pin)]
+    if lifepath:   # t210: Life Path overlay on (alone or with daily patterns): union of both
+        pats = list(patterns) if patterns else None
+        return len(rows), sum(_row_reason(p, pats, lifepath) is not None for p in rows)
     if patterns is not None:
         return len(rows), (sum(_overlay_reason(p, list(patterns)) is not None for p in rows) if patterns else 0)
     return len(rows), sum(overlay_match(p) is not None for p in rows)
@@ -293,20 +307,25 @@ def _jersey_tag(p):
     return _jy.tag(p)
 
 
-def player_row(p, rank=None, pos_tag='', overlay_reason=None):
+def _lp_tag(p):
+    import lifepath_v61 as _lp
+    return _lp.tag(p)
+
+
+def player_row(p, rank=None, pos_tag='', overlay_reason=None, life_path=False):
     v = p.get('values') or {}
     roots = ' · '.join(f'{short} {v.get(field, "—")}' for _, field, short in METHOD_FIELD)
     pk = f' {PICK_LABEL[rank][2]}' if rank in PICK_LABEL else ''
     return (f'<li class="npr t-{p["tier"]}{pk}" style="--c:{p["colour"]}"><span class="npr-ring" style="--to:{p["threat"] * 3.6:.0f}deg" title="Threat {p["threat"]}/100">'
             f'<span>{TIER_ICON.get(p["tier"], "")}</span></span>'
-            f'<div class="npr-id"><span class="npr-nl"><b class="npr-name">{esc(p["player"])}</b>{_jersey_tag(p)}{pos_tag}{pick_badge(rank)}</span><small>{esc(p["team"])} · <span class="tn">{esc(roots)}</span></small>'
+            f'<div class="npr-id"><span class="npr-nl"><b class="npr-name">{esc(p["player"])}</b>{_jersey_tag(p)}{_lp_tag(p) if life_path else ""}{pos_tag}{pick_badge(rank)}</span><small>{esc(p["team"])} · <span class="tn">{esc(roots)}</span></small>'
             + (f'<small class="npr-overlay">Overlay match · {esc(overlay_reason)}</small>' if overlay_reason else '') + '</div>'
             f'<div class="npr-m">{match_chips(p)}</div>'
             f'<div class="npr-s"><strong class="tn">{p["threat"]}</strong><small>{TIER_ICON.get(p["tier"], "")} {p["tier"]}'
             + (f' · Eng {int(p["eng_total"])}' if p.get('eng_total') is not None else '') + '</small></div></li>')
 
 
-def game_board(board, day_num, ranks=None, pin=True, pmap=None, overlay=False):
+def game_board(board, day_num, ranks=None, pin=True, pmap=None, overlay=False, lifepath=None):
     g = board['game']
     a, h = g['away'], g['home']
     when = v5.et_time(g.get('start')) if g.get('start') else ''
@@ -323,10 +342,16 @@ def game_board(board, day_num, ranks=None, pin=True, pmap=None, overlay=False):
     ranks = ranks or {}
     players = _shown_players(board, ranks, pin)
     baseline_count = len(players)
-    if overlay:
-        players = [p for p in players if _overlay_reason(p, overlay) is not None]
-    rows = ''.join(player_row(p, ranks.get(_pkey(p)), _pos.tag_for(pmap, p.get('player_id'), p.get('team'), p.get('player'), p) if pmap is not None else '',
-                              _overlay_reason(p, overlay) if overlay else None) for p in players)
+    if lifepath:   # t210: Life Path overlay (independent toggle): union with any daily/legacy overlay
+        players = [p for p in players if _row_reason(p, overlay, lifepath) is not None]
+        rows = ''.join(player_row(p, ranks.get(_pkey(p)), _pos.tag_for(pmap, p.get('player_id'), p.get('team'), p.get('player'), p) if pmap is not None else '',
+                                  _row_reason(p, overlay, lifepath), life_path=True) for p in players)
+        overlay = overlay or lifepath   # truthy: empty-state and summary text use the overlay wording
+    else:
+        if overlay:
+            players = [p for p in players if _overlay_reason(p, overlay) is not None]
+        rows = ''.join(player_row(p, ranks.get(_pkey(p)), _pos.tag_for(pmap, p.get('player_id'), p.get('team'), p.get('player'), p) if pmap is not None else '',
+                                  _overlay_reason(p, overlay) if overlay else None) for p in players)
     rows = rows or ('<li class="npr none">0 overlay matches in the current selection.</li>' if overlay else '<li class="npr none">No ranked players.</li>')
     effect = (f'<p class="npr-overlay-summary">Overlay ON · {len(players)} of {baseline_count} current selections shown</p>' if overlay else '')
     return (f'<section class="sec ngb{" ahit" if board["arena_hit"] else ""}"><header class="ngb-h">{v5.logo(a, "tl")}<h4>{esc(a)} <span>@</span> {esc(h)}</h4>{v5.logo(h, "tl")}'
@@ -335,13 +360,20 @@ def game_board(board, day_num, ranks=None, pin=True, pmap=None, overlay=False):
             f'{effect}<ol class="ngb-l">{rows}</ol></section>')
 
 
-def boards_html(boards, day_num, model_p=None, pin=True, pmap=None, overlay=False):
+def boards_html(boards, day_num, model_p=None, pin=True, pmap=None, overlay=False, lifepath=None):
     """Legend + every game board. Each team's TOP PICK / RUNNER-UP comes from all lists on the page (every board).
     overlay: False/[] = baseline; True = original 4,10,0,9,3,6 root rule; list of daily registry entries = union filter."""
     if isinstance(overlay, tuple):
         overlay = list(overlay)
     ranks = _board_ranks(boards, model_p)
+    if lifepath:   # t210: Life Path overlay on; with it off this function's output is unchanged
+        return (OVERLAY_STYLE + LP_STYLE + legend(_has_jersey(boards)) + '<div class="nbgrid ngrid">'
+                + ''.join(game_board(b, day_num, ranks, pin, pmap, overlay, lifepath) for b in boards) + '</div>')
     return (OVERLAY_STYLE if overlay else '') + legend(_has_jersey(boards)) + '<div class="nbgrid ngrid">' + ''.join(game_board(b, day_num, ranks, pin, pmap, overlay) for b in boards) + '</div>'
+
+
+LP_STYLE = ('<style>.npr-lp{color:#d9caff;font-weight:700;font-size:.74em;margin-left:6px;white-space:nowrap;'
+            'font-variant-numeric:tabular-nums}.npr-lp.none{color:#94a3b8;font-weight:600}</style>')
 
 
 DAILY_STYLE = ('<style>.num-daily{min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;'

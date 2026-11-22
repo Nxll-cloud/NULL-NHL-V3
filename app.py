@@ -263,6 +263,13 @@ def v55_rosters_cached(teams):
     """V5.5: jersey numbers for the Home design (NHL roster feed, parallel, cached 6 h). Never raises."""
     return v5state.safe_many(lambda t: v5state.fetch_roster_numbers(t, requests.get), teams)
 
+@st.cache_data(ttl=12 * 3600, show_spinner=False, max_entries=16)
+def v61_births_cached(teams, pids):
+    """t209: {pid: 'YYYY-MM-DD'} birthdates (NHL roster feed, landing fallback, cached 12 h) for snapshots saved before
+    the Birth date column. Never raises; failures leave birthdates missing."""
+    import lifepath_v61 as _lp
+    return _lp.fetch_map(teams, requests.get, pids=pids)[0]
+
 @st.cache_data(ttl=900, show_spinner=False, max_entries=32)
 def v55_logs_cached(pids):
     """V5.5: last-10 game logs for sparklines (parallel, cached 15 min). Never raises."""

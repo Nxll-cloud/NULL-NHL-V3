@@ -3,6 +3,7 @@ import math
 import pandas as pd
 from numerology_v48 import gematria, universal_day
 import jersey_v61 as _jy
+import lifepath_v61 as _lp
 from daily_patterns_v60 import numbers_for as _day_numbers
 
 METHODS=(('ordinal_root','English'),('reduction_root','Reduction'),('reverse_root','Reverse'))  # display order (all three digits)
@@ -61,7 +62,9 @@ def target_rows(ranked, team, team_name, arena, day):
                     'eng_total':values['ordinal'],'rev_total':values['reverse'],'letters':values['letters'],
                     # t201: raw sweater number (None when unknown) + hit vs the date's pattern numbers; 'matches' stays name-only
                     'jersey':_jy.norm(row.get('Jersey')),
-                    'jersey_hit':[_jy.label(row.get('Jersey'))] if _jy.hit(row.get('Jersey'),jersey_numbers) else []})
+                    'jersey_hit':[_jy.label(row.get('Jersey'))] if _jy.hit(row.get('Jersey'),jersey_numbers) else [],
+                    # t209: birthdate + Life Path chain (display/overlay only; never in 'matches', threat or sorting)
+                    'birth_date':_lp.norm_date(row.get(_lp.COLUMN)),'life_path':_lp.chain(row.get(_lp.COLUMN))})
     out.sort(key=lambda x:(-x['matches'],-len(x['day']),-len(x['arena_matches']),-x['form'],x['player']))
     return out
 
