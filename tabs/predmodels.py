@@ -1,8 +1,8 @@
 """Null's Playbook V5.9 · Prediction Models tab. Executed by tabs.run_tab() inside the app's namespace.
 
-Three systems side by side (stacked on phones and tablets): the model (goal chance), the NP statistical leaderboard
-and the books top picks (odds_scorers_v59 consensus, books_picks_v59). V6.2: the experimental gematria blend column was
-retired; its replacement (scorer_patterns_v62, anytime goal · tonight's patterns) lives on the EdgeLab tab. Display only: reads the frozen logs (snapshots/accuracy/,
+Four systems side by side (2 x 2 on tablets, stacked on phones): the model (goal chance), the NP statistical
+leaderboard, the EXPERIMENTAL blend (model chance x gematria layer hits, prediction_models_v59) and the books top
+picks (odds_scorers_v59 consensus, books_picks_v59). Display only: reads the frozen logs (snapshots/accuracy/,
 accuracy_blend/, accuracy_books/) through short caches and reuses the app's already-loaded _np_odds_scorers; no git
 history, no extra odds call and no network work at page load.
 Nothing here feeds the model, the NP ranks, the parlay or the accuracy card."""
@@ -46,9 +46,14 @@ def _pm_card(yday, sig):
     return pmv.acc.home_html()
 
 
+@st.cache_data(ttl=900, show_spinner=False, max_entries=8)
+def _pm_layers(day, key, _rankings, _games):
+    return pmv.layers_for({'day': day, 'rankings': _rankings, 'games': _games}, day)
+
+
 st.markdown(v5.tab_head('NULL’S PLAYBOOK · PREDICTION MODELS', 'Prediction Models',
-    'Testing three ways to rank tonight’s goal scorers, each scored the same way: how many of its top 10 actually scored',
-    chips=[('Model · NP · Books', 'team'), ('Scored by player ID', 'odds'), ('Testing · not betting advice', 'warn')], tone='neon'),
+    'Testing four ways to rank tonight’s goal scorers, each scored the same way: how many of its top 10 actually scored',
+    chips=[('Model · NP · Blend · Books', 'team'), ('Scored by player ID', 'odds'), ('Testing · blend is experimental', 'warn')], tone='neon'),
     unsafe_allow_html=True)
 try:
     _pm_recs, _pm_accs, _pm_books = _pm_logs(_pm_sig())
@@ -58,13 +63,17 @@ try:
                 else ((np_snapshot or {}).get('rankings') or []))
     _pm_games = (np_snapshot or {}).get('games') or []
     _pm_entry = next((e for e in _pm_accs if e.get('day') == np_day), None)
+    _pm_rec = next((r for r in _pm_recs if r.get('day') == np_day), None)
     _pm_cands = None
+    _pm_lay = None
     if not (_pm_entry and _pm_entry.get('players')):
         try:
             _pm_cands = parlay.candidates(_v56_results, _v56_rows)
         except Exception:
             _pm_cands = []
-    _pm_t = pmv.tonight(np_day, _pm_rows, _pm_games, _pm_entry, _pm_cands,
+    if not (_pm_rec and _pm_rec.get('top')) and _pm_rows:
+        _pm_lay = _pm_layers(np_day, (len(_pm_rows), len(_pm_games)), _pm_rows, _pm_games)
+    _pm_t = pmv.tonight(np_day, _pm_rows, _pm_games, _pm_entry, _pm_rec, _pm_cands, _pm_lay,
                         next((r for r in _pm_books if r.get('day') == np_day), None), globals().get('_np_odds_scorers'))
     # V6.0: tonight's scorer record (scorers_tonight_v58), refreshed from the live play-by-play every run (25 s PBP cache,
     # 45 s watcher while a game is live) and never inside the 10-minute caches above; badges match by player ID.
@@ -72,7 +81,7 @@ try:
     _pm_scored = [int(p) for p in ((_pm_sc_rec or {}).get('players') or {})]
     v5.html_block(st, pmv.summary_html(_pm_ns))
     st.markdown(v5.sec_head(f'Tonight’s top 10 · {pmv.acc.short_day(np_day)}',
-                            'Model = goal chance · NP = statistical rank (Form %) · Books = no-vig consensus'),
+                            'Model = goal chance · NP = statistical rank (Form %) · Blend = boosted chance + layers hit · Books = no-vig consensus'),
                 unsafe_allow_html=True)
     # Rendered with the plain streamlit module: the badges are placed by ID here, so the page-wide name pass must not add its own.
     v5.html_block(getattr(st, '_st', st), pmv.page_html(_pm_t, _pm_ns, _pm_scored, _pm_sc_rec))
@@ -107,6 +116,8 @@ try:
     v5.html_block(st, oav.section_html(oav.aggregate(_pm_accs, _pm_recs, _pm_books,
                                                    _oa_firstgoal, _oa_gematria, pmv.acc.eastern_today().isoformat(),
                                                    model_top_ids=pmv.model_top_ids)))
+    st.caption('🧪 ' + pmv.EXPERIMENTAL_NOTE)
+    st.caption('Weights: ' + pmv.WEIGHT_NOTE)
 except Exception as _pm_exc:  # never break the app
     st.markdown(v5.empty_state('Prediction models unavailable', f'{type(_pm_exc).__name__}: the frozen logs could not be read.'),
                 unsafe_allow_html=True)

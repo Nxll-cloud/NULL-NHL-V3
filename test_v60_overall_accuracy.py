@@ -42,8 +42,9 @@ def test_all_history_not_trend_or_blend_union_and_current_graded_day():
     assert rows['model']['predictions']==36
     assert len(rows['model']['days'])==18
     assert TODAY in rows['model']['days']
-    # No nightly-record/books records required for an accuracy date to contribute. V6.2: blend row retired.
-    assert 'blend' not in rows and rows['scorerpat']['accuracy'] is None
+    # No blend/books records required for an accuracy date to contribute.
+    assert rows['blend']['accuracy'] is None
+    assert rows['scorerpat']['accuracy'] is None   # EdgeLab engine row stays listed (not tracked yet)
 
 
 def test_missing_pending_void_unstarted_demo_and_future_excluded():
@@ -75,7 +76,7 @@ def test_duplicate_dates_players_and_fallback_sources_once():
     fallback=blend('2026-11-02',(4,4,5),(4,))
     rows=indexed(acc_entries=[e,e],blend_records=[b,b,fallback,fallback])
     assert rows['model']['predictions']==4 and rows['model']['correct']==2
-    assert 'blend' not in rows # V6.2: blend retired; its records still back Model/NP fallback IDs
+    assert rows['blend']['predictions']==5 and rows['blend']['correct']==4
     assert rows['np']['predictions']==5 # 3 from authoritative stored summary + 2 unique fallback IDs
     assert len(rows['model']['days'])==2
 
@@ -142,7 +143,7 @@ def test_placement_preserves_original_nightly_table_and_both_visible():
     assert src.index('pmv.nights_table(_pm_ns)') < src.index('oav.section_html(oav.aggregate(')
     assert 'f\'Top-10 hits for each system over the last {pmv.TREND_N} nights\'' in src
     assert '_oa_firstgoal, _oa_gematria, pmv.acc.eastern_today().isoformat()' in src
-    block=src[src.index('# Cumulative companion'):src.index('except Exception as _pm_exc:')]
+    block=src[src.index('# Cumulative companion'):src.index("st.caption('🧪 '")]
     assert 'st.tabs' not in block and 'checkbox' not in block and 'st.expander' not in block
     html=oa.section_html(list(indexed(acc_entries=[entry('2026-11-01',2,1)]).values()))
     assert '.oa60 table' in html and 'overflow-x:auto' in html and 'max-width:100%' in html

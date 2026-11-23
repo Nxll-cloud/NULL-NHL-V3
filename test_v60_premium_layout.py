@@ -35,10 +35,10 @@ def test_tab_bar_and_banner_selectors_present():
 
 def test_prediction_models_structure():
     t = {s: {'source': 'test', 'rows': [{'rank': 1, 'pid': 1, 'name': 'A Player', 'team': 'TOR', 'pos': '', 'stat': '10.0%',
-                                         'layers': ''}]} for s in pmv.SYSTEMS}
+                                         'layers': '1 layer' if s == 'blend' else ''}]} for s in pmv.SYSTEMS}
     html = pmv.page_html(t, [], ())
-    assert html.count('class="pmc"') == 3 and html.count('class="pmacc"') == 3 and html.count('<h3>') == 3
-    assert '<div class="pm">' in html and html.count('class="pmr') == 3 and 'class="pmx"' not in html   # V6.2: no EXPERIMENTAL blend
+    assert html.count('class="pmc"') == 4 and html.count('class="pmacc"') == 4 and html.count('<h3>') == 4
+    assert '<div class="pm">' in html and html.count('class="pmr') == 4 and 'class="pmx"' in html
     css = v5.design_css('dark')
     for sel in ('.v55 .pm .pmc{', '.v55 .pm .pmc .pmacc{margin-top:auto', '.v55 section.pms{'):
         assert sel in css

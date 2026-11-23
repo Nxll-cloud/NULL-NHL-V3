@@ -2,6 +2,34 @@
 
 Newest first. Model details: [MODEL_CARD.md](MODEL_CARD.md). Older release notes: [docs/notes/](docs/notes/).
 
+## Prediction Models: experimental Blend restored (2026-11-22)
+
+* Owner request: the Blend column is back exactly as before 3549783. That means four tables (Model, NP, Blend, Books), the
+  "which system leads" share, the Blend column in the night-by-night table, the EXPERIMENTAL note and weights captions,
+  and its own "Blend · experimental" row in overall accuracy. It reads the nightly blend log, which the overnight job
+  kept writing. The anytime-goal engine stays on EdgeLab only, and its overall accuracy row stays. The List / Nyah row
+  stays removed.
+
+## EdgeLab: numerology overlay on the anytime-goal list (2026-11-22)
+
+* A new numerology overlay toggle sits above the anytime-goal list. It is off by default, like the Numbers overlays.
+  When on, each engine pick gets purple chips from the Numbers tab's own matching code (numerology_overlay_v62 calls
+  player_targets_v49, daily_patterns_v60 and lifepath_v61; nothing is re-implemented):
+  * Gematria D / A / T: day, arena and team matches.
+  * Daily pattern numbers: English root, English total or jersey number.
+  * Life Path chain hits.
+  You pick which families count; the default is Gematria only. A "Tighter list" toggle (also off by default) shows only
+  engine picks with at least one match, keeping their engine rank. Honest empty states cover each case.
+* Display and filter only: numerology never changes the % or the order.
+* Walk-forward check, 19 saved nights, engine top-20 (380 picks):
+  * Gematria match: 31/114 (27%).
+  * Daily pattern match: 41/156 (26%).
+  * Life Path match: 51/179 (28%).
+  * Any of the three: 79/287 (28%).
+  * The whole engine top-20: 109/380 (29%).
+  * Gematria results equal the frozen gematria_log_v59 records.
+  No family made a tighter list that scored more often.
+
 ## EdgeLab: anytime-goal engine (tonight's patterns) is now the whole tab (2026-11-22)
 
 * EdgeLab now shows only "Anytime goal · tonight's patterns": the estimated chance each skater still in play

@@ -12,22 +12,21 @@ import gematria_log_v59 as gem
 # Research Statistical is NP/Form; EdgeLab/Edge Flags/top-threat are views of Model, not extra forecasts.
 LABELS = {
     'model': 'Model · anytime goal', 'np': 'NP / Form · Research Statistical',
-    'books': 'Books', 'firstgoal': 'First Goal',
+    'blend': 'Blend · experimental', 'books': 'Books', 'firstgoal': 'First Goal',
     'gematria': 'Gematria matches · research signals', 'nextgoal': 'Live Next Goal',
     'winprob': 'Game winner', 'storyline': 'Research Storylines', 'overlap': 'Research Overlap',
     'sleepers': 'Research Statistical Sleepers', 'scorerpat': 'Anytime goal · tonight’s patterns (EdgeLab)',
 }
 CAPTION = ('Correct ÷ all completed tracked predictions, pooled across nights (not an average of nightly rates). '
-           'Model/NP/Books: frozen top-10 anytime scorers; First Goal: one favourite per game; '
+           'Model/NP/Blend/Books: frozen top-10 anytime scorers; First Goal: one favourite per game; '
            'Gematria: all unique matched players, not a predictive model. Targets differ, so rates are not like-for-like.')
 SCOPE = ('Available saved history only, including already-saved rebuilt nights; not lifetime accuracy. '
-         'Books, First Goal and Gematria logs (and the nightly record log behind rebuilt Model/NP nights) retain 90 days; slate snapshots retain 60 days. '
+         'Blend, Books, First Goal and Gematria logs retain 90 days; slate snapshots retain 60 days. '
          'Model accuracy logs have no scheduled pruning. Missing/pending/void results are excluded. '
          'Research Statistical shares NP; threat badges, EdgeLab and Edge Flags share Model. '
          'Cards, goalie/shot statistics and offline audit backtests are not independent production model histories.')
 UNTRACKED = ('Live next-goal events, game-winner forecasts, the Research Storylines/Overlap/Sleepers lists and the EdgeLab '
-             'anytime-goal estimates (tonight’s patterns) have no independently saved graded selection history here. The retired experimental '
-             'Blend is no longer listed.')
+             'anytime-goal estimates (tonight’s patterns) have no independently saved graded selection history here.')
 
 
 def _records(records, today):
@@ -119,6 +118,8 @@ def aggregate(acc_entries=(), blend_records=(), books_records=(), firstgoal_reco
             if not pairs and model == 'np' and b and e and not acc.np_top_ids(e) and not (e.get('summary') or {}).get('np_top_n'):
                 pairs = _pairs(b.get('np_top'), b['results'])
             _add(out, model, day, pairs)
+        if b:
+            _add(out, 'blend', day, _pairs([p[0] for p in b.get('top') or []], b['results']))
     for day, b in _records(books_records, today).items():
         _add(out, 'books', day, _pairs([p[0] for p in b.get('top') or []], b['results']))
     for day, r in _records(firstgoal_records, today).items():
