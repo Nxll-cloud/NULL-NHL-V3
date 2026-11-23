@@ -10,8 +10,8 @@ The cross-book outlier view (playbook_odds.compare_odds, best vs worst price) is
 Odds tab; it does not re-rank.
 
 Books actually covered (see odds_scorers_v59 + app.py np_live_odds_cached(..., 'us', ...)):
-  * The Odds API, region 'us' only and only when ODDS_API_KEY is in Streamlit secrets (DraftKings, FanDuel, BetMGM,
-    Caesars*, Fanatics* (*paid plan), BetRivers, ...). Hard Rock Bet is region 'us2' and Novig 'us_ex' - not requested
+  * The Odds API, regions 'us' + 'us2' (V6.3; ODDS_API_REGIONS secret overrides) and only when ODDS_API_KEY is in Streamlit secrets (DraftKings, FanDuel, BetMGM,
+    Caesars*, Fanatics* (*paid plan), BetRivers, ...). Hard Rock Bet is region 'us2' (now requested); Novig 'us_ex' - not requested
     by the app. Circa is not offered by The Odds API at all.
   * Otherwise ESPN's free public feed = DraftKings only (one book: "consensus" is then DraftKings' no-vig price).
 The workflow has no odds key, so frozen nights use the ESPN (DraftKings) source; the record says which.
@@ -43,8 +43,9 @@ MAX_BYTES = 95 * 1024
 REFREEZE_MIN = 120       # workflow runs every 30 min; refetch ESPN at most every 2 h before first puck drop
 REQUESTED = ('Hard Rock Bet', 'DraftKings', 'Fanatics', 'Circa', 'Novig')
 COVERAGE_NOTE = ('Books covered: DraftKings (free ESPN feed, used by the nightly freeze). With an Odds API key the app '
-                 'adds region “us” books (FanDuel, BetMGM, Fanatics on paid plans …). Not covered: Hard Rock Bet '
-                 '(Odds API region us2, not requested), Novig (us_ex, not requested), Circa (not on The Odds API).')
+                 'adds regions “us” + “us2” books (FanDuel, BetMGM, Caesars and Fanatics on paid plans, Hard Rock Bet, '
+                 'theScore Bet …). Not covered: Novig (us_ex, not requested unless ODDS_API_REGIONS adds it), Circa (not on '
+                 'The Odds API).')
 HASHED_KEYS = ('schema', 'day', 'kind', 'source', 'method', 'books', 'odds_updated', 'frozen_at', 'first_start', 'top', 'rows')
 _NAME = re.compile(r'^(\d{4}-\d{2}-\d{2})\.json$')
 

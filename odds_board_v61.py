@@ -45,14 +45,31 @@ GAME_MARKETS = 'h2h,spreads,totals'
 SGO_BASE = 'https://api.sportsgameodds.com/v2'
 SGO_ODD_IDS = ('points-home-game-ml-home', 'points-away-game-ml-away', 'points-home-game-sp-home',
                'points-away-game-sp-away', 'points-all-game-ou-over', 'points-all-game-ou-under')
+# V6.3: SGO's documented anytime-goal market (Player Any Score Yes, PLAYER_ID = every skater) rides in the SAME
+# /events request as the game lines (SGO bills per event object, not per market), so bet365, Pinnacle, Kalshi ... add no call.
+SGO_PROP_ODD_ID = 'points-PLAYER_ID-game-yn-yes'
+SGO_PROP_RE = re.compile(r'^points-(?!home-|away-|all-)([A-Za-z0-9_]+)-game-yn-yes$')
+# V6.3: The Odds API regions for the shared anytime feed and the board's game lines. us2 adds Hard Rock Bet,
+# theScore Bet (ex ESPN BET), Bally Bet, betPARX, Fliff ... Cost = markets x regions per request (us,us2 = 2x 'us').
+DEFAULT_REGIONS = 'us,us2'
+KNOWN_REGIONS = ('us', 'us2', 'us_ex', 'us_dfs', 'uk', 'eu', 'ca', 'au', 'fr', 'se', 'fi')
 PREFERRED = ('FanDuel', 'DraftKings', 'BetMGM', 'Caesars', 'Fanatics')
 BOOK_NAMES = {'fanduel': 'FanDuel', 'draftkings': 'DraftKings', 'betmgm': 'BetMGM', 'caesars': 'Caesars',
-              'williamhillus': 'Caesars', 'williamhill': 'Caesars', 'fanatics': 'Fanatics', 'espnbet': 'ESPN BET',
-              'thescorebet': 'ESPN BET', 'betrivers': 'BetRivers', 'bovada': 'Bovada', 'betonlineag': 'BetOnline.ag',
+              'williamhillus': 'Caesars', 'williamhill': 'Caesars', 'fanatics': 'Fanatics', 'espnbet': 'theScore Bet',
+              'thescorebet': 'theScore Bet', 'betrivers': 'BetRivers', 'bovada': 'Bovada', 'betonlineag': 'BetOnline.ag',
               'betonline': 'BetOnline.ag', 'mybookieag': 'MyBookie.ag', 'lowvig': 'LowVig.ag', 'betus': 'BetUS',
               'ballybet': 'Bally Bet', 'hardrockbet': 'Hard Rock Bet', 'pinnacle': 'Pinnacle', 'circasports': 'Circa Sports',
               'betparx': 'betPARX', 'fliff': 'Fliff', 'pointsbetus': 'PointsBet', 'unibetus': 'Unibet', 'wynnbet': 'WynnBET',
-              'superbook': 'SuperBook', 'novig': 'Novig', 'prophetexchange': 'ProphetX', 'betway': 'Betway'}
+              'superbook': 'SuperBook', 'novig': 'Novig', 'prophetexchange': 'ProphetX', 'betway': 'Betway',
+              # V6.3: more book ids (The Odds API keys, SportsGameOdds bookmakerIDs) with readable titles
+              'bet365': 'bet365', 'williamhillus2': 'Caesars', 'hardrock': 'Hard Rock Bet', 'betanysports': 'BetAnything',
+              'betanything': 'BetAnything', 'betwhale': 'Betwhale', 'courtside': 'Courtside', 'rebet': 'ReBet',
+              'prophetx': 'ProphetX', 'kalshi': 'Kalshi', 'polymarket': 'Polymarket', 'polymarketus': 'Polymarket (US)',
+              'betopenly': 'BetOpenly', 'limitless': 'Limitless', 'prizepicks': 'PrizePicks', 'underdog': 'Underdog',
+              'underdogfantasy': 'Underdog', 'pick6': 'DraftKings Pick6', 'parlayplay': 'ParlayPlay', 'sleeper': 'Sleeper',
+              'espnbetus': 'theScore Bet', 'betfairexchange': 'Betfair Exchange', 'sporttrade': 'Sporttrade',
+              'stake': 'Stake', 'sportsinteraction': 'Sports Interaction', 'bet99': 'BET99', 'proline': 'PROLINE',
+              'betvictor': 'BetVictor', 'unibet': 'Unibet', 'williamhilluk': 'William Hill', 'onexbet': '1xBet'}
 MARKET_FILTERS = ('Anytime goal (Yes)', 'All player props', 'Moneyline', 'Puck line', 'Total', 'All game lines', 'Everything')
 LINE_FILTERS = {'Moneyline': ('Moneyline',), 'Puck line': ('Puck line',), 'Total': ('Total',),
                 'All game lines': ('Moneyline', 'Puck line', 'Total'), 'Everything': ('Moneyline', 'Puck line', 'Total')}
@@ -119,8 +136,22 @@ def best_worst(prices):
 
 
 def book_name(value):
-    k = re.sub(r'[^a-z0-9]', '', str(value or '').casefold())
-    return BOOK_NAMES.get(k) or str(value or '').strip()
+    """Readable book title. Known keys/ids -> brand name; an unknown machine id (lowercase, '_' / '-', e.g. an SGO
+    bookmakerID) -> title case ('some_newbook' -> 'Some Newbook'); a provider's own title is kept as is."""
+    raw = str(value or '').strip()
+    k = re.sub(r'[^a-z0-9]', '', raw.casefold())
+    if k in BOOK_NAMES:
+        return BOOK_NAMES[k]
+    if raw and re.fullmatch(r'[a-z0-9_\-]+', raw):
+        return ' '.join(w.upper() if len(w) <= 2 and w.isalpha() else w.capitalize() for w in re.split(r'[_\-]+', raw) if w)
+    return raw
+
+
+def regions_from(value):
+    """ODDS_API_REGIONS secret ('us,us2', 'us', 'us,us2,us_ex' ...) -> validated comma list; default us,us2."""
+    parts = [p.strip().lower() for p in str(value or '').split(',') if p.strip()] if isinstance(value, str) else []
+    parts = [p for i, p in enumerate(parts) if p in KNOWN_REGIONS and p not in parts[:i]]
+    return ','.join(parts) or DEFAULT_REGIONS
 
 
 # ------------------------------------------------------------------ fetchers (game lines)
@@ -199,7 +230,8 @@ def fetch_sgo_lines(api_key, *, timeout=12, session=None, max_pages=3):
     if not isinstance(api_key, str) or not api_key.strip():
         raise OddsFeedError('No SGO_API_KEY configured.', code='missing_key')
     s = session or requests.Session()
-    params = {'leagueID': 'NHL', 'started': 'false', 'oddsAvailable': 'true', 'oddID': ','.join(SGO_ODD_IDS), 'limit': 50}
+    params = {'leagueID': 'NHL', 'started': 'false', 'oddsAvailable': 'true', 'oddID': ','.join(SGO_ODD_IDS + (SGO_PROP_ODD_ID,)),
+              'limit': 50}
     rows, events, pages, cursor = [], 0, 0, None
     while pages < max_pages:
         data = _get(s, SGO_BASE + '/events', dict(params, **({'cursor': cursor} if cursor else {})),
@@ -210,6 +242,7 @@ def fetch_sgo_lines(api_key, *, timeout=12, session=None, max_pages=3):
         for ev in _items(data['data']):
             events += 1
             rows.extend(_sgo_rows(ev))
+            rows.extend(_sgo_prop_rows(ev))   # V6.3: anytime-goal Yes per book, same response
         cursor = data.get('nextCursor')
         if not cursor or not data['data']:
             break
@@ -246,6 +279,49 @@ def _sgo_rows(ev):
                         'sportsbook': book_name(bk), 'american_odds': price,
                         'updated_at': q.get('lastUpdatedAt') or st.get('startsAt') or '', 'home_team': home, 'away_team': away,
                         'commence_time': str(st.get('startsAt') or ''), 'source': 'SportsGameOdds'})
+    return out
+
+
+def _sgo_player_name(ev, pid):
+    players = ev.get('players') if isinstance(ev.get('players'), dict) else {}
+    p = players.get(pid) if isinstance(players.get(pid), dict) else {}
+    name = elp.text(p.get('name')) or ' '.join(x for x in (elp.text(p.get('firstName')), elp.text(p.get('lastName'))) if x)
+    if name:
+        return name
+    parts = [w for w in str(pid).split('_') if w]          # CONNOR_MCDAVID_1_NHL -> Connor Mcdavid (last resort)
+    while parts and (parts[-1].isdigit() or parts[-1] in ('NHL',)):
+        parts.pop()
+    return ' '.join(w.capitalize() for w in parts)
+
+
+def _sgo_prop_rows(ev):
+    """SportsGameOdds Player Any Score Yes (anytime goal) per bookmaker -> shared schema rows (unstarted events)."""
+    st = ev.get('status') if isinstance(ev.get('status'), dict) else {}
+    if st.get('started') or st.get('ended') or st.get('cancelled') or st.get('live'):
+        return []
+    teams = ev.get('teams') if isinstance(ev.get('teams'), dict) else {}
+    nm = lambda side: ((teams.get(side) or {}).get('names') or {}) if isinstance(teams.get(side), dict) else {}
+    home, away = nm('home').get('long') or nm('home').get('short') or '', nm('away').get('long') or nm('away').get('short') or ''
+    out = []
+    odds = ev.get('odds') if isinstance(ev.get('odds'), dict) else {}
+    for oid, o in odds.items():
+        m = SGO_PROP_RE.match(str(oid))
+        if not m or not isinstance(o, dict) or o.get('started') or o.get('ended') or o.get('cancelled'):
+            continue
+        player = _sgo_player_name(ev, o.get('playerID') or o.get('statEntityID') or m.group(1))
+        if not player:
+            continue
+        for bk, q in (o.get('byBookmaker') or {}).items() if isinstance(o.get('byBookmaker'), dict) else ():
+            if not isinstance(q, dict) or q.get('available') is False:
+                continue
+            price = american(q.get('odds'))
+            if price is None:
+                continue
+            out.append({'event_id': 'sgo:' + str(ev.get('eventID') or ''), 'player': player, 'team': '',
+                        'market': 'player_goal_scorer_anytime', 'selection': 'Yes', 'line': '', 'sportsbook': book_name(bk),
+                        'american_odds': price, 'updated_at': q.get('lastUpdatedAt') or st.get('startsAt') or '',
+                        'home_team': home, 'away_team': away, 'commence_time': str(st.get('startsAt') or ''),
+                        'source': 'SportsGameOdds'})
     return out
 
 
@@ -488,21 +564,61 @@ def sgo_for_cache(api_key, regions=None, markets=None, event_cache=None, keep_ev
     return fetch_sgo_lines(api_key), []
 
 
-def load_lines(cache_get, primary, extra):
+SGO_IDENTITY = 'lines+props'   # V6.3: one cached SGO /events response serves game lines AND anytime props
+
+
+def load_sgo_props(cache_get, extra):
+    """Anytime-goal props from the SAME cached SportsGameOdds response as the game lines (no extra request when the
+    game lines were loaded in the last 30 min). -> (frame, note or None, error or None). No SGO key -> empty."""
+    if not (extra or {}).get('sgo'):
+        return pd.DataFrame(columns=COLUMNS), None, None
+    try:
+        f, _w = cache_get(sgo_for_cache, extra['sgo'][0], 'sgo', SGO_IDENTITY)
+    except OddsFeedError as exc:
+        return pd.DataFrame(columns=COLUMNS), None, f'SportsGameOdds: {exc.safe_message}'
+    if not isinstance(f, pd.DataFrame) or f.empty or 'player' not in f:
+        return pd.DataFrame(columns=COLUMNS), 'SportsGameOdds: 0 prop quotes', None
+    f = f[f['player'].fillna('').astype(str).str.strip() != '']
+    return f, f'SportsGameOdds: {len(f)} prop quotes', None
+
+
+def restrict_books(rows, selected, tight=TIGHT_DEFAULT, disc=DISC_DEFAULT):
+    """Board rows limited to the selected books (V6.3 book picker): prices, count, spread, flag and best / worst are
+    recomputed over the kept books; rows left with no price are dropped. selected=None -> rows unchanged."""
+    if selected is None:
+        return rows
+    keep = set(selected)
+    out = []
+    for r in rows:
+        prices = {b: p for b, p in r['prices'].items() if b in keep}
+        if not prices:
+            continue
+        if len(prices) == len(r['prices']):
+            out.append(r)
+            continue
+        sp = spread_cents(prices.values())
+        best, worst = best_worst(prices)
+        out.append(dict(r, prices=prices, sources={b: v for b, v in r['sources'].items() if b in keep}, n=len(prices),
+                        spread=sp, flag=flag(sp, len(prices), tight, disc), best=best, worst=worst))
+    return out
+
+
+def load_lines(cache_get, primary, extra, regions='us'):
     """Game-line quotes from every configured source. cache_get(fetch, key, regions, markets) -> (frame, warnings).
     -> (frame, notes, error). The Odds API: primary key, backup on auth/quota. SportsGameOdds: merged when keyed."""
     frames, notes, errors = [], [], []
     keys = [(primary, 'primary ODDS_API_KEY')] + ([(extra['backup'][0], 'backup Odds API key')] if (extra or {}).get('backup') else [])
     if any(k for k, _ in keys):
         try:
-            (f, _w), used = with_failover(lambda k: cache_get(fetch_game_lines, k, 'us', GAME_MARKETS), keys)
+            (f, _w), used = with_failover(lambda k: cache_get(fetch_game_lines, k, regions, GAME_MARKETS), keys)
             frames.append(f)
             notes.append(f'The Odds API ({used}): {len(f)} quotes')
         except OddsFeedError as exc:
             errors.append(f'The Odds API: {exc.safe_message}')
     if (extra or {}).get('sgo'):
         try:
-            f, _w = cache_get(sgo_for_cache, extra['sgo'][0], 'sgo', 'lines')
+            f, _w = cache_get(sgo_for_cache, extra['sgo'][0], 'sgo', SGO_IDENTITY)
+            f = f[f['player'].fillna('').astype(str).str.strip() == ''] if isinstance(f, pd.DataFrame) and 'player' in f else f
             frames.append(f)
             notes.append(f'SportsGameOdds: {len(f)} quotes')
         except OddsFeedError as exc:
@@ -642,5 +758,6 @@ def fallback_note(used, primary_reason):
     """Why the board shows one book: the multi-book feed's own empty reason, never a generic message."""
     what = ' and '.join({'props': 'anytime-goal prices', 'lines': 'game lines'}[u] for u in used)
     why = f' Multi-book feed: {primary_reason[0]}. {primary_reason[1]}' if primary_reason and primary_reason[0] else ''
-    return (f'Showing ESPN’s free DraftKings {what} (1 book), because the multi-book feed has no price for this '
-            f'market on tonight’s unstarted games.{why}')
+    return (f'Only DraftKings is available right now: showing ESPN’s free DraftKings {what} (1 book), because the paid '
+            f'multi-book feed has no price for this market on tonight’s unstarted games. Every other book (FanDuel, BetMGM, '
+            f'Caesars, Fanatics, Hard Rock, theScore Bet …) appears as its own column once that feed works.{why}')

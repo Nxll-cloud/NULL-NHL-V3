@@ -124,9 +124,18 @@ with safe_section('Multi-book odds board'):
         _obd_disc=st.number_input('Discrepancy over (¢)',min_value=0,max_value=1000,value=_obd.DISC_DEFAULT,step=1,key='v61_obd_disc')
     _obd_games=(np_snapshot or {}).get('games') or []
     _obd_quotes,_obd_lerr,_obd_notes=_np_shared_quotes,None,[]
+    _obd_cache_get=lambda f,k,r,m:np_quote_cache().get(f,k,r,m)
+    # V6.3: SportsGameOdds anytime props (bet365, Pinnacle ...) from the same cached SGO response as its game lines.
+    _obd_sgo_props=pd.DataFrame()
+    if _obd_market in _obd.PROP_FILTERS and _np_source in ('Automatic API','Combine both'):
+        _obd_sgo_props,_obd_sgo_note,_obd_sgo_err=_obd.load_sgo_props(_obd_cache_get,_np_extra_keys)
+        _obd_notes=[n for n in (_obd_sgo_note,_obd_sgo_err) if n]
+        if not _obd_sgo_props.empty:
+            _obd_quotes=pd.concat([q for q in (_np_shared_quotes,_obd_sgo_props) if isinstance(q,pd.DataFrame) and not q.empty],ignore_index=True)
     if _obd_market in _obd.LINE_FILTERS:
-        _obd_lines,_obd_notes,_obd_lerr=_obd.load_lines(lambda f,k,r,m:np_quote_cache().get(f,k,r,m),_np_key if isinstance(_np_key,str) else '',_np_extra_keys)
-        _obd_parts=[q for q in ((_np_shared_quotes,) if _obd_market=='Everything' else ())+(_obd_lines,) if isinstance(q,pd.DataFrame) and not q.empty]
+        _obd_lines,_obd_lnotes,_obd_lerr=_obd.load_lines(_obd_cache_get,_np_key if isinstance(_np_key,str) else '',_np_extra_keys,regions=_np_regions)
+        _obd_notes=list(_obd_notes)+list(_obd_lnotes)
+        _obd_parts=[q for q in ((_np_shared_quotes,_obd_sgo_props) if _obd_market=='Everything' else ())+(_obd_lines,) if isinstance(q,pd.DataFrame) and not q.empty]
         _obd_quotes=pd.concat(_obd_parts,ignore_index=True) if _obd_parts else pd.DataFrame()
     # V6.2: when the keyed feeds give no row for this market group, fall back to ESPN's free DraftKings prices (1 book,
     # labelled) and say why the multi-book feed is empty. Nothing changes when the keyed feeds have rows.
@@ -141,9 +150,18 @@ with safe_section('Multi-book odds board'):
         _obd_notes=list(_obd_notes)+list(_obd_fb_notes)
     _obd_canon,_obd_rep=_obd.normalize(_obd_quotes,_obd_games,np_day,market_filter=_obd_market)
     _obd_all=_obd.build_rows(_obd_canon,tight=_obd_tight,disc=_obd_disc)
+    # V6.3: every book the feeds returned is a column; this picker (default = all) only narrows the view.
+    _obd_books_all=_obd.books(_obd_all)
+    _obd_n_built=len(_obd_all)
+    if len(_obd_books_all)>1:
+        _obd_pick=st.multiselect(f'Sportsbooks ({len(_obd_books_all)} available)',_obd_books_all,default=_obd_books_all,
+                                 key='v63_obd_books_'+_obd.key_id('|'.join(_obd_books_all)),help='Every book returned by the odds feeds. Remove books to narrow the board.')
+        _obd_all=_obd.restrict_books(_obd_all,_obd_pick,tight=_obd_tight,disc=_obd_disc)
+    elif _obd_books_all:
+        st.caption(f'Sportsbooks available: {_obd_books_all[0]} only.')
     _obd_rows=_obd.filter_rows(_obd_all,_obd_flag,_obd_q)
     _obd_empty=None if _obd_rows else _obd.empty_reason(_obd_market,_np_source,bool(_np_key),_np_live_error,_np_shared_error,_np_shared_quotes,
-                                                        _obd_rep,_obd_games,lines_error=_obd_lerr,n_rows_unfiltered=len(_obd_all))
+                                                        _obd_rep,_obd_games,lines_error=_obd_lerr,n_rows_unfiltered=len(_obd_all) or _obd_n_built)
     _obd_t=sum(r['flag']=='tight' for r in _obd_all); _obd_d=sum(r['flag']=='disc' for r in _obd_all)
     _obd_note=(f'{len(_obd_rows)} of {len(_obd_all)} lines · {_obd_t} tight · {_obd_d} discrepanc{"y" if _obd_d==1 else "ies"}'+(' · '+'; '.join(_obd_notes) if _obd_notes else '')
                +(f' · {st.session_state["v61_odds_failover"]}' if st.session_state.get('v61_odds_failover') else '')) if _obd_all else ''

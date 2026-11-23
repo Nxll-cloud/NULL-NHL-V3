@@ -1,0 +1,658 @@
+{
+"events": [
+{
+"id": "ev-cbj-njd",
+"sport_key": "icehockey_nhl",
+"commence_time": "2026-11-24T00:00:00Z",
+"home_team": "New Jersey Devils",
+"away_team": "Columbus Blue Jackets"
+}
+],
+"event_odds": {
+"ev-cbj-njd": {
+"id": "ev-cbj-njd",
+"sport_key": "icehockey_nhl",
+"commence_time": "2026-11-24T00:00:00Z",
+"home_team": "New Jersey Devils",
+"away_team": "Columbus Blue Jackets",
+"bookmakers": [
+{
+"key": "fanduel",
+"title": "FanDuel",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "player_goal_scorer_anytime",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Yes",
+"description": "Jack Hughes",
+"price": 145
+},
+{
+"name": "Yes",
+"description": "Kirill Marchenko",
+"price": 230
+}
+]
+}
+]
+},
+{
+"key": "draftkings",
+"title": "DraftKings",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "player_goal_scorer_anytime",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Yes",
+"description": "Jack Hughes",
+"price": 150
+},
+{
+"name": "Yes",
+"description": "Kirill Marchenko",
+"price": 220
+}
+]
+}
+]
+},
+{
+"key": "betmgm",
+"title": "BetMGM",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "player_goal_scorer_anytime",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Yes",
+"description": "Jack Hughes",
+"price": 140
+},
+{
+"name": "Yes",
+"description": "Kirill Marchenko",
+"price": 240
+}
+]
+}
+]
+},
+{
+"key": "williamhill_us",
+"title": "Caesars",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "player_goal_scorer_anytime",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Yes",
+"description": "Jack Hughes",
+"price": 155
+},
+{
+"name": "Yes",
+"description": "Kirill Marchenko",
+"price": 235
+}
+]
+}
+]
+},
+{
+"key": "fanatics",
+"title": "Fanatics",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "player_goal_scorer_anytime",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Yes",
+"description": "Jack Hughes",
+"price": 135
+},
+{
+"name": "Yes",
+"description": "Kirill Marchenko",
+"price": 250
+}
+]
+}
+]
+},
+{
+"key": "espnbet",
+"title": "theScore Bet",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "player_goal_scorer_anytime",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Yes",
+"description": "Jack Hughes",
+"price": 150
+},
+{
+"name": "Yes",
+"description": "Kirill Marchenko",
+"price": 225
+}
+]
+}
+]
+},
+{
+"key": "betrivers",
+"title": "BetRivers",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "player_goal_scorer_anytime",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Yes",
+"description": "Jack Hughes",
+"price": 145
+},
+{
+"name": "Yes",
+"description": "Kirill Marchenko",
+"price": 230
+}
+]
+}
+]
+},
+{
+"key": "hardrockbet",
+"title": "Hard Rock Bet",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "player_goal_scorer_anytime",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Yes",
+"description": "Jack Hughes",
+"price": 160
+},
+{
+"name": "Yes",
+"description": "Kirill Marchenko",
+"price": 260
+}
+]
+}
+]
+},
+{
+"key": "ballybet",
+"title": "Bally Bet",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "player_goal_scorer_anytime",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Yes",
+"description": "Jack Hughes",
+"price": 140
+},
+{
+"name": "Yes",
+"description": "Kirill Marchenko",
+"price": 215
+}
+]
+}
+]
+}
+]
+}
+},
+"bulk_lines": [
+{
+"id": "ev-cbj-njd",
+"sport_key": "icehockey_nhl",
+"commence_time": "2026-11-24T00:00:00Z",
+"home_team": "New Jersey Devils",
+"away_team": "Columbus Blue Jackets",
+"bookmakers": [
+{
+"key": "fanduel",
+"title": "FanDuel",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "h2h",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "New Jersey Devils",
+"price": -200
+},
+{
+"name": "Columbus Blue Jackets",
+"price": 165
+}
+]
+},
+{
+"key": "totals",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Over",
+"price": 110,
+"point": 6.5
+},
+{
+"name": "Under",
+"price": -130,
+"point": 6.5
+}
+]
+}
+]
+},
+{
+"key": "draftkings",
+"title": "DraftKings",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "h2h",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "New Jersey Devils",
+"price": -205
+},
+{
+"name": "Columbus Blue Jackets",
+"price": 170
+}
+]
+},
+{
+"key": "totals",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Over",
+"price": 112,
+"point": 6.5
+},
+{
+"name": "Under",
+"price": -132,
+"point": 6.5
+}
+]
+}
+]
+},
+{
+"key": "betmgm",
+"title": "BetMGM",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "h2h",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "New Jersey Devils",
+"price": -210
+},
+{
+"name": "Columbus Blue Jackets",
+"price": 175
+}
+]
+},
+{
+"key": "totals",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Over",
+"price": 114,
+"point": 6.5
+},
+{
+"name": "Under",
+"price": -134,
+"point": 6.5
+}
+]
+}
+]
+},
+{
+"key": "williamhill_us",
+"title": "Caesars",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "h2h",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "New Jersey Devils",
+"price": -215
+},
+{
+"name": "Columbus Blue Jackets",
+"price": 180
+}
+]
+},
+{
+"key": "totals",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Over",
+"price": 116,
+"point": 6.5
+},
+{
+"name": "Under",
+"price": -136,
+"point": 6.5
+}
+]
+}
+]
+},
+{
+"key": "fanatics",
+"title": "Fanatics",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "h2h",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "New Jersey Devils",
+"price": -220
+},
+{
+"name": "Columbus Blue Jackets",
+"price": 185
+}
+]
+},
+{
+"key": "totals",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Over",
+"price": 118,
+"point": 6.5
+},
+{
+"name": "Under",
+"price": -138,
+"point": 6.5
+}
+]
+}
+]
+},
+{
+"key": "espnbet",
+"title": "theScore Bet",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "h2h",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "New Jersey Devils",
+"price": -225
+},
+{
+"name": "Columbus Blue Jackets",
+"price": 190
+}
+]
+},
+{
+"key": "totals",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Over",
+"price": 120,
+"point": 6.5
+},
+{
+"name": "Under",
+"price": -140,
+"point": 6.5
+}
+]
+}
+]
+},
+{
+"key": "betrivers",
+"title": "BetRivers",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "h2h",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "New Jersey Devils",
+"price": -230
+},
+{
+"name": "Columbus Blue Jackets",
+"price": 195
+}
+]
+},
+{
+"key": "totals",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Over",
+"price": 122,
+"point": 6.5
+},
+{
+"name": "Under",
+"price": -142,
+"point": 6.5
+}
+]
+}
+]
+},
+{
+"key": "hardrockbet",
+"title": "Hard Rock Bet",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "h2h",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "New Jersey Devils",
+"price": -235
+},
+{
+"name": "Columbus Blue Jackets",
+"price": 200
+}
+]
+},
+{
+"key": "totals",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Over",
+"price": 124,
+"point": 6.5
+},
+{
+"name": "Under",
+"price": -144,
+"point": 6.5
+}
+]
+}
+]
+},
+{
+"key": "ballybet",
+"title": "Bally Bet",
+"last_update": "2026-11-23T16:00:00Z",
+"markets": [
+{
+"key": "h2h",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "New Jersey Devils",
+"price": -240
+},
+{
+"name": "Columbus Blue Jackets",
+"price": 205
+}
+]
+},
+{
+"key": "totals",
+"last_update": "2026-11-23T16:00:00Z",
+"outcomes": [
+{
+"name": "Over",
+"price": 126,
+"point": 6.5
+},
+{
+"name": "Under",
+"price": -146,
+"point": 6.5
+}
+]
+}
+]
+}
+]
+}
+],
+"sgo": {
+"success": true,
+"data": [
+{
+"eventID": "SGO1",
+"teams": {
+"home": {
+"names": {
+"long": "New Jersey Devils",
+"short": "NJ"
+}
+},
+"away": {
+"names": {
+"long": "Columbus Blue Jackets",
+"short": "CBJ"
+}
+}
+},
+"status": {
+"started": false,
+"startsAt": "2026-11-24T00:00:00.000Z"
+},
+"players": {
+"JACK_HUGHES_1_NHL": {
+"name": "Jack Hughes",
+"teamID": "NEW_JERSEY_DEVILS_NHL"
+}
+},
+"odds": {
+"points-JACK_HUGHES_1_NHL-game-yn-yes": {
+"playerID": "JACK_HUGHES_1_NHL",
+"byBookmaker": {
+"bet365": {
+"odds": "+150",
+"available": true,
+"lastUpdatedAt": "2026-11-23T16:05:00Z"
+},
+"pinnacle": {
+"odds": "+142",
+"available": true,
+"lastUpdatedAt": "2026-11-23T16:05:00Z"
+},
+"some_newbook": {
+"odds": "+165",
+"available": true,
+"lastUpdatedAt": "2026-11-23T16:05:00Z"
+},
+"draftkings": {
+"odds": "+140",
+"available": false
+}
+}
+},
+"points-KIRILL_MARCHENKO_1_NHL-game-yn-yes": {
+"byBookmaker": {
+"bet365": {
+"odds": "+240",
+"available": true,
+"lastUpdatedAt": "2026-11-23T16:05:00Z"
+}
+}
+},
+"points-home-game-ml-home": {
+"byBookmaker": {
+"bet365": {
+"odds": "-210",
+"available": true,
+"lastUpdatedAt": "2026-11-23T16:05:00Z"
+}
+}
+},
+"points-away-game-ml-away": {
+"byBookmaker": {
+"bet365": {
+"odds": "+170",
+"available": true,
+"lastUpdatedAt": "2026-11-23T16:05:00Z"
+}
+}
+}
+}
+}
+]
+}
+}

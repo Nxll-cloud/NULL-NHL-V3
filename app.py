@@ -443,6 +443,16 @@ def np_extra_keys():
     except Exception:
         return {'backup':None,'sgo':None,'other':[]}
 _np_extra_keys=np_extra_keys()
+def np_odds_regions():
+    # V6.3: every US book in one request per event: The Odds API regions us + us2 by default (us2 adds Hard Rock Bet,
+    # theScore Bet, Bally Bet, betPARX, Fliff ...). Cost = markets x regions, so us,us2 doubles the anytime-feed credits.
+    # Optional secret ODDS_API_REGIONS (e.g. 'us' to save credits, or 'us,us2,us_ex' for exchanges). Not a credential.
+    import odds_board_v61 as _ob
+    try:
+        return _ob.regions_from(st.secrets.get('ODDS_API_REGIONS'))
+    except Exception:
+        return _ob.DEFAULT_REGIONS
+_np_regions=np_odds_regions()
 try:   # V6.1: deploy freshness + key location (never the value) in the sidebar
     import deploy_info_v61 as _np_deploy
     _np_sidebar_status.caption(_np_deploy.sidebar_caption(_np_deploy.build_stamp(),st.session_state.get('v61_odds_key_where'),_np_extra_keys))
@@ -455,11 +465,11 @@ if _np_key:
     try:
         st.session_state.pop('v61_odds_failover',None)
         try:
-            _np_live_quotes,_np_live_warnings=np_live_odds_cached(_np_key,'us','player_goal_scorer_anytime')
+            _np_live_quotes,_np_live_warnings=np_live_odds_cached(_np_key,_np_regions,'player_goal_scorer_anytime')
         except OddsFeedError as _exc0:   # V6.1: backup Odds API key only when the primary is rejected / out of quota
             if _exc0.code not in ('auth','quota') or not _np_extra_keys.get('backup'):
                 raise
-            _np_live_quotes,_np_live_warnings=np_live_odds_cached(_np_extra_keys['backup'][0],'us','player_goal_scorer_anytime')
+            _np_live_quotes,_np_live_warnings=np_live_odds_cached(_np_extra_keys['backup'][0],_np_regions,'player_goal_scorer_anytime')
             st.session_state['v61_odds_failover']=f'primary key {_exc0.code}; using backup ({_np_extra_keys["backup"][1]})'
         _np_feed_status=dict(_np_live_quotes.attrs.get('feed_status') or {})
     except (OddsFeedError,ValueError,KeyError,TypeError) as _exc:
