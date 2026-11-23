@@ -445,7 +445,7 @@ def _time(iso):
     return t.strftime('%-I:%M %p ET')
 
 
-def table_html(rows, book_cols, tight=TIGHT_DEFAULT, disc=DISC_DEFAULT, empty=None, note=''):
+def table_html(rows, book_cols, tight=TIGHT_DEFAULT, disc=DISC_DEFAULT, empty=None, note='', banner=''):
     e = lambda x: html.escape(str(x))
     legend = ('<div class="obd-leg"><span class="obd-k best">Best price</span><span class="obd-k worst">Worst price</span>'
               f'<span class="obd-f tight">TIGHT &lt; {e(tight)}¢</span><span class="obd-f disc">DISCREPANCY &gt; {e(disc)}¢</span>'
@@ -477,7 +477,8 @@ def table_html(rows, book_cols, tight=TIGHT_DEFAULT, disc=DISC_DEFAULT, empty=No
                        f'<td class="obd-sp">{e(sp)}{fl}</td></tr>')
         body = (f'<div class="obd-w"><table class="obd-t"><thead><tr><th class="obd-s">Line</th>{th}<th class="obd-sp">Spread</th></tr></thead>'
                 f'<tbody>{"".join(trs)}</tbody></table></div>')
-    return (f'<section class="sec v61-obd" aria-label="Multi-book odds board">{head}{legend}{body}'
+    banner = f'<p class="obd-note obd-fb"><b>{e(banner)}</b></p>' if banner else ''   # V6.2: fallback reason, above the table
+    return (f'<section class="sec v61-obd" aria-label="Multi-book odds board">{head}{banner}{legend}{body}'
             + (f'<p class="obd-note">{e(note)}</p>' if note else '') + f'<p class="obd-note">{e(CAPTION)}</p></section>')
 
 
@@ -509,3 +510,137 @@ def load_lines(cache_get, primary, extra):
     frames = [f for f in frames if isinstance(f, pd.DataFrame) and not f.empty]
     frame = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=COLUMNS)
     return frame, notes, ('; '.join(errors) if errors and frame.empty else None)
+
+
+# ------------------------------------------------------------------ V6.2 free fallback (ESPN, DraftKings only)
+# The board used to depend only on The Odds API / SportsGameOdds / CSV. With no usable key (not found, rejected,
+# out of quota) or a feed that returned nothing for tonight, it stayed empty while the rest of the Odds tab already
+# showed ESPN's free DraftKings prices. When the keyed sources give NO row for the selected market group, the board now
+# shows ESPN's DraftKings prices instead (one book, clearly labelled), and says why the multi-book feed is empty.
+# Display only; nothing here changes the model, rankings or scores. Never raises.
+
+ESPN_SOURCE = 'ESPN (DraftKings)'
+ESPN_SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates={}'
+ESPN_ABBR = {'TB': 'TBL', 'LA': 'LAK', 'SJ': 'SJS', 'NJ': 'NJD', 'UTAH': 'UTA', 'WAS': 'WSH', 'MON': 'MTL'}
+PROP_FILTERS = ('Anytime goal (Yes)', 'All player props', 'Everything')
+
+
+def espn_prop_frame(quotes, games):
+    """odds_scorers_v59.fetch_espn quotes ({player, team, game 'AWY @ HOM', book, american, updated}) -> shared schema
+    (Yes side of anytime goal). The slate's start time fills commence_time so the board's date / pre-game checks apply."""
+    starts = {f"{s['away']} @ {s['home']}": s['game'].get('start') or s['game'].get('Start (UTC)') or ''
+              for s in hpg._slate_games(games)}
+    rows = []
+    for q in quotes or []:
+        if not isinstance(q, dict):
+            continue
+        game = elp.text(q.get('game'))
+        away, _, home = game.partition(' @ ')
+        price = american(q.get('american'))
+        if not elp.text(q.get('player')) or price is None or not away or not home:
+            continue
+        rows.append({'event_id': 'espn:' + game, 'player': elp.text(q.get('player')), 'team': elp.text(q.get('team')),
+                     'market': 'player_goal_scorer_anytime', 'selection': 'Yes', 'line': '', 'sportsbook': 'DraftKings',
+                     'american_odds': price, 'updated_at': elp.text(q.get('updated')), 'home_team': home, 'away_team': away,
+                     'commence_time': str(starts.get(game) or ''), 'source': ESPN_SOURCE})
+    return _frame(rows, {'state': 'ok' if rows else 'empty', 'provider': ESPN_SOURCE, 'quotes': len(rows)})
+
+
+def _espn_side(node):
+    node = node if isinstance(node, dict) else {}
+    close = node.get('close') if isinstance(node.get('close'), dict) else {}
+    return close or (node.get('open') if isinstance(node.get('open'), dict) else {})
+
+
+def espn_lines_frame(scoreboard, fetched_at=None):
+    """ESPN NHL scoreboard JSON -> DraftKings moneyline / puck line / total quotes (shared schema), unstarted games only."""
+    fetched_at = fetched_at or datetime.now(timezone.utc).isoformat()
+    rows = []
+    for ev in _items((scoreboard or {}).get('events') if isinstance(scoreboard, dict) else None):
+        try:
+            comp = ev['competitions'][0]
+            if ((comp.get('status') or {}).get('type') or {}).get('state', 'pre') != 'pre':
+                continue
+            teams = {c['homeAway']: c['team'] for c in comp['competitors']}
+            code = {k: ESPN_ABBR.get(v.get('abbreviation'), v.get('abbreviation')) for k, v in teams.items()}
+            home, away = code['home'], code['away']
+        except (KeyError, IndexError, TypeError, AttributeError):
+            continue
+        start = str(ev.get('date') or comp.get('date') or '')
+        for o in _items(comp.get('odds')):
+            book = book_name(((o.get('provider') or {}).get('name')) if isinstance(o.get('provider'), dict) else '') or 'DraftKings'
+
+            def add(market, sel, price, line=''):
+                p = american(price)
+                if p is None or (market != 'h2h' and american_line(line) is None):
+                    return
+                rows.append({'event_id': 'espn:' + str(ev.get('id') or ''), 'player': '', 'team': sel if market != 'totals' else '',
+                             'market': market, 'selection': sel, 'line': '' if market == 'h2h' else str(american_line(line)),
+                             'sportsbook': book, 'american_odds': p, 'updated_at': fetched_at, 'home_team': home,
+                             'away_team': away, 'commence_time': start, 'source': ESPN_SOURCE})
+            ml = o.get('moneyline') if isinstance(o.get('moneyline'), dict) else {}
+            ps = o.get('pointSpread') if isinstance(o.get('pointSpread'), dict) else {}
+            tot = o.get('total') if isinstance(o.get('total'), dict) else {}
+            for side, team in (('away', away), ('home', home)):
+                add('h2h', team, _espn_side(ml.get(side)).get('odds'))
+                s = _espn_side(ps.get(side))
+                add('spreads', team, s.get('odds'), s.get('line'))
+            for side in ('over', 'under'):
+                s = _espn_side(tot.get(side))
+                add('totals', side.title(), s.get('odds'), str(s.get('line') or '').lstrip('ou'))
+    return _frame(rows, {'state': 'ok' if rows else 'empty', 'provider': ESPN_SOURCE, 'quotes': len(rows),
+                         'fetched_at': fetched_at})
+
+
+def fetch_espn_lines(day, getter=None, timeout=12):
+    """Free ESPN scoreboard (one request) -> (frame, error or None). Never raises."""
+    get = getter or requests.get
+    try:
+        r = get(ESPN_SCOREBOARD.format(str(day).replace('-', '')), timeout=timeout, headers={'User-Agent': 'NullsPlaybook/6.2'})
+        if getattr(r, 'status_code', 200) != 200:
+            return _frame([], {'state': 'unavailable'}), f'ESPN returned HTTP {r.status_code}.'
+        return espn_lines_frame(r.json()), None
+    except Exception as exc:   # offline / blocked / malformed: no data, honest reason
+        return _frame([], {'state': 'network'}), f'ESPN unavailable ({type(exc).__name__}).'
+
+
+def with_espn_fallback(quotes, games, day, market_filter, source, espn_props=None, espn_lines=None, now=None):
+    """Add ESPN DraftKings quotes for each market group (player props / game lines) that has NO board row from the
+    keyed sources. espn_props() -> list of fetch_espn quotes; espn_lines() -> (frame, error). Called lazily, only for an
+    empty group. -> (quotes, used: list of 'props'/'lines', notes). Only for the Automatic API / Combine both sources."""
+    used, notes = [], []
+    if source not in ('Automatic API', 'Combine both'):
+        return quotes, used, notes
+    canon, _rep = normalize(quotes, games, day, now=now, market_filter=market_filter)
+    kinds = {c['kind'] for c in canon}
+    parts = [quotes] if isinstance(quotes, pd.DataFrame) and not quotes.empty else []
+    if market_filter in PROP_FILTERS and 'prop' not in kinds and espn_props is not None:
+        try:
+            f = espn_prop_frame(espn_props(), games)
+        except Exception as exc:
+            f = pd.DataFrame(columns=COLUMNS)
+            notes.append(f'ESPN props unavailable ({type(exc).__name__})')
+        if not f.empty:
+            parts.append(f)
+            used.append('props')
+    if market_filter in LINE_FILTERS and 'line' not in kinds and espn_lines is not None:
+        try:
+            f, err = espn_lines()
+        except Exception as exc:
+            f, err = pd.DataFrame(columns=COLUMNS), f'ESPN unavailable ({type(exc).__name__}).'
+        if err:
+            notes.append(f'ESPN game lines: {err}')
+        if isinstance(f, pd.DataFrame) and not f.empty:
+            parts.append(f)
+            used.append('lines')
+    if not used:
+        return quotes, used, notes
+    return pd.concat(parts, ignore_index=True), used, notes
+
+
+def fallback_note(used, primary_reason):
+    """Why the board shows one book: the multi-book feed's own empty reason, never a generic message."""
+    what = ' and '.join({'props': 'anytime-goal prices', 'lines': 'game lines'}[u] for u in used)
+    why = f' Multi-book feed: {primary_reason[0]}. {primary_reason[1]}' if primary_reason and primary_reason[0] else ''
+    return (f'Showing ESPN’s free DraftKings {what} (1 book), because the multi-book feed has no price for this '
+            f'market on tonight’s unstarted games.{why}')

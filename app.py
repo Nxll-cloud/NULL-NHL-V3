@@ -499,6 +499,22 @@ if not _np_shared_quotes.empty:
 def np_espn_scorer_quotes(day, idx):
     return oddsc.fetch_espn(day, idx)
 
+# V6.2 odds board: free ESPN DraftKings game lines (one scoreboard request, 30 min), used by the board only when the
+# keyed feeds return no game line. Errors raise inside the cached body so they are not cached for 30 minutes.
+@st.cache_data(ttl=1800,show_spinner=False, max_entries=8)
+def _np_espn_lines_ok(day):
+    import odds_board_v61 as _ob
+    frame,err=_ob.fetch_espn_lines(day)
+    if err:
+        raise RuntimeError(err)
+    return frame
+
+def np_espn_lines(day):
+    try:
+        return _np_espn_lines_ok(day),None
+    except RuntimeError as exc:
+        return pd.DataFrame(),str(exc)
+
 _np_odds_scorers=None
 if np_flags.show_odds_scorers(st.secrets):
     try:

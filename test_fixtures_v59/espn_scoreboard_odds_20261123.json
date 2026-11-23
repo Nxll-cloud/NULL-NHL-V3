@@ -1,0 +1,242 @@
+{
+ "events": [
+  {
+   "id": "401892773",
+   "date": "2026-11-24T00:00Z",
+   "shortName": "CBJ @ NJ",
+   "competitions": [
+    {
+     "odds": [
+      {
+       "provider": {
+        "id": "100",
+        "name": "DraftKings"
+       },
+       "moneyline": {
+        "displayName": "Moneyline",
+        "shortDisplayName": "ML",
+        "home": {
+         "close": {
+          "odds": "-205"
+         },
+         "open": {
+          "odds": "-205"
+         }
+        },
+        "away": {
+         "close": {
+          "odds": "+170"
+         },
+         "open": {
+          "odds": "+170"
+         }
+        }
+       },
+       "pointSpread": {
+        "displayName": "Spread",
+        "shortDisplayName": "Spread",
+        "home": {
+         "close": {
+          "line": "-1.5",
+          "odds": "+124"
+         },
+         "open": {
+          "line": "-1.5",
+          "odds": "+114"
+         }
+        },
+        "away": {
+         "close": {
+          "line": "+1.5",
+          "odds": "-148"
+         },
+         "open": {
+          "line": "+1.5",
+          "odds": "-135"
+         }
+        }
+       },
+       "total": {
+        "displayName": "Total",
+        "shortDisplayName": "Total",
+        "over": {
+         "close": {
+          "line": "o6.5",
+          "odds": "+114"
+         },
+         "open": {
+          "line": "o6.5",
+          "odds": "+114"
+         }
+        },
+        "under": {
+         "close": {
+          "line": "u6.5",
+          "odds": "-135"
+         },
+         "open": {
+          "line": "u6.5",
+          "odds": "-135"
+         }
+        }
+       }
+      }
+     ],
+     "id": "401892773",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "11",
+        "abbreviation": "NJ",
+        "displayName": "New Jersey Devils"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "29",
+        "abbreviation": "CBJ",
+        "displayName": "Columbus Blue Jackets"
+       }
+      }
+     ],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Mon, November 23rd at 7:00 PM EST",
+       "shortDetail": "11/23 - 7:00 PM EST"
+      }
+     },
+     "date": "2026-11-24T00:00Z"
+    }
+   ]
+  },
+  {
+   "id": "401892774",
+   "date": "2026-11-24T00:30Z",
+   "shortName": "LA @ MTL",
+   "competitions": [
+    {
+     "odds": [
+      {
+       "provider": {
+        "id": "100",
+        "name": "DraftKings"
+       },
+       "moneyline": {
+        "displayName": "Moneyline",
+        "shortDisplayName": "ML",
+        "home": {
+         "close": {
+          "odds": "-155"
+         },
+         "open": {
+          "odds": "-148"
+         }
+        },
+        "away": {
+         "close": {
+          "odds": "+130"
+         },
+         "open": {
+          "odds": "+124"
+         }
+        }
+       },
+       "pointSpread": {
+        "displayName": "Spread",
+        "shortDisplayName": "Spread",
+        "home": {
+         "close": {
+          "line": "-1.5",
+          "odds": "+160"
+         },
+         "open": {
+          "line": "-1.5",
+          "odds": "+154"
+         }
+        },
+        "away": {
+         "close": {
+          "line": "+1.5",
+          "odds": "-192"
+         },
+         "open": {
+          "line": "+1.5",
+          "odds": "-185"
+         }
+        }
+       },
+       "total": {
+        "displayName": "Total",
+        "shortDisplayName": "Total",
+        "over": {
+         "close": {
+          "line": "o6.5",
+          "odds": "+105"
+         },
+         "open": {
+          "line": "o6.5",
+          "odds": "+105"
+         }
+        },
+        "under": {
+         "close": {
+          "line": "u6.5",
+          "odds": "-125"
+         },
+         "open": {
+          "line": "u6.5",
+          "odds": "-125"
+         }
+        }
+       }
+      }
+     ],
+     "id": "401892774",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "10",
+        "abbreviation": "MTL",
+        "displayName": "Montreal Canadiens"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "8",
+        "abbreviation": "LA",
+        "displayName": "Los Angeles Kings"
+       }
+      }
+     ],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Mon, November 23rd at 7:30 PM EST",
+       "shortDetail": "11/23 - 7:30 PM EST"
+      }
+     },
+     "date": "2026-11-24T00:30Z"
+    }
+   ]
+  }
+ ]
+}

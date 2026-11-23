@@ -128,6 +128,17 @@ with safe_section('Multi-book odds board'):
         _obd_lines,_obd_notes,_obd_lerr=_obd.load_lines(lambda f,k,r,m:np_quote_cache().get(f,k,r,m),_np_key if isinstance(_np_key,str) else '',_np_extra_keys)
         _obd_parts=[q for q in ((_np_shared_quotes,) if _obd_market=='Everything' else ())+(_obd_lines,) if isinstance(q,pd.DataFrame) and not q.empty]
         _obd_quotes=pd.concat(_obd_parts,ignore_index=True) if _obd_parts else pd.DataFrame()
+    # V6.2: when the keyed feeds give no row for this market group, fall back to ESPN's free DraftKings prices (1 book,
+    # labelled) and say why the multi-book feed is empty. Nothing changes when the keyed feeds have rows.
+    _obd_primary_canon,_obd_primary_rep=_obd.normalize(_obd_quotes,_obd_games,np_day,market_filter=_obd_market)
+    _obd_primary_reason=None if _obd_primary_canon else _obd.empty_reason(_obd_market,_np_source,bool(_np_key),_np_live_error,_np_shared_error,
+        _np_shared_quotes,_obd_primary_rep,_obd_games,lines_error=_obd_lerr,n_rows_unfiltered=0)
+    _obd_used=[]
+    if _obd_primary_reason and _obd_primary_reason[0] not in ('No games on this slate','Every game has started'):
+        _obd_idx=oddsc.slate_index(_obd_games,(np_snapshot or {}).get('rankings') or [])
+        _obd_quotes,_obd_used,_obd_fb_notes=_obd.with_espn_fallback(_obd_quotes,_obd_games,np_day,_obd_market,_np_source,
+            espn_props=lambda:(np_espn_scorer_quotes(np_day,_obd_idx) or ([],[]))[0],espn_lines=lambda:np_espn_lines(np_day))
+        _obd_notes=list(_obd_notes)+list(_obd_fb_notes)
     _obd_canon,_obd_rep=_obd.normalize(_obd_quotes,_obd_games,np_day,market_filter=_obd_market)
     _obd_all=_obd.build_rows(_obd_canon,tight=_obd_tight,disc=_obd_disc)
     _obd_rows=_obd.filter_rows(_obd_all,_obd_flag,_obd_q)
@@ -136,6 +147,7 @@ with safe_section('Multi-book odds board'):
     _obd_t=sum(r['flag']=='tight' for r in _obd_all); _obd_d=sum(r['flag']=='disc' for r in _obd_all)
     _obd_note=(f'{len(_obd_rows)} of {len(_obd_all)} lines · {_obd_t} tight · {_obd_d} discrepanc{"y" if _obd_d==1 else "ies"}'+(' · '+'; '.join(_obd_notes) if _obd_notes else '')
                +(f' · {st.session_state["v61_odds_failover"]}' if st.session_state.get('v61_odds_failover') else '')) if _obd_all else ''
+    _obd_banner=_obd.fallback_note(_obd_used,_obd_primary_reason) if _obd_used and _obd_all else ''
     if _obd_disc<_obd_tight:
         st.caption('Discrepancy threshold is below the tight threshold; a line can only carry one flag (tight is checked first).')
-    v5.html_block(st,_obd.table_html(_obd_rows,_obd.books(_obd_rows),tight=_obd_tight,disc=_obd_disc,empty=_obd_empty,note=_obd_note),extra_class='v61-obdw')
+    v5.html_block(st,_obd.table_html(_obd_rows,_obd.books(_obd_rows),tight=_obd_tight,disc=_obd_disc,empty=_obd_empty,note=_obd_note,banner=_obd_banner),extra_class='v61-obdw')
