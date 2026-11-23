@@ -2,6 +2,18 @@
 
 Newest first. Model details: [MODEL_CARD.md](MODEL_CARD.md). Older release notes: [docs/notes/](docs/notes/).
 
+## Numbers: omit injured players from gematria results (2026-11-23)
+
+* Anyone listed as injured on the existing public ESPN injuries feed (the same
+  `storylines_v58.espn_fetch('injuries')` source Home / parlays already use) is
+  dropped from every Numbers tab ranking, filter, overlay and table. That includes
+  Out, Day-To-Day, Injured Reserve and Long-Term Injured Reserve. Suspension stays
+  (it is on the feed but is not an injury). The cut happens once, upstream of
+  `num_slate_targets`, on the tab's local rankings frame — not on the shared
+  session rankings, and not on saved gematria logs.
+* If the feed cannot be loaded, the tab keeps the unfiltered results, logs the
+  failure server-side, and does not show a note or control.
+
 ## Prediction Models: experimental Blend restored (2026-11-22)
 
 * Owner request: the Blend column is back exactly as before 3549783. That means four tables (Model, NP, Blend, Books), the

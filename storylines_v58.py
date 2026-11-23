@@ -674,6 +674,36 @@ def out_players(injuries):
     return out
 
 
+# ESPN also puts suspensions on this feed. Those are not injuries; Numbers uses injured_players instead.
+_NOT_INJURY_STATUSES = ('suspended', 'suspension')
+
+
+def injured_players(injuries):
+    """ESPN injuries JSON -> {(norm name, team)} for every player listed as injured.
+
+    Includes Out, Day-To-Day, Injured Reserve, Long-Term Injured Reserve, and any
+    other non-suspension status on the feed. Suspension is not treated as injured.
+    Day-To-Day *is* included here (unlike out_players). Unknown or empty payloads
+    yield an empty set and never raise.
+    """
+    out = set()
+    teams = (injuries or {}).get('injuries') if isinstance(injuries, dict) else None
+    for t in teams or []:
+        if not isinstance(t, dict):
+            continue
+        for i in t.get('injuries') or []:
+            if not isinstance(i, dict):
+                continue
+            if norm(i.get('status')) in _NOT_INJURY_STATUSES:
+                continue
+            ath = i.get('athlete') or {}
+            name = norm(ath.get('displayName'))
+            if not name:
+                continue
+            out.add((name, espn_team((ath.get('team') or {}).get('abbreviation'))))
+    return out
+
+
 def stories_for_day(day):
     """{pid: [tags]} from a finished Storylines build for this slate (empty when the tab has not been built)."""
     out = {}

@@ -57,6 +57,12 @@ if _nb_ok:  # t201: render-time fallback for snapshots saved before the Jersey c
 import lifepath_v61 as _num_lp
 if _nb_ok:  # t209: same render-time fallback for birthdates (cached NHL roster feed + landing fallback, by Player ID; never raises)
     _nb_ranked=_num_lp.fill_frame(_nb_ranked,lambda _t,_p:v61_births_cached(_t,_p))
+# Exclude anyone listed injured on the ESPN feed (silent; on fetch failure leave the frame as-is, log only).
+# Applied once here so every Numbers ranking, filter, overlay and table built from _nb_ranked / _gm_targets omits them.
+# Does not mutate session_state['signals_ranked'] or rewrite historical gematria logs.
+import numbers_injury_v62 as _num_inj
+if _nb_ok:
+    _nb_ranked=_num_inj.apply(_nb_ranked)
 _gm_targets=num_slate_targets(_analyses,_nb_ranked,np_day) if (_nb_ok and _analyses) else None
 _nb_all=numboard.slate_boards(_gm_targets) if _gm_targets is not None else None
 import pos_tag_v59 as _postag
